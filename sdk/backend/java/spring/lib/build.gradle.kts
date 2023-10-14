@@ -1,12 +1,16 @@
+import org.gradle.api.tasks.bundling.Jar
+
 plugins {
     java
+    "java-library"
     id("org.springframework.boot") version "2.7.4" apply false
     id("io.spring.dependency-management") version "1.1.0"
+    id("maven-publish")
 }
 
 version = "0.0.1-SNAPSHOT"
 java.sourceCompatibility = JavaVersion.VERSION_1_8
-
+group = "org.trackedtests"
 
 repositories {
     mavenCentral()
@@ -26,6 +30,9 @@ dependencies {
 dependencies {
 }
 
+tasks.named<Jar>("jar") {
+    archiveBaseName.set("tracked-tests-spring-boot-starter")
+}
 tasks {
 
     withType<JavaCompile> {
@@ -37,3 +44,23 @@ tasks {
         // Exclude the original resource files to avoid duplication in the output JAR
     }
 }
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/awarelabshq/tracked-tests")
+            credentials {
+                username = "nuwansam@gmail.com"
+                password = "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"
+            }
+        }
+    }
+    publications {
+        create<MavenPublication>("mavenJava") {
+            from(components["java"])
+        }
+    }
+}
+
+
