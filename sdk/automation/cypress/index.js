@@ -6,13 +6,14 @@ module.exports = function enableTracking() {
     cy.intercept(
       { url: '*', middleware: true },
       (req) => {
-        const currentTestSuite = Cypress.mocha.getRunner().suite.ctx.parent?.title || '';
-        const currentTestName = Cypress.mocha.getRunner().suite.ctx.test.title;
         const uniqueUUID = uuidv4();
-
-        req.headers['trackedtest.name'] = `${currentTestSuite}#${currentTestName}`;
-        req.headers['trackedtest.invocation_id'] = uniqueUUID;
-        req.headers['trackedtest.type'] = 'automated';
+        const titleParts=Cypress.currentTest.titlePath
+        if(titleParts){
+          const testName = titleParts.join('#');
+          req.headers['trackedtest.name'] = testName;
+          req.headers['trackedtest.invocation_id'] = uniqueUUID;
+          req.headers['trackedtest.type'] = 'automated';
+      }
       }
     );
   });
