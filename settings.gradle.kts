@@ -8,5 +8,6 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
-rootProject.name = "tracked-tests-java-spring"
-include("lib")
+rootProject.name = "tracked-tests"
+include("sdk:backend:java-spring")
+include("sdk:automation:selenium:java-testng")

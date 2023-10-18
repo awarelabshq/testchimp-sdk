@@ -8,7 +8,7 @@ plugins {
     id("maven-publish")
 }
 
-version = "0.0.1-SNAPSHOT"
+version = "0.0.4-SNAPSHOT"
 java.sourceCompatibility = JavaVersion.VERSION_1_8
 group = "org.trackedtests"
 
@@ -17,8 +17,6 @@ repositories {
 }
 
 dependencies {
-    implementation("org.aspectj:aspectjweaver:1.9.7") // AspectJ dependency
-
     // Minimal Spring dependencies for Spring Web support
     implementation("org.springframework.boot:spring-boot-starter-web:2.7.4")
     implementation("io.opentelemetry:opentelemetry-api:1.30.0")
@@ -33,6 +31,7 @@ dependencies {
 tasks.named<Jar>("jar") {
     archiveBaseName.set("tracked-tests-spring-boot-starter")
 }
+
 tasks {
 
     withType<JavaCompile> {
@@ -51,14 +50,15 @@ publishing {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/awarelabshq/tracked-tests")
             credentials {
-                username = "nuwansam@gmail.com"
-                password = "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"
+                username = System.getenv("GITHUB_USER")
+                password = System.getenv("GITHUB_TOKEN")
             }
         }
     }
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
+            artifactId = "tracked-tests-spring-boot-starter" // Set the desired artifactId
         }
     }
 }
