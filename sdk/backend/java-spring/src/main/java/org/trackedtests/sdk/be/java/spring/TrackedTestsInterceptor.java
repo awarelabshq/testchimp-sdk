@@ -27,11 +27,11 @@ public class TrackedTestsInterceptor implements HandlerInterceptor {
             }
             if (testInvocationId != null) {
                 Span span = Span.current();
-                span.setAttribute(Constants.TRACKED_TEST_INVOCATION_ID_ATTRIBUTE, testName);
+                span.setAttribute(Constants.TRACKED_TEST_INVOCATION_ID_ATTRIBUTE, testInvocationId);
             }
             if (testType != null) {
                 Span span = Span.current();
-                span.setAttribute(Constants.TRACKED_TEST_TYPE_ATTRIBUTE, testName);
+                span.setAttribute(Constants.TRACKED_TEST_TYPE_ATTRIBUTE, testType);
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Error occurred in TrackedTestsInterceptor", e);

@@ -8,7 +8,7 @@ plugins {
     id("maven-publish")
 }
 
-version = "0.0.4-SNAPSHOT"
+version = "0.0.5-SNAPSHOT"
 java.sourceCompatibility = JavaVersion.VERSION_1_8
 group = "org.trackedtests"
 
