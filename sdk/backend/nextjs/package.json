@@ -1,0 +1,30 @@
+{
+  "name": "tracked-tests-nextjs",
+  "version": "0.0.1",
+  "description": "Tracked Tests support for NextJS applications",
+  "dependencies": {
+    "@opentelemetry/api": "^1.0.0",
+    "next": "^12.0.0"
+  },
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/awarelabshq/tracked-tests.git"
+  },
+  "keywords": [
+    "Tracked Tests",
+    "automation testing",
+    "test automation",
+    "End to end testing",
+    "Full stack testing"
+  ],
+  "author": "nuwansam@awarelabs.io",
+  "license": "LGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/awarelabshq/tracked-tests/issues"
+  },
+  "homepage": "https://github.com/awarelabshq/tracked-tests#readme"
+}
