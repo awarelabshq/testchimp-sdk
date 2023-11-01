@@ -1,14 +1,14 @@
 {
-  "name": "nodejs",
-  "version": "1.0.0",
-  "description": "",
+  "name": "tracked-tests-nodejs",
+  "version": "0.0.3",
+  "description": "Tracked Tests support for Node Js Backends",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["Tracked Tests","Automation","Test Automation"],
+  "author": "nuwansam@awarelabs.io",
+  "license": "LGPL-3.0-or-later",
   "dependencies": {
     "@opentelemetry/api": "^1.6.0",
     "@opentelemetry/core": "^1.17.1",
