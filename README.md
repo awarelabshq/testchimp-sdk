@@ -1,4 +1,4 @@
-# Tracked Tests
+# Tracked Tests - Bringing Full Stack Visibility to Frontend Automation Tests
 
 ## Introduction
 
