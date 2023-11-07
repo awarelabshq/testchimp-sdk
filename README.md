@@ -2,7 +2,7 @@
 
 ## Introduction
 
-"Tracked Tests" connects your frontend automation tests (Cypress, Selenium, Appium, Playwright etc.) to the full stack execution data of your system by utilizing telemetric tracking, giving you complete transparency in to how the backend systems behaved within the execution of each test case. This is utilized by [Aware Labs](https://awarelabs.io) - A Telemetry Centric Test Governance Platform, to deliver powerful capabilities such as:
+"Tracked Tests" connects your frontend automation tests (Cypress, Selenium, Appium, Playwright etc.) to the full stack execution data of your system by utilizing telemetric tracking, giving you complete transparency in to how the backend systems behaved within the execution of each test case. This is utilized by [Aware Labs](https://awarelabs.io) - "A Telemetry Centric Test Governance Platform", to deliver powerful capabilities such as:
 1) Add assertions on backend behaviour expectations anywhere in the stack - enabling you to augment your existing frontend automation tests to become full stack whitebox tests - so that you dont need to write separate integration tests.
 2) Identify root causes faster when a test fails by leveraging the full stack visibility of what happened in each layer of your backend when serving the requests made within the frontend test
 3) Enable powerful governance functionalities such as identify production execution paths of related flows that are not covered by a given test case - helping you to plan how to improve the test case
@@ -40,10 +40,10 @@ Enabling Tracked Tests requires enabling it in your automation tests and enabing
 
 Steps:
 
-1) Install `tracked-tests-cypress` npm library:
+1) Install `tracked-tests-cypress` npm library:\n
 `npm install tracked-tests-cypress`
-2) Add the following in support/e2e.js:
-`const enableTracking = require('tracked-tests-cypress')
+2) Add the following in support/e2e.js:\n
+`const enableTracking = require('tracked-tests-cypress')\n
 enableTracking();`
 
 ### Updating backends to receive the tracking metadata
