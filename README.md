@@ -96,7 +96,7 @@ npm install tracked-tests-nodejs
 
 ```
 import enableTrackedTests from 'tracked-tests-nodejs';
-`app.use(enableTrackedTests());
+app.use(enableTrackedTests());
 ```
 
 
