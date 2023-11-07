@@ -47,8 +47,8 @@ Steps:
   
 2) Add the following in support/e2e.js:  
 
-`const enableTracking = require('tracked-tests-cypress')  
-enableTracking();`
+`const enableTracking = require('tracked-tests-cypress')`  
+`enableTracking();`
 
   
 ### Updating backends to receive the tracking metadata
@@ -75,8 +75,8 @@ Steps:
   
 2) Add the following in your app.ts (or other entrypoint ts / js file):  
 
-`import enableTrackedTests from 'tracked-tests-nodejs';  
-app.use(enableTrackedTests());`
+`import enableTrackedTests from 'tracked-tests-nodejs';`  
+`app.use(enableTrackedTests());`
 
 
 For questions / suggestions, reach out to [contact@awarelabs.io](mailto:contact@awarelabs.io).
