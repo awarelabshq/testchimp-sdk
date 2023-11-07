@@ -42,13 +42,17 @@ Steps:
 
 1) Install `tracked-tests-cypress` npm library:  
 
-`npm install tracked-tests-cypress`  
+```
+npm install tracked-tests-cypress
+``` 
 
   
 2) Add the following in support/e2e.js:  
 
-`const enableTracking = require('tracked-tests-cypress')`  
-`enableTracking();`
+```
+const enableTracking = require('tracked-tests-cypress')
+`enableTracking();
+```
 
   
 ### Updating backends to receive the tracking metadata
@@ -59,7 +63,9 @@ Steps:
 
 1) Install `tracked-tests-spring-boot-starter` library:  
 
-`implementation("org.trackedtests:tracked-tests-spring-boot-starter:0.0.7-SNAPSHOT")`
+```
+implementation("org.trackedtests:tracked-tests-spring-boot-starter:0.0.7-SNAPSHOT")
+```
 
 In order to access the above package, you need to add the following to the repositories section in your gradle file:
 
@@ -81,13 +87,17 @@ Steps:
 
 1) Install `tracked-tests-nodejs` npm library:  
 
-`npm install tracked-tests-nodejs`
+```
+npm install tracked-tests-nodejs
+```
 
   
 2) Add the following in your app.ts (or other entrypoint ts / js file):  
 
-`import enableTrackedTests from 'tracked-tests-nodejs';`  
-`app.use(enableTrackedTests());`
+```
+import enableTrackedTests from 'tracked-tests-nodejs';
+`app.use(enableTrackedTests());
+```
 
 
 For questions / suggestions, reach out to [contact@awarelabs.io](mailto:contact@awarelabs.io).
