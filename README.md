@@ -61,6 +61,17 @@ Steps:
 
 `implementation("org.trackedtests:tracked-tests-spring-boot-starter:0.0.7-SNAPSHOT")`
 
+In order to access the above package, you need to add the following to the repositories section in your gradle file:
+
+```
+repositories {
+    ...
+    maven {
+        name = "GitHubPackages"
+        url = uri("https://maven.pkg.github.com/awarelabshq/tracked-tests")
+    }
+}
+```
   
 2) Add `@EnabledTrackedTests` to your `@SpringBootApplication` class.
 
