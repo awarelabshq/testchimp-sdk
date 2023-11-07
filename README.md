@@ -40,10 +40,10 @@ Enabling Tracked Tests requires enabling it in your automation tests and enabing
 
 Steps:
 
-1) Install `tracked-tests-cypress` npm library:\n
+1) Install `tracked-tests-cypress` npm library:  
 `npm install tracked-tests-cypress`
-2) Add the following in support/e2e.js:\n
-`const enableTracking = require('tracked-tests-cypress')\n
+2) Add the following in support/e2e.js:  
+`const enableTracking = require('tracked-tests-cypress')  
 enableTracking();`
 
 ### Updating backends to receive the tracking metadata
@@ -52,7 +52,7 @@ enableTracking();`
 
 Steps:
 
-1) Install `tracked-tests-spring-boot-starter` library:
+1) Install `tracked-tests-spring-boot-starter` library:  
 `implementation("org.trackedtests:tracked-tests-spring-boot-starter:0.0.7-SNAPSHOT")`
 2) Add `@EnabledTrackedTests` to your `@SpringBootApplication` class.
 
@@ -60,10 +60,10 @@ Steps:
 
 Steps:
 
-1) Install `tracked-tests-nodejs` npm library:
+1) Install `tracked-tests-nodejs` npm library:  
 `npm install tracked-tests-nodejs`
-2) Add the following in your app.ts (or other entrypoint ts / js file):
-`import enableTrackedTests from 'tracked-tests-nodejs';
+2) Add the following in your app.ts (or other entrypoint ts / js file):  
+`import enableTrackedTests from 'tracked-tests-nodejs';  
 app.use(enableTrackedTests());`
 
 Proudly powered by [Aware Labs](https://awarelabs.io)
