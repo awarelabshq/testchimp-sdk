@@ -48,13 +48,13 @@ function logProtoProperty(protoMessage) {
 }
 
 // Utility function to check assertions
-function checkAssertions(config, invocationId, maxRetries, waitTime) {
+function checkAssertions(config, invocationId, maxRetries, waitTime, failFast) {
   if (maxRetries <= 0) {
     cy.log("Maximum number of retries exhausted. Skipped backend assertion verification.");
-    return;
+    return Cypress.Promise.resolve(true);
   }
 
-  cy.request({
+  return cy.request({
     method: 'POST',
     url: `${config.api_endpoint}/assert_invocation`,
     headers: {
@@ -74,10 +74,13 @@ function checkAssertions(config, invocationId, maxRetries, waitTime) {
         cy.log(`Left Actual Value: ${leftActualValue}`);
         cy.log(`Right Actual Value: ${rightActualValue}`);
         cy.log(`Result: ${assertionResult.result}`);
-        // Log additional information as needed
       });
-      // You can fail the test if needed
-      // cy.fail('Backend assertion failed');
+      if (failFast===true) {
+        cy.fail('Failing test since backend assertions failed');
+        return Cypress.Promise.resolve(false);
+      } else {
+        return Cypress.Promise.resolve(false);
+      }
     } else if (response.body.invocationResult === 'PASSED') {
       cy.log('All backend assertions passed');
       response.body.assertionResults.forEach((assertionResult) => {
@@ -87,18 +90,20 @@ function checkAssertions(config, invocationId, maxRetries, waitTime) {
         cy.log(`Left Actual Value: ${leftActualValue}`);
         cy.log(`Right Actual Value: ${rightActualValue}`);
         cy.log(`Result: ${assertionResult.result}`);
-        // Log additional information as needed
       });
+      return Cypress.Promise.resolve(true);
     } else {
       // No results found, retry after the specified wait time
-      cy.wait(30000);
-      checkAssertions(config, invocationId, maxRetries - 1, waitTime);
+      return cy.wait(waitTime).then(() => {
+        return checkAssertions(config, invocationId, maxRetries - 1, waitTime, failFast);
+      });
     }
   });
 }
 
+
 // Cypress custom command for verifying backend assertions
-Cypress.Commands.add('verifyBackendAssertions', (waitTime = 120000) => {
+Cypress.Commands.add('verifyBackendAssertions', (waitTime = 120000,retryWaitTime=30000,maxRetryAttempts=2) => {
   try {
     cy.fixture('tracked-tests-config.json').then((configData) => {
       const config = configData;
@@ -120,7 +125,7 @@ Cypress.Commands.add('verifyBackendAssertions', (waitTime = 120000) => {
 
       // Start checking assertions
       cy.wait(waitTime);
-      checkAssertions(config, invocationId, 2, waitTime);
+      checkAssertions(config, invocationId, maxRetryAttempts, retryWaitTime,true);
     });
   } catch (error) {
     console.error(error);
@@ -128,3 +133,46 @@ Cypress.Commands.add('verifyBackendAssertions', (waitTime = 120000) => {
     console.error('WARNING: Your tracked-tests-config.json file is not present in the fixtures folder. Please set up the configuration.');
   }
 });
+
+// Cypress custom command for verifying backend assertions in all tests within the current suite
+Cypress.Commands.add('verifyAllBackendAssertionsInSuite', (waitTime = 120000, retryWaitTime = 0, maxRetryAttempts = 1) => {
+  try {
+    cy.fixture('tracked-tests-config.json').then((configData) => {
+      const config = configData;
+      if (!config || !config.project_id || !config.api_key || !config.api_endpoint) {
+        // Log a message if any of the required fields are missing in the config
+        cy.log('Missing configuration fields. Please ensure that "project_id," "api_key," and "api_endpoint" are set in the fixtures/tracked-tests-config.json.');
+        return;
+      }
+      cy.wait(waitTime);
+
+      let failedAssertionsCount = 0;
+
+      invocationIdMap.forEach((invocationId, testKey) => {
+        cy.log("Verifying backend assertions for " + testKey + " invocation_id: " + invocationId);
+        checkAssertions(config, invocationId, maxRetryAttempts, retryWaitTime, false).then(success => {
+          if (!success) {
+            cy.log("Backend assertions failed for " + testKey);
+            failedAssertionsCount++;
+          }
+        });
+      });
+
+      // Delay the check to ensure the loop has completed
+      cy.wait(500).then(() => {
+        const anyTestFailed = failedAssertionsCount > 0;
+        cy.log("failed assertion count " + failedAssertionsCount).then(()=>{
+          if (anyTestFailed) {
+            // Fail the test if any assertion failed
+            cy.fail('One or more backend assertions failed');
+          }
+        });
+      });
+    });
+  } catch (error) {
+    console.error(error);
+    // Handle the case where the file is not present
+    console.error('WARNING: Your tracked-tests-config.json file is not present in the fixtures folder. Please set up the configuration.');
+  }
+});
+

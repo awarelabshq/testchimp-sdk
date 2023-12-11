@@ -1,6 +1,6 @@
 {
   "name": "tracked-tests-nodejs",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Tracked Tests support for Node Js Backends",
   "main": "index.js",
   "scripts": {
