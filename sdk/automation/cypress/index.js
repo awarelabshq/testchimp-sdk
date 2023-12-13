@@ -21,7 +21,7 @@ module.exports = function enableTracking(disableLogging) {
                     req.headers['trackedtest.suite'] = suite;
                     req.headers['trackedtest.name'] = name;
                     req.headers['trackedtest.invocation_id'] = uniqueUUID;
-                    req.headers['trackedtest.type'] = 'cypress';
+                    req.headers['test.type'] = 'cypress';
                     if (!disableLogging) {
                         console.log("Tracked Test metadata attached" + " suite: " + suite + " name: " + name + " invocation_id: " + uniqueUUID);
                     }

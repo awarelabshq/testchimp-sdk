@@ -9,7 +9,7 @@ function enableTrackedTests() {
     const testName = req.headers['trackedtest.name'];
     const testSuite = req.headers['trackedtest.suite'];
     const invocationId = req.headers['trackedtest.invocation_id'];
-    const testType = req.headers['trackedtest.type'];
+    const testType = req.headers['test.type'];
 
     if(trace.getSpan(context.active())){
           // If there's an active span, add the header values to the current span
@@ -23,7 +23,7 @@ function enableTrackedTests() {
             trace.getSpan(context.active()).setAttribute('trackedtest.invocation_id', invocationId);
         }
         if (testType) {
-            trace.getSpan(context.active()).setAttribute('trackedtest.type', testType);
+            trace.getSpan(context.active()).setAttribute('test.type', testType);
         }
     }
     next(); // Continue processing the request

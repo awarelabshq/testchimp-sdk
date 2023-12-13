@@ -1,6 +1,6 @@
 {
   "name": "tracked-tests-nextjs",
-  "version": "0.0.37",
+  "version": "0.0.4",
   "description": "Tracked Tests support for NextJS applications",
   "types": "src/index.d.ts",
   "dependencies": {

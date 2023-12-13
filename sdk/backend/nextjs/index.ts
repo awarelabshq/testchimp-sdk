@@ -21,8 +21,8 @@ const TrackedTestsMiddleware = (handler: NextApiHandler): NextApiHandler => {
     if (headers['trackedtest.invocation_id'] != null) {
       span.setAttribute("trackedtest.invocation_id", headers['trackedtest.invocation_id'] );
     }
-    if (headers['trackedtest.type'] != null) {
-      span.setAttribute("trackedtest.type", headers['trackedtest.type'] );
+    if (headers['test.type'] != null) {
+      span.setAttribute("test.type", headers['test.type'] );
     }
   };
 };

@@ -25,7 +25,9 @@ public class TrackedTestHelper {
             String className = stackTraceElements[2].getClassName();
             String methodName = stackTraceElements[2].getMethodName();
             proxy.addHeader("trackedtest.name", className + "#" + methodName);
+            proxy.addHeader("trackedtest.suite", className);
             proxy.addHeader("trackedtest.invocation_id", UUID.randomUUID().toString());
+            proxy.addHeader("test.type", "selenium");
         }
     }
 
