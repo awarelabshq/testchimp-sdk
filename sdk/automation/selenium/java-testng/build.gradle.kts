@@ -7,7 +7,7 @@ plugins {
     id("maven-publish")
 }
 
-version = "0.0.1-SNAPSHOT"
+version = "0.0.2-SNAPSHOT"
 java.sourceCompatibility = JavaVersion.VERSION_1_8
 group = "org.trackedtests"
 
@@ -52,7 +52,7 @@ publishing {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/awarelabshq/tracked-tests")
             credentials {
-                username = System.getenv("GITHUB_USERNAME")
+                username = System.getenv("GITHUB_USER")
                 password = System.getenv("GITHUB_TOKEN")
             }
         }
