@@ -2,7 +2,7 @@ apply plugin: 'java'
 apply plugin: 'maven-publish'
 
 group = 'org.trackedtests'
-version = '0.0.81'
+version = '0.0.82'
 
 repositories {
     mavenCentral()
@@ -17,17 +17,10 @@ dependencies {
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-java {
-    withSourcesJar()
-}
-
 publishing {
     publications {
-        mavenJava(MavenPublication) {
+        maven(MavenPublication) {
             from components.java
-            groupId = 'org.trackedtests'
-            artifactId = 'tracked-tests-spring-boot-starter'
-            version = '0.0.81'
         }
     }
 }
