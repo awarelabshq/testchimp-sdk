@@ -41,18 +41,18 @@ Enabling Tracked Tests requires enabling it in your automation tests and enabing
 
 Steps:
 
-1) Install `tracked-tests-cypress` npm library:  
+1. Install `tracked-tests-cypress` npm library:  
 
 ```
 npm install tracked-tests-cypress
 ``` 
 
   
-2) Add the following in support/e2e.js:  
+2. Add the following in `support/e2e.js` file:  
 
 ```
 const enableTracking = require('tracked-tests-cypress')
-`enableTracking();
+enableTracking();
 ```
 
   
@@ -65,17 +65,17 @@ Steps:
 1. Add JitPack Repository in your gradle file:
 
 ```
-		repositories {
-			maven { url 'https://jitpack.io' }
-		}
+repositories {
+	maven { url 'https://jitpack.io' }
+}
 ```
 
 2. Add tracked-tests library dependency:
 
 ```
-	dependencies {
-	        implementation 'com.github.awarelabshq:tracked-tests:0.0.82'
-	}
+dependencies {
+        implementation 'com.github.awarelabshq:tracked-tests:0.0.82'
+}
 ```
   
 3. Add `@EnabledTrackedTests` to your `@SpringBootApplication` class.
