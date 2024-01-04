@@ -1,4 +1,5 @@
 # Tracked Tests - Bringing Full Stack Visibility to Frontend Automation Tests
+[![](https://jitpack.io/v/awarelabshq/tracked-tests.svg)](https://jitpack.io/#awarelabshq/tracked-tests)
 
 ## Introduction
 
@@ -61,38 +62,36 @@ const enableTracking = require('tracked-tests-cypress')
 
 Steps:
 
-1) Install `tracked-tests-spring-boot-starter` library:  
+1. Add JitPack Repository in your gradle file:
 
 ```
-implementation("org.trackedtests:tracked-tests-spring-boot-starter:0.0.7-SNAPSHOT")
+		repositories {
+			maven { url 'https://jitpack.io' }
+		}
 ```
 
-In order to access the above package, you need to add the following to the repositories section in your gradle file:
+2. Add tracked-tests library dependency:
 
 ```
-repositories {
-    ...
-    maven {
-        name = "GitHubPackages"
-        url = uri("https://maven.pkg.github.com/awarelabshq/tracked-tests")
-    }
-}
+	dependencies {
+	        implementation 'com.github.awarelabshq:tracked-tests:0.0.82'
+	}
 ```
   
-2) Add `@EnabledTrackedTests` to your `@SpringBootApplication` class.
+3. Add `@EnabledTrackedTests` to your `@SpringBootApplication` class.
 
 ### NodeJS
 
 Steps:
 
-1) Install `tracked-tests-nodejs` npm library:  
+1. Install `tracked-tests-nodejs` npm library:  
 
 ```
 npm install tracked-tests-nodejs
 ```
 
   
-2) Add the following in your app.ts (or other entrypoint ts / js file):  
+2. Add the following in your app.ts (or other entrypoint ts / js file):  
 
 ```
 import enableTrackedTests from 'tracked-tests-nodejs';
