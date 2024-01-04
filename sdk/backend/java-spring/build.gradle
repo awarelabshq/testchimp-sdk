@@ -1,0 +1,33 @@
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+
+group = 'org.trackedtests'
+version = '0.0.81'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web:2.7.4'
+    implementation 'io.opentelemetry:opentelemetry-api:1.30.0'
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-instrumentation-annotations:1.29.0'
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+java {
+    withSourcesJar()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            groupId = 'org.trackedtests'
+            artifactId = 'tracked-tests-spring-boot-starter'
+            version = '0.0.81'
+        }
+    }
+}
