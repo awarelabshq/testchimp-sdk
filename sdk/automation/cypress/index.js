@@ -5,6 +5,11 @@ const invocationIdMap = new Map();
 
 // Update the enableTracking function to accept parameters and maintain invocation IDs
 module.exports = function enableTracking(disableLogging) {
+
+    before(()=>{
+          invocationIdMap.clear();
+    });
+
     beforeEach(() => {
         const uniqueUUID = uuidv4();
         const titleParts = Cypress.currentTest.titlePath;
