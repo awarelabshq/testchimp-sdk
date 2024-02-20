@@ -33,17 +33,20 @@ public class HttpRequestCaptureFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain chain) throws IOException, ServletException {
-        if (config != null && config.getIgnoredUriPatterns() != null) {
-            List<String> ignoredUriPatterns = config.getIgnoredUriPatterns();
-            for (String ignoredPattern : ignoredUriPatterns) {
-                if (((HttpServletRequest) servletRequest).getRequestURI().matches(ignoredPattern)) {
-                    chain.doFilter(servletRequest, servletResponse);
-                }
-            }
-        }
+
 
         CachedRequestHttpServletRequest cachedRequestHttpServletRequest =
                 new CachedRequestHttpServletRequest((HttpServletRequest) servletRequest);
+
+        if (config != null && config.getIgnoredUriPatterns() != null) {
+            List<String> ignoredUriPatterns = config.getIgnoredUriPatterns();
+            for (String ignoredPattern : ignoredUriPatterns) {
+                if (((HttpServletRequest) cachedRequestHttpServletRequest).getRequestURI().matches(ignoredPattern)) {
+                    chain.doFilter(cachedRequestHttpServletRequest, servletResponse);
+                    return;
+                }
+            }
+        }
 
         String body = getBody(cachedRequestHttpServletRequest);
         Map<String, String> headers = getRequestHeaders(cachedRequestHttpServletRequest);
