@@ -31,7 +31,7 @@ public class HttpRequestCaptureFilter implements Filter {
     @Autowired(required = false)
     private IRequestCaptureConfig config;
 
-    @Autowired
+    @Autowired(required = true)
     private OpenTelemetry openTelemetry;
 
     /* Just to avoid logging credentials or related details. You can empty this list or remove it completely if you
@@ -45,50 +45,49 @@ public class HttpRequestCaptureFilter implements Filter {
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain chain) throws IOException, ServletException {
         Span span = Span.current();
-        Span createCachedRequest = openTelemetry.getTracer("tracked-tests").spanBuilder("create_cached_request")
+        Span filterSpan = openTelemetry.getTracer("tracked-tests").spanBuilder("capture_request_body")
                 .setParent(Context.current()).startSpan();
-        createCachedRequest.makeCurrent();
-        CachedRequestHttpServletRequest cachedRequestHttpServletRequest = new CachedRequestHttpServletRequest((HttpServletRequest) servletRequest);
-        createCachedRequest.end();
+        CachedRequestHttpServletRequest cachedRequestHttpServletRequest = null;
+        try (Scope scope = filterSpan.makeCurrent()) {
+            cachedRequestHttpServletRequest =
+                    new CachedRequestHttpServletRequest((HttpServletRequest) servletRequest);
 
-        if (config != null && config.getIgnoredUriPatterns() != null) {
-            List<String> ignoredUriPatterns = config.getIgnoredUriPatterns();
-            for (String ignoredPattern : ignoredUriPatterns) {
-                if (((HttpServletRequest) cachedRequestHttpServletRequest).getRequestURI()
-                        .matches(ignoredPattern)) {
-                    chain.doFilter(cachedRequestHttpServletRequest, servletResponse);
-                    return;
+            if (config != null && config.getIgnoredUriPatterns() != null) {
+                List<String> ignoredUriPatterns = config.getIgnoredUriPatterns();
+                for (String ignoredPattern : ignoredUriPatterns) {
+                    if (((HttpServletRequest) cachedRequestHttpServletRequest).getRequestURI()
+                            .matches(ignoredPattern)) {
+                        chain.doFilter(cachedRequestHttpServletRequest, servletResponse);
+                        return;
+                    }
                 }
             }
-        }
 
-        Span extractBodySpan = openTelemetry.getTracer("tracked-tests").spanBuilder("request_body_extract")
-                .setParent(Context.current()).startSpan();
-        extractBodySpan.makeCurrent();
-        String body = getBody(cachedRequestHttpServletRequest);
-        Map<String, String> headers = getRequestHeaders(cachedRequestHttpServletRequest);
-        if (config != null && config.getRequestSanitizerMap() != null) {
-            Set<String> uriPatterns = config.getRequestSanitizerMap().keySet();
-            for (String uriPattern : uriPatterns) {
-                if (cachedRequestHttpServletRequest.getRequestURI().matches(uriPattern)) {
-                    IRequestSanitizer sanitizer = config.getRequestSanitizerMap().get(uriPattern);
-                    body = sanitizer.getSanitizedBody(body);
-                    headers = sanitizer.getSanitizedHeadersMap(headers);
-                    break;
+            String body = getBody(cachedRequestHttpServletRequest);
+            Map<String, String> headers = getRequestHeaders(cachedRequestHttpServletRequest);
+            if (config != null && config.getRequestSanitizerMap() != null) {
+                Set<String> uriPatterns = config.getRequestSanitizerMap().keySet();
+                for (String uriPattern : uriPatterns) {
+                    if (cachedRequestHttpServletRequest.getRequestURI().matches(uriPattern)) {
+                        IRequestSanitizer sanitizer = config.getRequestSanitizerMap().get(uriPattern);
+                        body = sanitizer.getSanitizedBody(body);
+                        headers = sanitizer.getSanitizedHeadersMap(headers);
+                        break;
+                    }
                 }
             }
-        }
-        ObjectMapper objectMapper = new ObjectMapper();
-        if (span != null) {
-            if (body != null) {
-                span.setAttribute(REQUEST_BODY_SPAN_ATTRIBUTE, body);
+            ObjectMapper objectMapper = new ObjectMapper();
+            if (span != null) {
+                if (body != null) {
+                    span.setAttribute(REQUEST_BODY_SPAN_ATTRIBUTE, body);
+                }
+                if (headers != null) {
+                    span.setAttribute(REQUEST_HEADERS_SPAN_ATTRIBUTE, objectMapper.writeValueAsString(headers));
+                }
             }
-            if (headers != null) {
-                span.setAttribute(REQUEST_HEADERS_SPAN_ATTRIBUTE, objectMapper.writeValueAsString(headers));
-            }
+        } finally {
+            filterSpan.end();
         }
-        extractBodySpan.end();
-
         chain.doFilter(cachedRequestHttpServletRequest, servletResponse);
     }
 
