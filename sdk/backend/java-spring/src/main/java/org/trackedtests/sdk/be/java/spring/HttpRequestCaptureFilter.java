@@ -36,7 +36,7 @@ public class HttpRequestCaptureFilter implements Filter {
     want to log the security details too. */
     private static final List<String> HEADERS_TO_SKIP = Arrays.asList("authorization", "token", "security", "oauth", "auth");
 
-    HttpRequestCaptureFilter(Tracer tracer) {
+    public HttpRequestCaptureFilter(Tracer tracer) {
         this.tracer = tracer;
     }
 
