@@ -47,7 +47,7 @@ public class HttpRequestCaptureFilter implements Filter {
         Span span = Span.current();
         Span filterSpan = openTelemetry.getTracer("tracked-tests").spanBuilder("capture_request_body")
                 .setParent(Context.current()).startSpan();
-        CachedRequestHttpServletRequest cachedRequestHttpServletRequest = null;
+        CachedRequestHttpServletRequest cachedRequestHttpServletRequest;
         try (Scope scope = filterSpan.makeCurrent()) {
             cachedRequestHttpServletRequest =
                     new CachedRequestHttpServletRequest((HttpServletRequest) servletRequest);
@@ -57,6 +57,7 @@ public class HttpRequestCaptureFilter implements Filter {
                 for (String ignoredPattern : ignoredUriPatterns) {
                     if (((HttpServletRequest) cachedRequestHttpServletRequest).getRequestURI()
                             .matches(ignoredPattern)) {
+                        filterSpan.end();
                         chain.doFilter(cachedRequestHttpServletRequest, servletResponse);
                         return;
                     }
