@@ -1,6 +1,6 @@
 {
   "name": "tracked-tests-cypress",
-  "version": "0.0.87",
+  "version": "0.0.871",
   "description": "Tracked Tests support for Cypress",
   "main": "index.js",
   "scripts": {

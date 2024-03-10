@@ -1,34 +1,41 @@
-const { v4: uuidv4 } = require('uuid');
 
 // Define a global variable to store invocation IDs
 const invocationIdMap = new Map();
+const invocationIdToTraceIdMap = new Map();
 
 // Update the enableTracking function to accept parameters and maintain invocation IDs
 module.exports = function enableTracking(disableLogging) {
 
     before(()=>{
           invocationIdMap.clear();
-    });
+          invocationIdToTraceIdMap.clear();
+     });
 
     beforeEach(() => {
-        const uniqueUUID = uuidv4();
+        const invocationId=generateInvocationId();
         const titleParts = Cypress.currentTest.titlePath;
         const suite = titleParts[0];
         const name = titleParts[1];
         const testKey = `${suite}#${name}`;
 
-        invocationIdMap.set(testKey, uniqueUUID);
+        invocationIdMap.set(testKey, invocationId);
         cy.intercept(
             { url: '*', middleware: true },
             (req) => {
-                ;
                 if (titleParts && titleParts.length >= 2 && titleParts[1] !== 'after all') {
+                    const {traceId,invocationId,traceparent}=generateTraceparent(invocationId);
+                    if (!invocationIdToTraceIdMap.has(invocationId)) {
+                            invocationIdToTraceIdMap.set(invocationId, new Set());
+                    }
+                    invocationIdToTraceIdMap.get(invocationId).add(traceId);
+
                     req.headers['trackedtest.suite'] = suite;
                     req.headers['trackedtest.name'] = name;
-                    req.headers['trackedtest.invocation_id'] = uniqueUUID;
+                    req.headers['trackedtest.invocation_id'] = invocationId;
                     req.headers['test.type'] = 'cypress';
+                    req.headers['traceparent']=traceparent;
                     if (!disableLogging) {
-                        console.log("Tracked Test metadata attached" + " suite: " + suite + " name: " + name + " invocation_id: " + uniqueUUID);
+                        console.log("Tracked Test metadata attached" + " suite: " + suite + " name: " + name + " invocation_id: " + invocationId);
                     }
                 }
             });
@@ -37,6 +44,7 @@ module.exports = function enableTracking(disableLogging) {
     // After all, clear the map
     after(() => {
         invocationIdMap.clear();
+        invocationIdToTraceIdMap.clear();
     });
 };
 
@@ -50,6 +58,27 @@ function logProtoProperty(protoMessage) {
   } else {
     return 'No value present';
   }
+}
+
+function generateInvocationId(){
+ return Array(16)
+        .fill()
+        .map(() => Math.floor(Math.random() * 16).toString(16))
+        .join('');
+}
+
+function generateTraceparent(invocationId) {
+    // Generate random trace ID (hexadecimal, 32 characters)
+    const traceId = Array(32)
+        .fill()
+        .map(() => Math.floor(Math.random() * 16).toString(16))
+        .join('');
+
+    // Combine trace ID and parent ID in a traceparent format
+    const traceparent = `00-${traceId}-${invocationId}-01`;
+
+    // Return trace ID, parent ID, and traceparent
+    return { traceId, invocationId, traceparent };
 }
 
 // Utility function to check assertions
@@ -68,8 +97,9 @@ function checkAssertions(config, invocationId, maxRetries, waitTime, failFast) {
     },
     body: {
       "invocation_id": invocationId,
+      "trace_ids": Array.from(invocationIdToTraceIdMap.get(invocationId) || new Set())
     },
-  }).then((response) => {
+   }).then((response) => {
     if (response.body.invocationResult === 'FAILED') {
       cy.log('Backend assertions failed');
       response.body.assertionResults.forEach((assertionResult) => {
