@@ -114,7 +114,8 @@ function checkAssertions(config, invocationId, maxRetries, waitTime, failFast,qu
       "test_name":{
             "name":testName,
             "suite":testSuite
-      }
+      },
+      "test_type":"cypress"
     },
    }).then((response) => {
     if (response.body.invocationResult === 'FAILED') {
