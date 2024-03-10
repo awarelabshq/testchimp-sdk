@@ -12,7 +12,8 @@ module.exports = function enableTracking(disableLogging) {
      });
 
     beforeEach(() => {
-        const invocationId=generateInvocationId();
+        const invocationId=Array(16).fill().map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+        console.log("invocation id: " + invocationId);
         const titleParts = Cypress.currentTest.titlePath;
         const suite = titleParts[0];
         const name = titleParts[1];
@@ -23,7 +24,7 @@ module.exports = function enableTracking(disableLogging) {
             { url: '*', middleware: true },
             (req) => {
                 if (titleParts && titleParts.length >= 2 && titleParts[1] !== 'after all') {
-                    const {traceId,invocationId,traceparent}=generateTraceparent(invocationId);
+                    const {traceId,_,traceparent}=generateTraceparent(invocationId);
                     if (!invocationIdToTraceIdMap.has(invocationId)) {
                             invocationIdToTraceIdMap.set(invocationId, new Set());
                     }
@@ -35,11 +36,25 @@ module.exports = function enableTracking(disableLogging) {
                     req.headers['test.type'] = 'cypress';
                     req.headers['traceparent']=traceparent;
                     if (!disableLogging) {
-                        console.log("Tracked Test metadata attached" + " suite: " + suite + " name: " + name + " invocation_id: " + invocationId);
+                        console.log("Tracked Test metadata attached" + " suite: " + suite + " name: " + name + " invocation_id: " + invocationId + " traceparent " + traceparent);
                     }
                 }
             });
     });
+
+    function generateTraceparent(invocationId) {
+        // Generate random trace ID (hexadecimal, 32 characters)
+        const traceId = Array(32)
+            .fill()
+            .map(() => Math.floor(Math.random() * 16).toString(16))
+            .join('');
+
+        // Combine trace ID and parent ID in a traceparent format
+        const traceparent = `00-${traceId}-${invocationId}-01`;
+
+        // Return trace ID, parent ID, and traceparent
+        return { traceId, invocationId, traceparent };
+    }
 
     // After all, clear the map
     after(() => {
@@ -60,26 +75,9 @@ function logProtoProperty(protoMessage) {
   }
 }
 
-function generateInvocationId(){
- return Array(16)
-        .fill()
-        .map(() => Math.floor(Math.random() * 16).toString(16))
-        .join('');
-}
 
-function generateTraceparent(invocationId) {
-    // Generate random trace ID (hexadecimal, 32 characters)
-    const traceId = Array(32)
-        .fill()
-        .map(() => Math.floor(Math.random() * 16).toString(16))
-        .join('');
 
-    // Combine trace ID and parent ID in a traceparent format
-    const traceparent = `00-${traceId}-${invocationId}-01`;
 
-    // Return trace ID, parent ID, and traceparent
-    return { traceId, invocationId, traceparent };
-}
 
 function extractSuiteAndName(testKey) {
     const delimiterIndex = testKey.indexOf('#');
