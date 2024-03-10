@@ -81,13 +81,26 @@ function generateTraceparent(invocationId) {
     return { traceId, invocationId, traceparent };
 }
 
+function extractSuiteAndName(testKey) {
+    const delimiterIndex = testKey.indexOf('#');
+    if (delimiterIndex === -1) {
+        return { suite: null, name: null };
+    }
+
+    const suite = testKey.substring(0, delimiterIndex);
+    const name = testKey.substring(delimiterIndex + 1);
+
+    return { suite, name };
+}
+
 // Utility function to check assertions
-function checkAssertions(config, invocationId, maxRetries, waitTime, failFast) {
+function checkAssertions(config, invocationId, maxRetries, waitTime, failFast,qualifiedTestName) {
   if (maxRetries <= 0) {
     cy.log("Maximum number of retries exhausted. Skipped backend assertion verification.");
     return Cypress.Promise.resolve(true);
   }
 
+  const {testSuite,testName}=extractSuiteAndName(qualifiedTestName);
   return cy.request({
     method: 'POST',
     url: `${config.api_endpoint}/assert_invocation`,
@@ -97,7 +110,11 @@ function checkAssertions(config, invocationId, maxRetries, waitTime, failFast) {
     },
     body: {
       "invocation_id": invocationId,
-      "trace_ids": Array.from(invocationIdToTraceIdMap.get(invocationId) || new Set())
+      "trace_ids": Array.from(invocationIdToTraceIdMap.get(invocationId) || new Set()),
+      "test_name":{
+            "name":testName,
+            "suite":testSuite
+      }
     },
    }).then((response) => {
     if (response.body.invocationResult === 'FAILED') {
@@ -130,7 +147,7 @@ function checkAssertions(config, invocationId, maxRetries, waitTime, failFast) {
     } else {
       // No results found, retry after the specified wait time
       return cy.wait(waitTime).then(() => {
-        return checkAssertions(config, invocationId, maxRetries - 1, waitTime, failFast);
+        return checkAssertions(config, invocationId, maxRetries - 1, waitTime, failFast,qualifiedTestName);
       });
     }
   });
@@ -160,7 +177,7 @@ Cypress.Commands.add('verifyBackendAssertions', (waitTime = 120000,retryWaitTime
 
       // Start checking assertions
       cy.wait(waitTime);
-      checkAssertions(config, invocationId, maxRetryAttempts, retryWaitTime,true);
+      checkAssertions(config, invocationId, maxRetryAttempts, retryWaitTime,true,testKey);
     });
   } catch (error) {
     console.error(error);
@@ -185,7 +202,7 @@ Cypress.Commands.add('verifyAllBackendAssertionsInSuite', (waitTime = 120000, re
 
       invocationIdMap.forEach((invocationId, testKey) => {
         cy.log("Verifying backend assertions for " + testKey + " invocation_id: " + invocationId);
-        checkAssertions(config, invocationId, maxRetryAttempts, retryWaitTime, false).then(success => {
+        checkAssertions(config, invocationId, maxRetryAttempts, retryWaitTime, false,testKey).then(success => {
           if (!success) {
             cy.log("Backend assertions failed for " + testKey);
             failedAssertionsCount++;
