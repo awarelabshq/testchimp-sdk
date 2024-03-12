@@ -5,6 +5,7 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
+// No need of this. Use OTel config to add the http headers to be captured.
 public class TrackedTestsConfiguration implements WebMvcConfigurer {
 
 

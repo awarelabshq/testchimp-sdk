@@ -11,6 +11,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Component
+// No need to use this. Can add the http headers to be captured as part of OTel configuration.
 public class TrackedTestsInterceptor implements HandlerInterceptor {
     private static final Logger logger = Logger.getLogger(TrackedTestsInterceptor.class.getName());
 

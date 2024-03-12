@@ -10,9 +10,6 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/sdk" />
-            <option value="$PROJECT_DIR$/sdk/automation" />
-            <option value="$PROJECT_DIR$/sdk/automation/selenium" />
-            <option value="$PROJECT_DIR$/sdk/automation/selenium/java-testng" />
             <option value="$PROJECT_DIR$/sdk/backend" />
             <option value="$PROJECT_DIR$/sdk/backend/java-spring" />
           </set>
