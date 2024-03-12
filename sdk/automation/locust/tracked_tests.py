@@ -1,19 +1,39 @@
-from locust import TaskSet
-import uuid
+import secrets
+from functools import wraps
+from locust import HttpUser, task
 
-class TrackedTasks(TaskSet):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.invocation_id = uuid.uuid4()  # Generate a UUID for each task invocation
+class TrackedTask:
+    task_invocation_ids = {}
 
-    def __getattr__(self, attr):
+    @classmethod
+    def add_tracked_headers(cls, client, class_name, task_name, trace_parent):
+        headers = {
+            'trackedtest.suite': class_name,
+            'trackedtest.name': f"{class_name}#{task_name}",
+            'test.type': 'locust',
+            'traceparent': trace_parent
+        }
+        client.headers.update(headers)
+
+def generate_trace_id():
+    # Generate a random 32-character hexadecimal string for Trace ID
+    return secrets.token_hex(16)
+
+def generate_invocation_id():
+    # Generate a random 32-character hexadecimal string for Invocation ID
+    return secrets.token_hex(16)
+
+def tracked_task(task_weight=1):
+    def decorator(func):
+        @wraps(func)
         def wrapper(*args, **kwargs):
-            request_name = f"{self.__class__.__name__}.{attr}"  # Generate request name
-            kwargs['headers'] = kwargs.get('headers', {})
-            kwargs['headers']['trackedtest.name'] = request_name  # Add trackedtest.name
-            kwargs['headers']['trackedtest.suite'] = self.__class__.__name__  # Add trackedtest.suite
-            kwargs['headers']['trackedtest.invocation_id'] = str(self.invocation_id)  # Add trackedtest.invocation_id
-            kwargs['headers']['test.type'] = "locust"  # Add trackedtest.name
-            return getattr(self.client, attr)(*args, **kwargs)
-
-        return wrapper
+            class_name = func.__qualname__.split('.')[0]
+            user = args[0]
+            if func.__name__ not in TrackedTask.task_invocation_ids:
+                TrackedTask.task_invocation_ids[func.__name__] = generate_invocation_id()
+            trace_id = generate_trace_id()
+            trace_parent = f"00-{trace_id}-{TrackedTask.task_invocation_ids[func.__name__]}-00"
+            TrackedTask.add_tracked_headers(user.client, class_name, func.__name__, trace_parent)
+            return func(*args, **kwargs)
+        return task(weight=task_weight)(wrapper)
+    return decorator
