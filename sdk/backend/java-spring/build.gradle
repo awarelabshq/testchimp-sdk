@@ -2,7 +2,7 @@ apply plugin: 'java'
 apply plugin: 'maven-publish'
 
 group = 'org.trackedtests'
-version = '0.0.873'
+version = '0.0.874'
 
 repositories {
     mavenCentral()

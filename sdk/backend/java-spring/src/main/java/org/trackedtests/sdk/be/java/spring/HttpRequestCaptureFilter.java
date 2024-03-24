@@ -61,7 +61,7 @@ public class HttpRequestCaptureFilter implements Filter {
                     }
                 }
             }
-            String uri = ((HttpServletRequest) servletRequest).getRequestURI().split("\\?")[0];
+            String uri = ((HttpServletRequest) servletRequest).getRequestURL().toString().split("\\?")[0];
             span.setAttribute(SELF_HTTP_URL_SPAN_ATTRIBUTE, uri);
 
             String body = getBody(cachedRequestHttpServletRequest);
