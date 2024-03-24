@@ -19,8 +19,7 @@ import java.io.*;
 import java.util.*;
 import java.util.logging.Logger;
 
-import static org.trackedtests.sdk.be.java.spring.Constants.REQUEST_BODY_SPAN_ATTRIBUTE;
-import static org.trackedtests.sdk.be.java.spring.Constants.REQUEST_HEADERS_SPAN_ATTRIBUTE;
+import static org.trackedtests.sdk.be.java.spring.Constants.*;
 
 
 @Component
@@ -51,7 +50,6 @@ public class HttpRequestCaptureFilter implements Filter {
         try (Scope scope = filterSpan.makeCurrent()) {
             cachedRequestHttpServletRequest =
                     new CachedRequestHttpServletRequest((HttpServletRequest) servletRequest);
-
             if (config != null && config.getIgnoredUriPatterns() != null) {
                 List<String> ignoredUriPatterns = config.getIgnoredUriPatterns();
                 for (String ignoredPattern : ignoredUriPatterns) {
@@ -63,6 +61,8 @@ public class HttpRequestCaptureFilter implements Filter {
                     }
                 }
             }
+            String uri = ((HttpServletRequest) servletRequest).getRequestURI().split("\\?")[0];
+            span.setAttribute(SELF_HTTP_URL_SPAN_ATTRIBUTE, uri);
 
             String body = getBody(cachedRequestHttpServletRequest);
             Map<String, String> headers = getRequestHeaders(cachedRequestHttpServletRequest);
