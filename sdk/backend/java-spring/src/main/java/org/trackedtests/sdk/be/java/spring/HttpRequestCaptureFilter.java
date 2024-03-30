@@ -3,7 +3,6 @@ package org.trackedtests.sdk.be.java.spring;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,12 +29,9 @@ public class HttpRequestCaptureFilter implements Filter {
     @Autowired(required = false)
     private IRequestCaptureConfig config;
 
-    @Autowired(required = true)
+    @Autowired
     private OpenTelemetry openTelemetry;
 
-    /* Just to avoid logging credentials or related details. You can empty this list or remove it completely if you
-    want to log the security details too. */
-    private static final List<String> HEADERS_TO_SKIP = Arrays.asList("authorization", "token", "security", "oauth", "auth");
 
     public HttpRequestCaptureFilter() {
 
@@ -66,13 +62,14 @@ public class HttpRequestCaptureFilter implements Filter {
 
             String body = getBody(cachedRequestHttpServletRequest);
             Map<String, String> headers = getRequestHeaders(cachedRequestHttpServletRequest);
-            if (config != null && config.getRequestSanitizerMap() != null) {
-                Set<String> uriPatterns = config.getRequestSanitizerMap().keySet();
+            if (config != null && config.getRequestExtractorMap() != null) {
+                NavigableSet<String> uriPatterns = config.getRequestExtractorMap().navigableKeySet();
                 for (String uriPattern : uriPatterns) {
                     if (cachedRequestHttpServletRequest.getRequestURI().matches(uriPattern)) {
-                        IRequestSanitizer sanitizer = config.getRequestSanitizerMap().get(uriPattern);
-                        body = sanitizer.getSanitizedBody(body);
-                        headers = sanitizer.getSanitizedHeadersMap(headers);
+                        IRequestExtractor extractor = config.getRequestExtractorMap().get(uriPattern);
+                        RequestExtractResult extractResult = extractor.extract(uri,body, headers);
+                        body = extractResult.sanitizedRequestBody;
+                        headers = extractResult.sanitizedHeaderMap;
                         break;
                     }
                 }
