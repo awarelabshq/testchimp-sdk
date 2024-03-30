@@ -1,9 +1,9 @@
-# Tracked Tests - Bringing Full Stack Visibility to Frontend Automation Tests
+# Tracked Tests - Bringing Full Stack Visibility to Automation Tests
 [![](https://jitpack.io/v/awarelabshq/tracked-tests.svg)](https://jitpack.io/#awarelabshq/tracked-tests)
 
 ## Introduction
 
-"Tracked Tests" connects your frontend automation tests (Cypress, Selenium, Appium, Playwright etc.) to the full stack execution data of your system by utilizing telemetric tracking, giving you complete transparency in to how the backend systems behaved within the execution of each test case. This is utilized by [Aware Labs](https://awarelabs.io) - "A Telemetry Centric Test Governance Platform", to deliver powerful capabilities such as:
+"Tracked Tests" connects your automation tests (Cypress, Selenium, Appium, Playwright, Locust etc.) to the full stack execution data of your system by utilizing telemetric tracking, giving you complete transparency in to how the backend systems behaved within the execution of each test case. This is utilized by [Aware Labs](https://awarelabs.io), to deliver powerful capabilities such as:
 1) Add assertions on backend behaviour expectations anywhere in the stack - enabling you to augment your existing frontend automation tests to become full stack whitebox tests - so that you dont need to write separate integration tests.
 2) Identify root causes faster when a test fails by leveraging the full stack visibility of what happened in each layer of your backend when serving the requests made within the frontend test
 3) Enable powerful governance functionalities such as identify production execution paths of related flows that are not covered by a given test case - helping you to plan how to improve the test case
@@ -11,10 +11,7 @@
 
 Currently, Tracked Tests project supports the following automation tools:
 1) Cypress
-
-And the following backend technologies:
-1) Java (Spring)
-2) NodeJS
+2) Locust
 
 If your preferred automation tool or backend is not supported, feel free to raise a [feature request](https://github.com/awarelabshq/tracked-tests/issues/new).
 
@@ -63,6 +60,36 @@ Simply update your ```OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_REQUEST``
 ENV OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_REQUEST="trackedtest.suite,trackedtest.name,traceparent,test.type"
 ```
 
+## Request Capture
+
+Tracked Tests library also supports capturing request body / headers and extracting specific request fields and injecting them as OTel span attributes. This enables software teams to capture actual requests relating to arbitrary criteria such as:
+1) Find a sampling of payloads for erroring requests
+2) Find a sampling of payloads for slow requests
+3) Find a sampling of payloads for API calls that went through a certain execution path / attribute value in the execution tree.
+
+Aware platform utilizes this to enable building tests using production traffic as a baseline, allowing teams to create tests for erroring scenarios / high latency scenarios / untested execution paths etc.
+
+Currently Java (Spring) is supported for request capture.
+
+### Java Spring integration of Request Capture
+
+1) Add gradle dependency:
+
+```
+    implementation("com.github.awarelabshq:tracked-tests:<latest_version>")
+```
+
+2) Wire the HttpRequestCaptureFilter bean:
+
+```
+import org.trackedtests.sdk.be.java.spring.HttpRequestCaptureFilter;
+
+    @Bean
+    public HttpRequestCaptureFilter httpRequestCaptureFilter() {
+        return new HttpRequestCaptureFilter();
+    }
+
+```
 
 For questions / suggestions, reach out to [contact@awarelabs.io](mailto:contact@awarelabs.io).
 
