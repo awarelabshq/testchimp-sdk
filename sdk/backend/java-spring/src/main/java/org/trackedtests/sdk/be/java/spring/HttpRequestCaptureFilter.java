@@ -57,7 +57,15 @@ public class HttpRequestCaptureFilter implements Filter {
                     }
                 }
             }
-            String uri = ((HttpServletRequest) servletRequest).getRequestURL().toString().split("\\?")[0];
+
+            HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
+            String protocol = httpServletRequest.getHeader("X-Forwarded-Proto");
+            if (protocol == null) {
+                // If X-Forwarded-Proto header is not present, fallback to the default protocol
+                protocol = httpServletRequest.getScheme();
+            }
+            String uri = protocol + "://" + httpServletRequest.getServerName() + httpServletRequest.getRequestURI();
+            // Set the URI with correct protocol as span attribute
             span.setAttribute(SELF_HTTP_URL_SPAN_ATTRIBUTE, uri);
 
             String body = getBody(cachedRequestHttpServletRequest);
