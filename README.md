@@ -26,7 +26,7 @@ Tracked Tests works by adding the following attributes to the Traces at the back
 
 1) `trackedtest.suite`: name of the current test suite
 2) `trackedtest.name`: name of the current test case
-3) `trackedtest.invocation_id`: unique identifier identifying an individual invocation of a test case (a unique run of a test case)
+3) `traceparent`: traceparent which sets the trace id as well as the parent id for that trace (which groups all the traces generated in a single run of a given test case)
 4) `trackedtest.type`: type of test (for instance, `cypress`)
 
 This is achieved by adding an interceptor on the automation test tool side which adds equivalently named http headers to all the requests that are sent from a test case, and an interceptor at the backend which extracts those http headers and injects them to the current Trace.span attributes - enabling correlation of traces at an individual test case (invocation) level.
@@ -58,44 +58,9 @@ enableTracking();
   
 ### Updating backends to receive the tracking metadata
 
-#### Java (Spring)
-
-Steps:
-
-1. Add JitPack Repository in your gradle file:
-
+Simply update your ```OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_REQUEST``` environment variable to include the trackedtests related headers like below, which will capture the headers and inject in to the spans as an attribute:
 ```
-repositories {
-	maven { url 'https://jitpack.io' }
-}
-```
-
-2. Add tracked-tests library dependency:
-
-```
-dependencies {
-        implementation 'com.github.awarelabshq:tracked-tests:0.0.82'
-}
-```
-  
-3. Add `@EnabledTrackedTests` to your `@SpringBootApplication` class.
-
-### NodeJS
-
-Steps:
-
-1. Install `tracked-tests-nodejs` npm library:  
-
-```
-npm install tracked-tests-nodejs
-```
-
-  
-2. Add the following in your app.ts (or other entrypoint ts / js file):  
-
-```
-import enableTrackedTests from 'tracked-tests-nodejs';
-app.use(enableTrackedTests());
+ENV OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_REQUEST="trackedtest.suite,trackedtest.name,traceparent,test.type"
 ```
 
 
