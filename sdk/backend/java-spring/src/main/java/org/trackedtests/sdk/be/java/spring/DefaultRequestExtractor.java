@@ -109,6 +109,8 @@ public class DefaultRequestExtractor implements IRequestExtractor {
                 Map<String, List<String>> spanAttributes = new HashMap<>();
                 for (String attribute : spanAttribsToExtract) {
                     Object value = jsonContext.read(attribute);
+                    String fieldName = extractFieldName(attribute);
+
                     List<Object> valueList = new ArrayList<>();
                     if (value instanceof List) {
                         // If the value is a list, process each element
@@ -117,7 +119,7 @@ public class DefaultRequestExtractor implements IRequestExtractor {
                         valueList.add(value);
                     }
                     if (!valueList.isEmpty()) {
-                        spanAttributes.put(attribute, valueList.stream().map(v -> String.valueOf(v))
+                        spanAttributes.put(fieldName, valueList.stream().map(v -> String.valueOf(v))
                                 .collect(Collectors.toList()));
                     }
                 }
@@ -135,5 +137,11 @@ public class DefaultRequestExtractor implements IRequestExtractor {
         result.sanitizedHeaderMap = originalHeaderMap;
         result.spanAttributes = new HashMap<>();
         return result;
+    }
+
+    private String extractFieldName(String attribute) {
+        // Extract the field name from the attribute (JSON selector)
+        int lastIndex = attribute.lastIndexOf('.');
+        return lastIndex != -1 ? attribute.substring(lastIndex + 1) : attribute;
     }
 }

@@ -86,6 +86,10 @@ public class HttpRequestCaptureFilter implements Filter {
                         RequestExtractResult extractResult = extractor.extract(uri, body, headers);
                         body = extractResult.sanitizedRequestBody;
                         headers = extractResult.sanitizedHeaderMap;
+                        Map<String, String> spanAttribs = extractResult.spanAttributes;
+                        for (Map.Entry<String, String> entry : spanAttribs.entrySet()) {
+                            span.setAttribute(entry.getKey(), entry.getValue());
+                        }
                         break;
                     }
                 }
