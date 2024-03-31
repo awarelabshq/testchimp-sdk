@@ -24,3 +24,4 @@ hs_err_pid*
 replay_pid*
 /sdk/automation/cypress/node_modules/
 /sdk/backend/nodejs/node_modules/
+/gradle/

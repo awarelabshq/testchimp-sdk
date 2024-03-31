@@ -33,6 +33,8 @@ public class HttpRequestCaptureFilter implements Filter {
     @Autowired
     private OpenTelemetry openTelemetry;
 
+    @Autowired
+    DefaultRequestCaptureConfig defaultRequestCaptureConfig;
 
     public HttpRequestCaptureFilter() {
 
@@ -41,7 +43,8 @@ public class HttpRequestCaptureFilter implements Filter {
     @PostConstruct
     public void init() {
         if (config == null) {
-            config = new DefaultRequestCaptureConfig();
+            logger.info("Setting the request capture config to default config.");
+            config = defaultRequestCaptureConfig;
         }
     }
 
@@ -91,6 +94,8 @@ public class HttpRequestCaptureFilter implements Filter {
                             span.setAttribute(entry.getKey(), entry.getValue());
                         }
                         break;
+                    } else {
+                        logger.info(uriPattern + " did not match " + cachedRequestHttpServletRequest.getRequestURI());
                     }
                 }
             }

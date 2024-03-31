@@ -1,11 +1,15 @@
 package org.trackedtests.sdk.be.java.spring;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
 
 @Component
 public class DefaultRequestCaptureConfig implements IRequestCaptureConfig {
+
+    @Autowired
+    DefaultRequestExtractor defaultRequestExtractor;
 
     /* Just to avoid logging credentials or related details. You can empty this list or remove it completely if you
     want to log the security details too. */
@@ -27,7 +31,7 @@ public class DefaultRequestCaptureConfig implements IRequestCaptureConfig {
     @Override
     public TreeMap<String, IRequestExtractor> getRequestExtractorMap() {
         TreeMap<String, IRequestExtractor> extractorMap = new TreeMap<>();
-        extractorMap.put(".*", new DefaultRequestExtractor());
+        extractorMap.put(".*", defaultRequestExtractor);
         return extractorMap;
     }
 
