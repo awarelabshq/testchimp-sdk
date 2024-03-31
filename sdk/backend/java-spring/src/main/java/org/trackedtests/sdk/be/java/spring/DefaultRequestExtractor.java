@@ -40,6 +40,7 @@ public class DefaultRequestExtractor implements IRequestExtractor {
             ResourceLoader resourceLoader = new DefaultResourceLoader();
             Resource resource = resourceLoader.getResource(configFilePath);
             if (resource.exists()) {
+                logger.info("Found tracked tests request capture config yml.");
                 InputStream inputStream = resource.getInputStream();
                 JsonNode rootNode = YAML_MAPPER.readTree(inputStream);
                 Iterator<String> fieldNames = rootNode.fieldNames();

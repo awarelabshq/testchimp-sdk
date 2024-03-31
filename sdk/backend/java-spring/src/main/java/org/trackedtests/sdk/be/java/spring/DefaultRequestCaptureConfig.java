@@ -9,10 +9,9 @@ public class DefaultRequestCaptureConfig implements IRequestCaptureConfig {
     private static List<String> HEADERS_TO_SKIP = Arrays.asList("authorization", "token", "security", "oauth", "auth");
 
     // Ignoring typical health check, static assets uris.
-    private static List<String> URI_PATTERNS_TO_IGNORE = Arrays.asList("/health/check", "/actuator/**", "/static/**", "/assets/**", "/resources/**");
+    private static List<String> URI_PATTERNS_TO_IGNORE = Arrays.asList(".*/health/check", ".*/actuator/.*", ".*/static/.*", ".*/assets/.*", ".*/resources/.*");
 
     @Override
-
     public List<String> getIgnoredHeaders() {
         return HEADERS_TO_SKIP;
     }

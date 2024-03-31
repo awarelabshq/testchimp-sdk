@@ -11,6 +11,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
 
+import javax.annotation.PostConstruct;
 import javax.servlet.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
@@ -35,6 +36,13 @@ public class HttpRequestCaptureFilter implements Filter {
 
     public HttpRequestCaptureFilter() {
 
+    }
+
+    @PostConstruct
+    public void init() {
+        if (config == null) {
+            config = new DefaultRequestCaptureConfig();
+        }
     }
 
     @Override
@@ -75,7 +83,7 @@ public class HttpRequestCaptureFilter implements Filter {
                 for (String uriPattern : uriPatterns) {
                     if (cachedRequestHttpServletRequest.getRequestURI().matches(uriPattern)) {
                         IRequestExtractor extractor = config.getRequestExtractorMap().get(uriPattern);
-                        RequestExtractResult extractResult = extractor.extract(uri,body, headers);
+                        RequestExtractResult extractResult = extractor.extract(uri, body, headers);
                         body = extractResult.sanitizedRequestBody;
                         headers = extractResult.sanitizedHeaderMap;
                         break;
