@@ -1,11 +1,13 @@
 package org.trackedtests.sdk.be.java.spring;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.TreeMap;
 
-@Component
+@Service
 public class DefaultRequestCaptureConfig implements IRequestCaptureConfig {
 
     @Autowired
