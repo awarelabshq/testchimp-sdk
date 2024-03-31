@@ -1,7 +1,10 @@
 package org.trackedtests.sdk.be.java.spring;
 
+import org.springframework.stereotype.Component;
+
 import java.util.*;
 
+@Component
 public class DefaultRequestCaptureConfig implements IRequestCaptureConfig {
 
     /* Just to avoid logging credentials or related details. You can empty this list or remove it completely if you

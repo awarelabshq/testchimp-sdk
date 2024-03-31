@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
@@ -18,6 +19,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+@Component
 public class DefaultRequestExtractor implements IRequestExtractor {
     private static final Logger logger = Logger.getLogger(DefaultRequestExtractor.class.getName());
     public static final String EXTRACT_TO_SPAN_ATTRIBUTES_YML_FIELD = "extractToSpanAttributes";
@@ -36,11 +38,12 @@ public class DefaultRequestExtractor implements IRequestExtractor {
 
     @PostConstruct
     public void init() {
+        logger.info("Initializing DefaultRequestExtractor...");
         try {
             ResourceLoader resourceLoader = new DefaultResourceLoader();
             Resource resource = resourceLoader.getResource(configFilePath);
             if (resource.exists()) {
-                logger.info("Found tracked tests request capture config yml.");
+                logger.info("Found tracked tests request capture config yml @ " + configFilePath);
                 InputStream inputStream = resource.getInputStream();
                 JsonNode rootNode = YAML_MAPPER.readTree(inputStream);
                 Iterator<String> fieldNames = rootNode.fieldNames();
@@ -70,6 +73,8 @@ public class DefaultRequestExtractor implements IRequestExtractor {
                         ignoredHeadersMap.put(uriPattern, ignoredHeaders);
                     }
                 }
+            } else {
+                logger.warning("request capture config file not found at: " + configFilePath);
             }
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Error reading request_body_capture_config.yml", e);
