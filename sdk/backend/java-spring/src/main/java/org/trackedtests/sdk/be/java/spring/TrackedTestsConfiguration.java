@@ -8,8 +8,7 @@ import org.springframework.context.annotation.Configuration;
 public class TrackedTestsConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean
-    public IRequestCaptureConfig defaultRequestCaptureConfig() {
+    public DefaultRequestCaptureConfig defaultRequestCaptureConfig() {
         return new DefaultRequestCaptureConfig();
     }
 }
