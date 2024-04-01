@@ -6,6 +6,7 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,9 @@ import static org.trackedtests.sdk.be.java.spring.Constants.*;
 @Order(value = Ordered.HIGHEST_PRECEDENCE)
 public class HttpRequestCaptureFilter implements Filter {
     private static final Logger logger = Logger.getLogger(HttpRequestCaptureFilter.class.getName());
+
+    @Value("${aware.request_body_capture.enabled:false}")
+    private Boolean enableRequestCapture;
 
     @Autowired(required = false)
     private IRequestCaptureConfig config;
@@ -50,6 +54,10 @@ public class HttpRequestCaptureFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain chain) throws IOException, ServletException {
+        if (!enableRequestCapture) {
+            chain.doFilter(servletRequest, servletResponse);
+            return;
+        }
         Span span = Span.current();
         Span filterSpan = openTelemetry.getTracer("tracked-tests").spanBuilder("capture_request_body")
                 .setParent(Context.current()).startSpan();
