@@ -79,18 +79,43 @@ Currently Java (Spring) is supported for request capture.
     implementation("com.github.awarelabshq:tracked-tests:<latest_version>")
 ```
 
-2) Wire the HttpRequestCaptureFilter bean:
+2) Enable the request capture filter:
+
+Set aware.request_body_capture.enabled property to true (if not set, defaults to false).
 
 ```
-import org.trackedtests.sdk.be.java.spring.HttpRequestCaptureFilter;
-
-    @Bean
-    public HttpRequestCaptureFilter httpRequestCaptureFilter() {
-        return new HttpRequestCaptureFilter();
-    }
-
+aware.request_body_capture.enabled=true
 ```
 
+3) (Optional) Configure the request scrubbing / span attribute extraction
+
+   The behaviour of the filter can be configured to specify which request fields should be scrubbed and which request fields need to be extracted in to separate span attributes. By default, it looks for a file named: aware_request_body_capture_config.yml in the classpath. This can be overridden by specifiying aware.request_body_capture.config.file.path in your application.properties / yml file.
+   The yml is of the following format:
+   ```
+   <uri pattern>:
+     ignoredFields:
+       - "<json selector>"
+       - "<json selector>"
+     extractToSpanAttributes:
+       - "<json selector>"
+       - "<json selector>"
+   ```
+
+   Sample:
+  ```
+   /foo/bar:
+    extractToSpanAttributes:
+      - "$.user_country"
+    ignoredFields:
+      - "$.user_info.user_id
+
+  /foo/*:
+    ignoredFields:
+      - "$.auth_info.token
+ ```
+
+  When a request to a uri is received, all the uri patterns configured in the yml file that matches that uri is utilized. So, in the above example, all uris under /foo will get its auth_info.token field scrubbed (so that you dont need to repeatedly specify it for all endpoints), and /foo/bar requests will specifically have their user_info.user_id field scrubbed. Additionally, user_country field will be extracted as a separate span attribute. The name of the extracted attribute will be the name of the json field (user_country).
+  
 For questions / suggestions, reach out to [contact@awarelabs.io](mailto:contact@awarelabs.io).
 
 Proudly powered by [Aware Labs](https://awarelabs.io)
