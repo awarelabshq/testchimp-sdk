@@ -88,7 +88,7 @@ public class DefaultRequestExtractor implements IRequestExtractor {
 
     @Override
     public RequestExtractResult extract(String originalUri, String originalRequestBody, Map<String, String> originalHeaderMap) {
-        logger.info("Extracting request details for " + originalUri);
+        logger.fine("Extracting request details for " + originalUri);
         // Check if the content type passed in the header is JSON
         RequestExtractResult result = new RequestExtractResult();
         String contentType = originalHeaderMap.getOrDefault("Content-Type", originalHeaderMap.get("content-type"));
