@@ -83,9 +83,9 @@ public class HttpRequestCaptureFilter implements Filter {
                 // If X-Forwarded-Proto header is not present, fallback to the default protocol
                 protocol = httpServletRequest.getScheme();
             }
-            String uri = protocol + "://" + httpServletRequest.getServerName() + httpServletRequest.getRequestURI();
+            String completeUrl = protocol + "://" + httpServletRequest.getServerName() + httpServletRequest.getRequestURI();
             // Set the URI with correct protocol as span attribute
-            span.setAttribute(SELF_HTTP_URL_SPAN_ATTRIBUTE, uri);
+            span.setAttribute(SELF_HTTP_URL_SPAN_ATTRIBUTE, completeUrl);
 
             String body = getBody(cachedRequestHttpServletRequest);
             Map<String, String> headers = getRequestHeaders(cachedRequestHttpServletRequest);
@@ -94,7 +94,7 @@ public class HttpRequestCaptureFilter implements Filter {
                 for (String uriPattern : uriPatterns) {
                     if (cachedRequestHttpServletRequest.getRequestURI().matches(uriPattern)) {
                         IRequestExtractor extractor = config.getRequestExtractorMap().get(uriPattern);
-                        RequestExtractResult extractResult = extractor.extract(uri, body, headers);
+                        RequestExtractResult extractResult = extractor.extract(httpServletRequest.getRequestURI(), body, headers);
                         body = extractResult.sanitizedRequestBody;
                         headers = extractResult.sanitizedHeaderMap;
                         Map<String, String> spanAttribs = extractResult.spanAttributes;

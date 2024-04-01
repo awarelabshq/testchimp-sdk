@@ -3,8 +3,10 @@ package org.trackedtests.sdk.be.java.spring;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
@@ -86,7 +88,7 @@ public class DefaultRequestExtractor implements IRequestExtractor {
 
     @Override
     public RequestExtractResult extract(String originalUri, String originalRequestBody, Map<String, String> originalHeaderMap) {
-        logger.fine("Extracting request details for " + originalUri);
+        logger.info("Extracting request details for " + originalUri);
         // Check if the content type passed in the header is JSON
         RequestExtractResult result = new RequestExtractResult();
         String contentType = originalHeaderMap.getOrDefault("Content-Type", originalHeaderMap.get("content-type"));
@@ -107,13 +109,16 @@ public class DefaultRequestExtractor implements IRequestExtractor {
             }
             if (!spanAttribsToExtract.isEmpty() || !ignoredFields.isEmpty()) {
                 // Parse the JSON string
-                DocumentContext jsonContext = JsonPath.parse(originalRequestBody);
+                DocumentContext jsonContext = JsonPath.parse(originalRequestBody, Configuration.defaultConfiguration()
+                        .addOptions(Option.SUPPRESS_EXCEPTIONS));
 
                 // Scrub the ignored fields
                 for (String ignoredField : ignoredFields) {
-                    logger.info("Before ignoring: " + ignoredField + " " + jsonContext.jsonString());
-                    jsonContext.set(ignoredField, "");
-                    logger.info("After: " + jsonContext.jsonString());
+                    try {
+                        jsonContext.set(ignoredField, "");
+                    } catch (Exception e) {
+                        // This happens when the field is not present. No need to do anything since nothing to be scrubbed.
+                    }
                 }
 
                 // Extract span attributes
@@ -132,7 +137,7 @@ public class DefaultRequestExtractor implements IRequestExtractor {
                     if (!valueList.isEmpty()) {
                         String strValue = String.join(",", valueList.stream().map(v -> String.valueOf(v))
                                 .collect(Collectors.toList()));
-                        logger.info("Extracting " + attribute + " as " + fieldName + " with value: " + strValue);
+                        logger.fine("Extracting " + attribute + " as " + fieldName + " with value: " + strValue);
                         spanAttributes.put(fieldName, strValue);
                     }
                 }
