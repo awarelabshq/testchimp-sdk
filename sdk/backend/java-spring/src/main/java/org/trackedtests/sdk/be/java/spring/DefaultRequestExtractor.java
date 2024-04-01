@@ -111,11 +111,13 @@ public class DefaultRequestExtractor implements IRequestExtractor {
 
                 // Scrub the ignored fields
                 for (String ignoredField : ignoredFields) {
+                    logger.info("Before ignoring: " + ignoredField + " " + jsonContext.jsonString());
                     jsonContext.set(ignoredField, "");
+                    logger.info("After: " + jsonContext.jsonString());
                 }
 
                 // Extract span attributes
-                Map<String, List<String>> spanAttributes = new HashMap<>();
+                Map<String, String> spanAttributes = new HashMap<>();
                 for (String attribute : spanAttribsToExtract) {
                     Object value = jsonContext.read(attribute);
                     String fieldName = extractFieldName(attribute);
@@ -128,8 +130,10 @@ public class DefaultRequestExtractor implements IRequestExtractor {
                         valueList.add(value);
                     }
                     if (!valueList.isEmpty()) {
-                        spanAttributes.put(fieldName, valueList.stream().map(v -> String.valueOf(v))
+                        String strValue = String.join(",", valueList.stream().map(v -> String.valueOf(v))
                                 .collect(Collectors.toList()));
+                        logger.info("Extracting " + attribute + " as " + fieldName + " with value: " + strValue);
+                        spanAttributes.put(fieldName, strValue);
                     }
                 }
 
@@ -138,7 +142,7 @@ public class DefaultRequestExtractor implements IRequestExtractor {
                 result.sanitizedHeaderMap = originalHeaderMap;
                 result.sanitizedRequestBody = jsonContext.jsonString();
                 result.spanAttributes = spanAttributes.entrySet().stream()
-                        .map(entry -> new AbstractMap.SimpleEntry<>(entry.getKey(), String.join(",", entry.getValue())))
+                        .map(entry -> new AbstractMap.SimpleEntry<>(entry.getKey(), entry.getValue()))
                         .collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
                 return result;
             }
