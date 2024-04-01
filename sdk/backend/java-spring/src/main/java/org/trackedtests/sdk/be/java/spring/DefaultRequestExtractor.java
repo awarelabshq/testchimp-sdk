@@ -55,6 +55,7 @@ public class DefaultRequestExtractor implements IRequestExtractor {
                         List<String> extractAttributes = new ArrayList<>();
                         for (JsonNode attributeNode : uriNode.get(EXTRACT_TO_SPAN_ATTRIBUTES_YML_FIELD)) {
                             extractAttributes.add(attributeNode.asText());
+                            logger.info("Rule: extract " + attributeNode.asText() + " for " + uriPattern);
                         }
                         extractToSpanAttributesMap.put(uriPattern, extractAttributes);
                     }
@@ -62,6 +63,7 @@ public class DefaultRequestExtractor implements IRequestExtractor {
                         List<String> ignoredFields = new ArrayList<>();
                         for (JsonNode ignoredFieldNode : uriNode.get(IGNORED_FIELDS_YML_FIELD)) {
                             ignoredFields.add(ignoredFieldNode.asText());
+                            logger.info("Rule: ignore field " + ignoredFieldNode.asText() + " for " + uriPattern);
                         }
                         ignoredFieldsMap.put(uriPattern, ignoredFields);
                     }
@@ -69,6 +71,7 @@ public class DefaultRequestExtractor implements IRequestExtractor {
                         List<String> ignoredHeaders = new ArrayList<>();
                         for (JsonNode ignoredFieldNode : uriNode.get(IGNORED_HEADERS_YML_FIELD)) {
                             ignoredHeaders.add(ignoredFieldNode.asText());
+                            logger.info("Rule: ignore header: " + ignoredFieldNode.asText() + " for " + uriPattern);
                         }
                         ignoredHeadersMap.put(uriPattern, ignoredHeaders);
                     }
@@ -83,7 +86,7 @@ public class DefaultRequestExtractor implements IRequestExtractor {
 
     @Override
     public RequestExtractResult extract(String originalUri, String originalRequestBody, Map<String, String> originalHeaderMap) {
-        logger.info("Extracting request details for " + originalUri);
+        logger.fine("Extracting request details for " + originalUri);
         // Check if the content type passed in the header is JSON
         RequestExtractResult result = new RequestExtractResult();
         String contentType = originalHeaderMap.getOrDefault("Content-Type", originalHeaderMap.get("content-type"));
@@ -131,7 +134,7 @@ public class DefaultRequestExtractor implements IRequestExtractor {
                 }
 
                 // Return extraction result
-                logger.info("Returning sanitized result for " + originalUri);
+                logger.fine("Returning sanitized result for " + originalUri);
                 result.sanitizedHeaderMap = originalHeaderMap;
                 result.sanitizedRequestBody = jsonContext.jsonString();
                 result.spanAttributes = spanAttributes.entrySet().stream()

@@ -102,8 +102,6 @@ public class HttpRequestCaptureFilter implements Filter {
                             span.setAttribute(entry.getKey(), entry.getValue());
                         }
                         break;
-                    } else {
-                        logger.info(uriPattern + " did not match " + cachedRequestHttpServletRequest.getRequestURI());
                     }
                 }
             }
