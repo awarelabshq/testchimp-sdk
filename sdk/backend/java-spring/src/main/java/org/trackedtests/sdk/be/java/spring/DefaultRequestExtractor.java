@@ -27,6 +27,7 @@ public class DefaultRequestExtractor implements IRequestExtractor {
     public static final String EXTRACT_TO_SPAN_ATTRIBUTES_YML_FIELD = "extractToSpanAttributes";
     public static final String IGNORED_FIELDS_YML_FIELD = "ignoredFields";
     public static final String IGNORED_HEADERS_YML_FIELD = "ignoredHeaders";
+    private static final String SESSION_ID_SPAN_ATTRIBUTE = "aware.derived.session_id";
 
     @Value("${aware.request_body_capture.config.file.path:classpath:aware_request_body_capture_config.yml}")
     private String configFilePath;
@@ -91,7 +92,7 @@ public class DefaultRequestExtractor implements IRequestExtractor {
         logger.fine("Extracting request details for " + originalUri);
         // Check if the content type passed in the header is JSON
         RequestExtractResult result = new RequestExtractResult();
-        String contentType = originalHeaderMap.getOrDefault("Content-Type", originalHeaderMap.get("content-type"));
+        String contentType = originalHeaderMap.getOrDefault("content-type", "");
         if (contentType != null && contentType.toLowerCase().contains("application/json")) {
             List<String> spanAttribsToExtract = new ArrayList<>();
             List<String> ignoredFields = new ArrayList<>();
@@ -142,6 +143,12 @@ public class DefaultRequestExtractor implements IRequestExtractor {
                     }
                 }
 
+                // Extract session id from cookie header if present.
+                String sessionId = extractSessionId(originalHeaderMap);
+                if (sessionId != null && !sessionId.isEmpty()) {
+                    spanAttributes.put(SESSION_ID_SPAN_ATTRIBUTE, sessionId);
+                }
+
                 // Return extraction result
                 logger.fine("Returning sanitized result for " + originalUri);
                 result.sanitizedHeaderMap = originalHeaderMap;
@@ -157,6 +164,36 @@ public class DefaultRequestExtractor implements IRequestExtractor {
         result.spanAttributes = new HashMap<>();
         return result;
     }
+
+    private String extractSessionId(Map<String, String> headers) {
+        String cookies = headers.getOrDefault("cookie", "");
+
+        // Split the cookies string into individual cookies
+        String[] cookieParts = cookies.split(";");
+
+        // Iterate over each cookie part to find the session ID
+        for (String cookiePart : cookieParts) {
+            // Trim the cookie part to remove leading and trailing whitespace
+            String trimmedCookiePart = cookiePart.trim();
+
+            // Check if the cookie part contains an '=' sign indicating a key-value pair
+            if (trimmedCookiePart.contains("=")) {
+                // Split the cookie part into key and value
+                String[] keyValue = trimmedCookiePart.split("=");
+
+                // Check if the key is one of the commonly used session ID cookie names
+                String key = keyValue[0].trim();
+                if (key.equalsIgnoreCase("sessionid") || key.equalsIgnoreCase("JSESSIONID") || key.equalsIgnoreCase("PHPSESSID")) {
+                    // If found, return the session ID value
+                    return keyValue[1].trim();
+                }
+            }
+        }
+
+        // If no session ID cookie is found, return null
+        return null;
+    }
+
 
     private String extractFieldName(String attribute) {
         // Extract the field name from the attribute (JSON selector)

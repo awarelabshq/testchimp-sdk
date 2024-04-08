@@ -128,7 +128,7 @@ public class HttpRequestCaptureFilter implements Filter {
 
             if (config.getIgnoredHeaders().stream().noneMatch(h -> h.toLowerCase().contains(header.toLowerCase())
                     || header.toLowerCase().contains(h.toLowerCase()))) {
-                headersMap.put(header, request.getHeader(header));
+                headersMap.put(header.toLowerCase(), request.getHeader(header));
             }
         }
         return headersMap;

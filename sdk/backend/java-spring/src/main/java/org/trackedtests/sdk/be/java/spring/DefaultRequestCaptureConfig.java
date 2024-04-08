@@ -15,7 +15,7 @@ public class DefaultRequestCaptureConfig implements IRequestCaptureConfig {
 
     /* Just to avoid logging credentials or related details. You can empty this list or remove it completely if you
     want to log the security details too. */
-    private static List<String> HEADERS_TO_SKIP = Arrays.asList("authorization", "token", "security", "oauth", "auth");
+    private static List<String> HEADERS_TO_SKIP = Arrays.asList("authorization", "token", "security", "oauth", "auth","content-length");
 
     // Ignoring typical health check, static assets uris.
     private static List<String> URI_PATTERNS_TO_IGNORE = Arrays.asList(".*/health/check", ".*/actuator/.*", ".*/static/.*", ".*/assets/.*", ".*/resources/.*");
