@@ -1,0 +1,28 @@
+{
+  "name": "aware-session-record",
+  "version": "0.0.1167",
+  "description": "Aware Session Record Library",
+  "main": "dist/aware-sdk.js",
+  "module": "dist/aware-sdk.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "webpack",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Aware Labs",
+  "license": "ISC",
+  "dependencies": {
+    "@mswjs/interceptors": "^0.29.0",
+    "rrweb": "^2.0.0-alpha.4"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.21.0",
+    "@babel/preset-env": "^7.20.2",
+    "babel-loader": "^9.1.2",
+    "webpack": "^5.91.0",
+    "webpack-cli": "^5.1.4"
+  }
+}
