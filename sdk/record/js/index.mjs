@@ -14,6 +14,19 @@ var shouldRecordSession = false;
 var shouldRecordSessionOnError = false;
 var sessionRecordTrackingId="";
 
+let samplingConfig = {
+  // do not record mouse movement
+  mousemove: false,
+  // do not record mouse interaction
+  mouseInteraction: true,
+  // set the interval of scrolling event
+  scroll: 150, // do not emit twice in 150ms
+  // set the interval of media interaction event
+  media: 800,
+  // set the timing of record input
+  input: 'last' // When input multiple characters, only record the final input
+};
+
 // Function to generate a unique session ID
 function generateSessionId() {
   // Custom UUID generation logic
@@ -53,7 +66,7 @@ function getSessionIdFromCookie(cookieKey) {
 }
 
 function enableRequestInterceptor(sessionId, urlRegex) {
-  console.log("Enabling session tracking with " + sessionId);
+  console.log("Enabling full stack session tracking with " + sessionId);
   sessionRecordTrackingId = sessionId;
 
   // Create instances of the interceptors
@@ -68,9 +81,8 @@ function enableRequestInterceptor(sessionId, urlRegex) {
 
   // Add listeners for the 'request' event on the BatchInterceptor
   interceptor.on('request', ({ request, requestId }) => {
-  console.log("intercept received for " + request.url);
     if (request.url.match(urlRegex)) {
-    console.log("request matches regex " + request.url);
+    console.log("request matches regex for interception " + request.url);
       // Add the 'aware-session-record-tracking-id' header
       request.headers.set('aware-session-record-tracking-id', sessionId);
     }
@@ -101,7 +113,7 @@ function sendEvents(endpoint, config, sessionId, events) {
     events: sessionRecordEvents
   });
 
-  let sessionSendEnabled=false;
+  let sessionSendEnabled=true;
   if(sessionSendEnabled){
     fetch(endpoint, {
       method: 'POST',
@@ -117,7 +129,6 @@ function sendEvents(endpoint, config, sessionId, events) {
 }
 
 function startSendingEventsWithCheckout(config) {
-  console.log("Starting sending events with checkout " + config.projectId);
 
   stopFn = record({
     emit: function (event, isCheckout) {
@@ -128,42 +139,19 @@ function startSendingEventsWithCheckout(config) {
       const lastEvents = eventsMatrix[eventsMatrix.length - 1];
       lastEvents.push(event);
     },
-    sampling: {
-      // do not record mouse movement
-      mousemove: false,
-      // do not record mouse interaction
-      mouseInteraction: false,
-      // set the interval of scrolling event
-      scroll: 150, // do not emit twice in 150ms
-      // set the interval of media interaction event
-      media: 800,
-      // set the timing of record input
-      input: 'last' // When input mulitple characters, only record the final input
-    },
+    sampling: samplingConfig,
     checkoutEveryNth: config.eventWindowToSaveOnError || 200, // Default checkout every 200 events
   });
 }
 
 // Function to start sending events in batches every 5 seconds
 function startSendingEvents(endpoint, config, sessionId) {
-  console.log("Starting sending events for " + config.projectId);
 
   stopFn =record({
     emit: function (event) {
       eventBuffer.push(event)
     },
-    sampling: {
-      // do not record mouse movement
-      mousemove: false,
-      // do not record mouse interaction
-      mouseInteraction: false,
-      // set the interval of scrolling event
-      scroll: 150, // do not emit twice in 150ms
-      // set the interval of media interaction event
-      media: 800,
-      // set the timing of record input
-      input: 'last' // When input mulitple characters, only record the final input
-    }
+    sampling: samplingConfig,
   });
 
   // Save events every 5 seconds
@@ -187,7 +175,6 @@ function stopSendingEvents() {
 }
 
 function initRecording(endpoint,config,sessionId){
-  console.log("on startRecording: shouldRecordSession" + shouldRecordSession)
   // Start sending events
   if (shouldRecordSession) {
     startSendingEvents(endpoint, config, sessionId);
@@ -198,11 +185,9 @@ function initRecording(endpoint,config,sessionId){
   }
 };
 
-
-
 // Function to start recording user sessions
 function startRecording(config) {
-  console.log("Initializing recording for " + config.projectId);
+  console.log("Initializing recording for Aware Project: " + config.projectId);
   // Default endpoint if not provided
   var endpoint = config.endpoint || 'https://ingress.awarelabs.io/session_records';
 
