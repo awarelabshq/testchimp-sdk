@@ -31,6 +31,9 @@ public class HttpRequestCaptureFilter implements Filter {
     @Value("${aware.request_body_capture.enabled:false}")
     private Boolean enableRequestCapture;
 
+    @Value("${aware.sdk.enabled:true}")
+    private Boolean enableAwareSdk;
+
     @Autowired(required = false)
     private IRequestCaptureConfig config;
 
@@ -54,11 +57,17 @@ public class HttpRequestCaptureFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain chain) throws IOException, ServletException {
-        if (!enableRequestCapture) {
+        if (!enableAwareSdk) {
             chain.doFilter(servletRequest, servletResponse);
             return;
         }
         Span span = Span.current();
+        HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
+        extractTrackingHeaders(httpServletRequest, span);
+        if (!enableRequestCapture) {
+            chain.doFilter(servletRequest, servletResponse);
+            return;
+        }
         Span filterSpan = openTelemetry.getTracer("tracked-tests").spanBuilder("capture_request_body")
                 .setParent(Context.current()).startSpan();
         CachedRequestHttpServletRequest cachedRequestHttpServletRequest;
@@ -77,7 +86,6 @@ public class HttpRequestCaptureFilter implements Filter {
                 }
             }
 
-            HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
             String protocol = httpServletRequest.getHeader("X-Forwarded-Proto");
             if (protocol == null) {
                 // If X-Forwarded-Proto header is not present, fallback to the default protocol
@@ -118,6 +126,25 @@ public class HttpRequestCaptureFilter implements Filter {
             filterSpan.end();
         }
         chain.doFilter(cachedRequestHttpServletRequest, servletResponse);
+    }
+
+    private static void extractTrackingHeaders(HttpServletRequest httpServletRequest, Span span) {
+        String sessionRecordTrackingId = httpServletRequest.getHeader(AWARE_SESSION_RECORDING_TRACKING_ID_ATTRIBUTE);
+        String trackedTestSuite = httpServletRequest.getHeader(TRACKED_TEST_SUITE_ATTRIBUTE);
+        String trackedTestCase = httpServletRequest.getHeader(TRACKED_TEST_NAME_ATTRIBUTE);
+        String trackedTestType = httpServletRequest.getHeader(TRACKED_TEST_TYPE_ATTRIBUTE);
+        if (sessionRecordTrackingId != null && !sessionRecordTrackingId.isEmpty()) {
+            span.setAttribute(HEADER_EXTRACTED_PREFIX + AWARE_SESSION_RECORDING_TRACKING_ID_ATTRIBUTE, sessionRecordTrackingId);
+        }
+        if (trackedTestSuite != null && !trackedTestSuite.isEmpty()) {
+            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_SUITE_ATTRIBUTE, sessionRecordTrackingId);
+        }
+        if (trackedTestCase != null && !trackedTestCase.isEmpty()) {
+            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_NAME_ATTRIBUTE, sessionRecordTrackingId);
+        }
+        if (trackedTestType != null && !trackedTestType.isEmpty()) {
+            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_TYPE_ATTRIBUTE, sessionRecordTrackingId);
+        }
     }
 
     private Map<String, String> getRequestHeaders(HttpServletRequest request) {

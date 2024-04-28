@@ -1,7 +1,7 @@
 {
-  "name": "aware-session-record",
-  "version": "0.0.1168",
-  "description": "Aware Session Record Library",
+  "name": "aware-sdk-js",
+  "version": "0.1.0",
+  "description": "Aware SDK for js",
   "main": "dist/aware-sdk.js",
   "module": "dist/aware-sdk.js",
   "files": [
