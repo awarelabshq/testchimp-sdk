@@ -99,7 +99,6 @@ function sendEvents(endpoint, config, sessionId, events) {
   const sessionRecordEvents = events.map(event => {
     return {
       payload: JSON.stringify(event),
-      timestamp: event.timestamp
     };
   });
 
@@ -110,7 +109,9 @@ function sendEvents(endpoint, config, sessionId, events) {
     tracking_id: sessionId,
     aware_project_id: config.projectId,
     aware_session_tracking_api_key: config.apiKey,
-    events: sessionRecordEvents
+    event_list:{
+        events: sessionRecordEvents
+    }
   });
 
   let sessionSendEnabled=true;
