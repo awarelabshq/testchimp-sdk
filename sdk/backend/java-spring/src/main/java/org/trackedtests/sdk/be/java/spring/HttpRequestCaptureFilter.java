@@ -133,14 +133,18 @@ public class HttpRequestCaptureFilter implements Filter {
         String trackedTestSuite = httpServletRequest.getHeader(TRACKED_TEST_SUITE_ATTRIBUTE);
         String trackedTestCase = httpServletRequest.getHeader(TRACKED_TEST_NAME_ATTRIBUTE);
         String trackedTestType = httpServletRequest.getHeader(TRACKED_TEST_TYPE_ATTRIBUTE);
+        String headerExtractedSessionRecordingTrackingId = httpServletRequest.getHeader(AWARE_SESSION_RECORDING_TRACKING_ID_ATTRIBUTE);
         Cookie[] cookies = httpServletRequest.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                logger.info("Cookie: " + cookie.getName() + " value: " + cookie.getValue() + " path " + cookie.getPath() + " max age " + cookie.getMaxAge());
                 if (cookie.getName().equals(AWARE_SESSION_RECORD_TRACKING_ID_COOKIE_NAME)) {
-                    span.setAttribute(AWARE_SESSION_RECORD_TRACKING_ID_COOKIE_NAME, cookie.getValue());
+                    span.setAttribute(HEADER_EXTRACTED_PREFIX + AWARE_SESSION_RECORDING_TRACKING_ID_ATTRIBUTE, cookie.getValue());
+                    break;
                 }
             }
+        }
+        if (headerExtractedSessionRecordingTrackingId != null && !headerExtractedSessionRecordingTrackingId.isEmpty()) {
+            span.setAttribute(HEADER_EXTRACTED_PREFIX + AWARE_SESSION_RECORDING_TRACKING_ID_ATTRIBUTE, headerExtractedSessionRecordingTrackingId);
         }
         if (trackedTestSuite != null && !trackedTestSuite.isEmpty()) {
             span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_SUITE_ATTRIBUTE, trackedTestSuite);

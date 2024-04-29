@@ -1,5 +1,7 @@
 import {record} from 'rrweb';
-
+import { BatchInterceptor } from '@mswjs/interceptors';
+import { FetchInterceptor } from '@mswjs/interceptors/fetch';
+import { XMLHttpRequestInterceptor } from '@mswjs/interceptors/XMLHttpRequest';
 // Buffer to store events before sending in batches. Used for onError event sending (last N events)
 var eventsMatrix = [[]];
 // Buffer to store events for continuous send (when normal recording is enabled)
@@ -63,23 +65,48 @@ function getSessionIdFromCookie(cookieKey) {
 function setTrackingIdCookie(sessionId) {
   var existingCookie = getCookie("aware.session-record-tracking-id");
   if (existingCookie === "") {
-    document.cookie = "aware.session-record-tracking-id" + "=" + sessionId + ";path=/";
+    document.cookie = "aware.session-record-tracking-id" + "=" + sessionId;
   }
 }
 
 function getCookie(name) {
-  var nameEQ = name + "=";
-  var cookies = document.cookie.split(';');
-  for (var i = 0; i < cookies.length; i++) {
-    var cookie = cookies[i];
-    while (cookie.charAt(0) == ' ') {
-      cookie = cookie.substring(1, cookie.length);
-    }
-    if (cookie.indexOf(nameEQ) == 0) {
-      return cookie.substring(nameEQ.length, cookie.length);
+  const cookies = document.cookie.split(';');
+  for (let i = 0; i < cookies.length; i++) {
+    const cookie = cookies[i].trim();
+    // Check if the cookie starts with the name
+    if (cookie.startsWith(name + '=')) {
+      // Return the cookie value
+      return cookie.substring(name.length + 1);
     }
   }
-  return "";
+  return '';
+}
+
+function enableRequestIntercept(){
+  // Get sessionId from the cookie
+  var sessionId = getCookie("aware.session-record-tracking-id");
+
+  // Create instances of the interceptors
+  const fetchInterceptor = new FetchInterceptor();
+  const xhrInterceptor = new XMLHttpRequestInterceptor();
+
+  // Create a BatchInterceptor to combine the interceptors
+  const interceptor = new BatchInterceptor({
+    name: 'request-interceptor',
+    interceptors: [fetchInterceptor, xhrInterceptor],
+  });
+
+  // Add listeners for the 'request' event on the BatchInterceptor
+  interceptor.on('request', ({ request, requestId }) => {
+    if (request.url.match(urlRegex)) {
+      console.log("request matches regex for interception " + request.url);
+      // Add the 'aware-session-record-tracking-id' header
+      request.headers.set('aware-session-record-tracking-id', sessionId);
+    }
+  });
+
+  // Apply the interceptor
+  interceptor.apply();
 }
 
 // Function to send events to the backend and reset the events array
@@ -146,13 +173,16 @@ function startSendingEvents(endpoint, config, sessionId) {
   });
 
   // Save events every 5 seconds
-  setInterval(function () {
+  var intervalId = setInterval(function () {
     var sessionDuration = (new Date().getTime() - sessionStartTime) / 1000;
     if (!config.maxSessionDurationSecs || (config.maxSessionDurationSecs && sessionDuration < config.maxSessionDurationSecs)) {
       sendEvents(endpoint, config, sessionId, eventBuffer);
     } else {
-      stopFn();
-      stopFn = null;
+      clearInterval(intervalId); // Clear the interval
+      if (typeof stopFn === 'function') {
+        stopFn(); // Stop the recording
+        stopFn = null;
+      }
     }
   }, 5000);
 }
@@ -204,6 +234,7 @@ function startRecording(config) {
   if (shouldRecordSession || shouldRecordSessionOnError) {
       console.log("Setting tracking cookie " + sessionId);
       setTrackingIdCookie(sessionId);
+      enableRequestIntercept();
   }
 
   // Store endpoint, projectId, apiKey, samplingProbability, maxSessionDurationSecs, samplingProbabilityOnError, and maxDurationToSaveOnError in window.AwareSDKConfig
