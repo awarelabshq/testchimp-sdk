@@ -61,10 +61,25 @@ function getSessionIdFromCookie(cookieKey) {
 }
 
 function setTrackingIdCookie(sessionId) {
-  var d = new Date();
-  d.setTime(d.getTime() + (1 * 60 * 60 * 1000)); // 1 hour expiration
-  var expires = "expires=" + d.toUTCString();
-  document.cookie = "aware.session-record-tracking-id" + "=" + sessionId + ";expires=" + expires + ";path=/";
+  var existingCookie = getCookie("aware.session-record-tracking-id");
+  if (existingCookie === "") {
+    document.cookie = "aware.session-record-tracking-id" + "=" + sessionId + ";path=/";
+  }
+}
+
+function getCookie(name) {
+  var nameEQ = name + "=";
+  var cookies = document.cookie.split(';');
+  for (var i = 0; i < cookies.length; i++) {
+    var cookie = cookies[i];
+    while (cookie.charAt(0) == ' ') {
+      cookie = cookie.substring(1, cookie.length);
+    }
+    if (cookie.indexOf(nameEQ) == 0) {
+      return cookie.substring(nameEQ.length, cookie.length);
+    }
+  }
+  return "";
 }
 
 // Function to send events to the backend and reset the events array

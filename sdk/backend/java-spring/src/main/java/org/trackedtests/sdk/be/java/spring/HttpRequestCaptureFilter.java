@@ -136,9 +136,9 @@ public class HttpRequestCaptureFilter implements Filter {
         Cookie[] cookies = httpServletRequest.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
+                logger.info("Cookie: " + cookie.getName() + " value: " + cookie.getValue() + " path " + cookie.getPath() + " max age " + cookie.getMaxAge());
                 if (cookie.getName().equals(AWARE_SESSION_RECORD_TRACKING_ID_COOKIE_NAME)) {
                     span.setAttribute(AWARE_SESSION_RECORD_TRACKING_ID_COOKIE_NAME, cookie.getValue());
-                    break;
                 }
             }
         }
