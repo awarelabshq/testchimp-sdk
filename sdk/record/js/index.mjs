@@ -1,8 +1,4 @@
 import {record} from 'rrweb';
-import { BatchInterceptor } from '@mswjs/interceptors';
-import { FetchInterceptor } from '@mswjs/interceptors/fetch';
-import { XMLHttpRequestInterceptor } from '@mswjs/interceptors/XMLHttpRequest';
-
 
 // Buffer to store events before sending in batches. Used for onError event sending (last N events)
 var eventsMatrix = [[]];
@@ -12,7 +8,6 @@ var stopFn;
 var sessionStartTime;
 var shouldRecordSession = false;
 var shouldRecordSessionOnError = false;
-var sessionRecordTrackingId="";
 
 let samplingConfig = {
   // do not record mouse movement
@@ -65,31 +60,11 @@ function getSessionIdFromCookie(cookieKey) {
   return null; // Return null if session ID cookie doesn't exist
 }
 
-function enableRequestInterceptor(sessionId, urlRegex) {
-  console.log("Enabling full stack session tracking with " + sessionId);
-  sessionRecordTrackingId = sessionId;
-
-  // Create instances of the interceptors
-  const fetchInterceptor = new FetchInterceptor();
-  const xhrInterceptor = new XMLHttpRequestInterceptor();
-
-  // Create a BatchInterceptor to combine the interceptors
-  const interceptor = new BatchInterceptor({
-    name: 'request-interceptor',
-    interceptors: [fetchInterceptor, xhrInterceptor],
-  });
-
-  // Add listeners for the 'request' event on the BatchInterceptor
-  interceptor.on('request', ({ request, requestId }) => {
-    if (request.url.match(urlRegex)) {
-    console.log("request matches regex for interception " + request.url);
-      // Add the 'aware-session-record-tracking-id' header
-      request.headers.set('aware-session-record-tracking-id', sessionId);
-    }
-  });
-
-  // Apply the interceptor
-  interceptor.apply();
+function setTrackingIdCookie(sessionId) {
+  var d = new Date();
+  d.setTime(d.getTime() + (1 * 60 * 60 * 1000)); // 1 hour expiration
+  var expires = "expires=" + d.toUTCString();
+  document.cookie = "aware.session-record-tracking-id" + "=" + sessionId + ";expires=" + expires + ";path=/";
 }
 
 // Function to send events to the backend and reset the events array
@@ -212,7 +187,8 @@ function startRecording(config) {
   console.log("Should record session: " + shouldRecordSession + " should record on error: " + shouldRecordSessionOnError);
   // Intercept all outgoing requests and add additional HTTP header
   if (shouldRecordSession || shouldRecordSessionOnError) {
-    enableRequestInterceptor(sessionId,config.urlRegexToAddTracking);
+      console.log("Setting tracking cookie " + sessionId);
+      setTrackingIdCookie(sessionId);
   }
 
   // Store endpoint, projectId, apiKey, samplingProbability, maxSessionDurationSecs, samplingProbabilityOnError, and maxDurationToSaveOnError in window.AwareSDKConfig

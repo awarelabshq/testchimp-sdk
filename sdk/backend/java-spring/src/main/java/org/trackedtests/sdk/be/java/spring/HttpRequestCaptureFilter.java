@@ -14,6 +14,7 @@ import org.springframework.util.StreamUtils;
 
 import javax.annotation.PostConstruct;
 import javax.servlet.*;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import java.io.*;
@@ -129,21 +130,26 @@ public class HttpRequestCaptureFilter implements Filter {
     }
 
     private static void extractTrackingHeaders(HttpServletRequest httpServletRequest, Span span) {
-        String sessionRecordTrackingId = httpServletRequest.getHeader(AWARE_SESSION_RECORDING_TRACKING_ID_ATTRIBUTE);
         String trackedTestSuite = httpServletRequest.getHeader(TRACKED_TEST_SUITE_ATTRIBUTE);
         String trackedTestCase = httpServletRequest.getHeader(TRACKED_TEST_NAME_ATTRIBUTE);
         String trackedTestType = httpServletRequest.getHeader(TRACKED_TEST_TYPE_ATTRIBUTE);
-        if (sessionRecordTrackingId != null && !sessionRecordTrackingId.isEmpty()) {
-            span.setAttribute(HEADER_EXTRACTED_PREFIX + AWARE_SESSION_RECORDING_TRACKING_ID_ATTRIBUTE, sessionRecordTrackingId);
+        Cookie[] cookies = httpServletRequest.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if (cookie.getName().equals(AWARE_SESSION_RECORD_TRACKING_ID_COOKIE_NAME)) {
+                    span.setAttribute(AWARE_SESSION_RECORD_TRACKING_ID_COOKIE_NAME, cookie.getValue());
+                    break;
+                }
+            }
         }
         if (trackedTestSuite != null && !trackedTestSuite.isEmpty()) {
-            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_SUITE_ATTRIBUTE, sessionRecordTrackingId);
+            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_SUITE_ATTRIBUTE, trackedTestSuite);
         }
         if (trackedTestCase != null && !trackedTestCase.isEmpty()) {
-            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_NAME_ATTRIBUTE, sessionRecordTrackingId);
+            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_NAME_ATTRIBUTE, trackedTestCase);
         }
         if (trackedTestType != null && !trackedTestType.isEmpty()) {
-            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_TYPE_ATTRIBUTE, sessionRecordTrackingId);
+            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_TYPE_ATTRIBUTE, trackedTestType);
         }
     }
 

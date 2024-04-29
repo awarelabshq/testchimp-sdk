@@ -1,6 +1,6 @@
 {
   "name": "aware-sdk-js",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Aware SDK for js",
   "main": "dist/aware-sdk.js",
   "module": "dist/aware-sdk.js",
@@ -15,7 +15,6 @@
   "author": "Aware Labs",
   "license": "ISC",
   "dependencies": {
-    "@mswjs/interceptors": "^0.29.0",
     "rrweb": "^2.0.0-alpha.4"
   },
   "devDependencies": {
