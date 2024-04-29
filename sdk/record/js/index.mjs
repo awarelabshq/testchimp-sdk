@@ -65,7 +65,7 @@ function getSessionIdFromCookie(cookieKey) {
 function setTrackingIdCookie(sessionId) {
   var existingCookie = getCookie("aware.session-record-tracking-id");
   if (existingCookie === "") {
-    document.cookie = "aware.session-record-tracking-id" + "=" + sessionId;
+ //   document.cookie = "aware.session-record-tracking-id" + "=" + sessionId;
   }
 }
 
@@ -85,6 +85,7 @@ function getCookie(name) {
 function enableRequestIntercept(){
   // Get sessionId from the cookie
   var sessionId = getCookie("aware.session-record-tracking-id");
+  console.log("Using interception to not add tracking header value: " + sessionId);
 
   // Create instances of the interceptors
   const fetchInterceptor = new FetchInterceptor();
