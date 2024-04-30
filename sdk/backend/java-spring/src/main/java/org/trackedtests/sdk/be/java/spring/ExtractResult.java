@@ -10,9 +10,9 @@ import java.util.Map;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class RequestExtractResult {
+public class ExtractResult {
 
-    String sanitizedRequestBody;
+    String sanitizedBody;
     Map<String, String> sanitizedHeaderMap;
     Map<String, String> spanAttributes;
 }

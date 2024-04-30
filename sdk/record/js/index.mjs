@@ -69,6 +69,10 @@ function setTrackingIdCookie(sessionId) {
   }
 }
 
+function getTrackingIdCookie(){
+    return getCookie("aware.session-record-tracking-id");
+}
+
 function getCookie(name) {
   var nameEQ = name + "=";
   var cookies = document.cookie.split(';');
@@ -86,7 +90,7 @@ function getCookie(name) {
 
 function enableRequestIntercept(urlRegex){
   // Get sessionId from the storage
-  var sessionId = getCookie("aware.session-record-tracking-id");
+  var sessionId = getTrackingIdCookie();
   console.log("Using interception to add tracking cookie in header value: " + sessionId + " for url regex: " + urlRegex);
 
   // Create instances of the interceptors
@@ -216,12 +220,14 @@ function startRecording(config) {
   var endpoint = config.endpoint || 'https://ingress.awarelabs.io/session_records';
 
   // Retrieve session ID from cookie
-  var sessionId = null;//getSessionIdFromCookie(config.sessionIdCookieKey);
+  var sessionId = getSessionIdFromCookie(config.sessionIdCookieKey);
 
   // If session ID doesn't exist in cookie, generate a new one
   if (!sessionId) {
     sessionId = generateSessionId();
   }
+  setTrackingIdCookie(sessionId);
+  sessionId=getTrackingIdCookie();
 
   // Record the session start time
   sessionStartTime = new Date().getTime();
@@ -236,7 +242,6 @@ function startRecording(config) {
   // Intercept all outgoing requests and add additional HTTP header
   if (shouldRecordSession || shouldRecordSessionOnError) {
       console.log("Setting tracking id in cookie " + sessionId);
-      setTrackingIdCookie(sessionId);
       enableRequestIntercept(config.urlRegexToAddTracking);
   }
 
@@ -259,10 +264,6 @@ function startRecording(config) {
       sendEvents(endpoint, config, sessionId, events);
     }
   };
-
-    window.addEventListener('beforeunload', () => {
-      localStorage.removeItem("aware.session-record-tracking-id");
-    });
 
   initRecording(endpoint,config,sessionId);
 }

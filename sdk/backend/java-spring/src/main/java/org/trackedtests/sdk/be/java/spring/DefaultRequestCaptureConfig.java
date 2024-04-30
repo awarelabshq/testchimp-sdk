@@ -31,8 +31,8 @@ public class DefaultRequestCaptureConfig implements IRequestCaptureConfig {
     }
 
     @Override
-    public TreeMap<String, IRequestExtractor> getRequestExtractorMap() {
-        TreeMap<String, IRequestExtractor> extractorMap = new TreeMap<>();
+    public TreeMap<String, IExtractor> getExtractorMap() {
+        TreeMap<String, IExtractor> extractorMap = new TreeMap<>();
         extractorMap.put(".*", defaultRequestExtractor);
         return extractorMap;
     }

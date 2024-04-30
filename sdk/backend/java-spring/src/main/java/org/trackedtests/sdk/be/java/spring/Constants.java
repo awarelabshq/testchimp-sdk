@@ -12,7 +12,9 @@ public class Constants {
     public static final String HEADER_EXTRACTED_PREFIX = "http.request.header.";
 
     public static final String REQUEST_BODY_SPAN_ATTRIBUTE = "http.request.body";
+    public static final String RESPONSE_BODY_SPAN_ATTRIBUTE = "http.response.body";
     public static final String REQUEST_HEADERS_SPAN_ATTRIBUTE = "http.request.all_headers";
+    public static final String RESPONSE_HEADERS_SPAN_ATTRIBUTE = "http.response.all_headers";
     public static final String SELF_HTTP_URL_SPAN_ATTRIBUTE = "url.path.self";
 
 }

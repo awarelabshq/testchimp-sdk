@@ -1,7 +1,6 @@
 package org.trackedtests.sdk.be.java.spring;
 
 import java.util.List;
-import java.util.Map;
 import java.util.TreeMap;
 
 /**
@@ -16,6 +15,7 @@ public interface IRequestCaptureConfig {
     List<String> getIgnoredUriPatterns();
 
     // Should return a map of uri -> extractor objects.
-    TreeMap<String, IRequestExtractor> getRequestExtractorMap();
+    TreeMap<String, IExtractor> getExtractorMap();
+
 
 }
