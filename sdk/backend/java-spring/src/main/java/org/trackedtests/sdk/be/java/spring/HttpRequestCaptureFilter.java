@@ -130,30 +130,31 @@ public class HttpRequestCaptureFilter implements Filter {
     }
 
     private static void extractTrackingHeaders(HttpServletRequest httpServletRequest, Span span) {
-        String trackedTestSuite = httpServletRequest.getHeader(TRACKED_TEST_SUITE_ATTRIBUTE);
-        String trackedTestCase = httpServletRequest.getHeader(TRACKED_TEST_NAME_ATTRIBUTE);
-        String trackedTestType = httpServletRequest.getHeader(TRACKED_TEST_TYPE_ATTRIBUTE);
-        String headerExtractedSessionRecordingTrackingId = httpServletRequest.getHeader(AWARE_SESSION_RECORDING_TRACKING_ID_ATTRIBUTE);
+        String trackedTestSuite = httpServletRequest.getHeader(TRACKED_TEST_SUITE_HEADER_KEY);
+        String trackedTestCase = httpServletRequest.getHeader(TRACKED_TEST_NAME_HEADER_KEY);
+        String trackedTestType = httpServletRequest.getHeader(TRACKED_TEST_TYPE_HEADER_KEY);
+        String headerExtractedSessionRecordingTrackingId = httpServletRequest.getHeader(AWARE_SESSION_RECORDING_TRACKING_ID_HEADER_KEY);
         Cookie[] cookies = httpServletRequest.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
                 if (cookie.getName().equals(AWARE_SESSION_RECORD_TRACKING_ID_COOKIE_NAME)) {
-                    span.setAttribute(HEADER_EXTRACTED_PREFIX + AWARE_SESSION_RECORDING_TRACKING_ID_ATTRIBUTE, cookie.getValue());
+                    span.setAttribute(HEADER_EXTRACTED_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, cookie.getValue());
                     break;
                 }
             }
         }
         if (headerExtractedSessionRecordingTrackingId != null && !headerExtractedSessionRecordingTrackingId.isEmpty()) {
-            span.setAttribute(HEADER_EXTRACTED_PREFIX + AWARE_SESSION_RECORDING_TRACKING_ID_ATTRIBUTE, headerExtractedSessionRecordingTrackingId);
+            logger.info("Header extracted tracking id found " + headerExtractedSessionRecordingTrackingId);
+            span.setAttribute(HEADER_EXTRACTED_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, headerExtractedSessionRecordingTrackingId);
         }
         if (trackedTestSuite != null && !trackedTestSuite.isEmpty()) {
-            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_SUITE_ATTRIBUTE, trackedTestSuite);
+            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_SUITE_HEADER_KEY, trackedTestSuite);
         }
         if (trackedTestCase != null && !trackedTestCase.isEmpty()) {
-            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_NAME_ATTRIBUTE, trackedTestCase);
+            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_NAME_HEADER_KEY, trackedTestCase);
         }
         if (trackedTestType != null && !trackedTestType.isEmpty()) {
-            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_TYPE_ATTRIBUTE, trackedTestType);
+            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_TYPE_HEADER_KEY, trackedTestType);
         }
     }
 
