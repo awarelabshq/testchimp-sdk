@@ -97,6 +97,8 @@ public class DefaultRequestExtractor implements IExtractor {
                             }
                             requestIgnoredHeadersMap.put(uriPattern, ignoredHeaders);
                         }
+                    } else {
+                        requestIgnoreAllUris.add(uriPattern);
                     }
 
                     // Response section
@@ -130,6 +132,8 @@ public class DefaultRequestExtractor implements IExtractor {
                             }
                             responseIgnoredHeadersMap.put(uriPattern, ignoredHeaders);
                         }
+                    } else {
+                        responseIgnoreAllUris.add(uriPattern);
                     }
                 }
             } else {
