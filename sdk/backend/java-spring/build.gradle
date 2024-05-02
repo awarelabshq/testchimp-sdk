@@ -1,8 +1,8 @@
 apply plugin: 'java'
 apply plugin: 'maven-publish'
 
-group = 'org.aware.sdk'
-version = '0.0.1'
+group = 'org.trackedtests'
+version = '0.0.8834'
 
 repositories {
     mavenCentral()
