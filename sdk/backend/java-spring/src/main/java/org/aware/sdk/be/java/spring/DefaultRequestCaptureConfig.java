@@ -1,4 +1,4 @@
-package org.trackedtests.sdk.be.java.spring;
+package org.aware.sdk.be.java.spring;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

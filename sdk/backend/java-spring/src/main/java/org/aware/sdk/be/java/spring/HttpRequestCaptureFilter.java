@@ -1,5 +1,6 @@
-package org.trackedtests.sdk.be.java.spring;
+package org.aware.sdk.be.java.spring;
 
+import com.google.protobuf.util.JsonFormat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -19,7 +20,8 @@ import java.io.*;
 import java.util.*;
 import java.util.logging.Logger;
 
-import static org.trackedtests.sdk.be.java.spring.Constants.*;
+import static org.aware.sdk.be.java.spring.Constants.REQUEST_PAYLOAD_SPAN_ATTRIBUTE;
+import static org.aware.sdk.be.java.spring.Constants.RESPONSE_PAYLOAD_SPAN_ATTRIBUTE;
 
 @Component
 @Order(value = Ordered.HIGHEST_PRECEDENCE)
@@ -107,7 +109,7 @@ public class HttpRequestCaptureFilter implements Filter {
                 protocol = httpServletRequest.getScheme();
             }
             String completeUrl = protocol + "://" + httpServletRequest.getServerName() + httpServletRequest.getRequestURI();
-            span.setAttribute(SELF_HTTP_URL_SPAN_ATTRIBUTE, completeUrl);
+            span.setAttribute(Constants.SELF_HTTP_URL_SPAN_ATTRIBUTE, completeUrl);
 
             String requestBody = getBody(cachedRequestHttpServletRequest);
             Map<String, String> requestHeaders = getRequestHeaders(cachedRequestHttpServletRequest);
@@ -118,18 +120,14 @@ public class HttpRequestCaptureFilter implements Filter {
                     if (cachedRequestHttpServletRequest.getRequestURI().matches(uriPattern)) {
                         IExtractor extractor = config.getExtractorMap().get(uriPattern);
                         ExtractResult extractResult = extractor.extractFromRequest(httpServletRequest.getRequestURI(), requestBody, requestHeaders);
-                        requestBody = extractResult.sanitizedBody;
-                        requestHeaders = extractResult.sanitizedHeaderMap;
                         Map<String, String> spanAttribs = extractResult.spanAttributes;
                         for (Map.Entry<String, String> entry : spanAttribs.entrySet()) {
                             span.setAttribute(entry.getKey(), entry.getValue());
                         }
                         if (span != null) {
-                            if (requestBody != null) {
-                                span.setAttribute(REQUEST_BODY_SPAN_ATTRIBUTE, requestBody);
-                            }
-                            if (requestHeaders != null) {
-                                span.setAttribute(REQUEST_HEADERS_SPAN_ATTRIBUTE, objectMapper.writeValueAsString(requestHeaders));
+                            if (extractResult.sanitizedPayload.isInitialized()) {
+                                span.setAttribute(REQUEST_PAYLOAD_SPAN_ATTRIBUTE, JsonFormat.printer()
+                                        .print(extractResult.sanitizedPayload));
                             }
                         }
                         break;
@@ -158,18 +156,16 @@ public class HttpRequestCaptureFilter implements Filter {
                         if (cachedRequestHttpServletRequest.getRequestURI().matches(uriPattern)) {
                             IExtractor extractor = config.getExtractorMap().get(uriPattern);
                             ExtractResult extractResult = extractor.extractFromResponse(httpServletRequest.getRequestURI(), responseBody, responseHeaders);
-                            responseBody = extractResult.sanitizedBody;
-                            responseHeaders = extractResult.sanitizedHeaderMap;
                             Map<String, String> spanAttribs = extractResult.spanAttributes;
                             for (Map.Entry<String, String> entry : spanAttribs.entrySet()) {
                                 span.setAttribute(entry.getKey(), entry.getValue());
                             }
                             if (span != null) {
-                                if (responseBody != null) {
-                                    span.setAttribute(RESPONSE_BODY_SPAN_ATTRIBUTE, responseBody);
-                                }
-                                if (responseHeaders != null) {
-                                    span.setAttribute(REQUEST_HEADERS_SPAN_ATTRIBUTE, objectMapper.writeValueAsString(responseHeaders));
+                                if (span != null) {
+                                    if (extractResult.sanitizedPayload.isInitialized()) {
+                                        span.setAttribute(RESPONSE_PAYLOAD_SPAN_ATTRIBUTE, JsonFormat.printer()
+                                                .print(extractResult.sanitizedPayload));
+                                    }
                                 }
                             }
                             break;
@@ -186,31 +182,31 @@ public class HttpRequestCaptureFilter implements Filter {
     }
 
     private static void extractTrackingHeaders(HttpServletRequest httpServletRequest, Span span) {
-        String trackedTestSuite = httpServletRequest.getHeader(TRACKED_TEST_SUITE_HEADER_KEY);
-        String trackedTestCase = httpServletRequest.getHeader(TRACKED_TEST_NAME_HEADER_KEY);
-        String trackedTestType = httpServletRequest.getHeader(TRACKED_TEST_TYPE_HEADER_KEY);
-        String headerExtractedSessionRecordingTrackingId = httpServletRequest.getHeader(AWARE_SESSION_RECORDING_TRACKING_ID_HEADER_KEY);
+        String trackedTestSuite = httpServletRequest.getHeader(Constants.TRACKED_TEST_SUITE_HEADER_KEY);
+        String trackedTestCase = httpServletRequest.getHeader(Constants.TRACKED_TEST_NAME_HEADER_KEY);
+        String trackedTestType = httpServletRequest.getHeader(Constants.TRACKED_TEST_TYPE_HEADER_KEY);
+        String headerExtractedSessionRecordingTrackingId = httpServletRequest.getHeader(Constants.AWARE_SESSION_RECORDING_TRACKING_ID_HEADER_KEY);
         Cookie[] cookies = httpServletRequest.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if (cookie.getName().equals(AWARE_SESSION_RECORD_TRACKING_ID_COOKIE_NAME)) {
-                    span.setAttribute(HEADER_EXTRACTED_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, cookie.getValue());
+                if (cookie.getName().equals(Constants.AWARE_SESSION_RECORD_TRACKING_ID_COOKIE_NAME)) {
+                    span.setAttribute(Constants.HEADER_EXTRACTED_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, cookie.getValue());
                     break;
                 }
             }
         }
         if (headerExtractedSessionRecordingTrackingId != null && !headerExtractedSessionRecordingTrackingId.isEmpty()) {
             logger.info("Header extracted tracking id found " + headerExtractedSessionRecordingTrackingId);
-            span.setAttribute(HEADER_EXTRACTED_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, headerExtractedSessionRecordingTrackingId);
+            span.setAttribute(Constants.HEADER_EXTRACTED_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, headerExtractedSessionRecordingTrackingId);
         }
         if (trackedTestSuite != null && !trackedTestSuite.isEmpty()) {
-            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_SUITE_HEADER_KEY, trackedTestSuite);
+            span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_SUITE_HEADER_KEY, trackedTestSuite);
         }
         if (trackedTestCase != null && !trackedTestCase.isEmpty()) {
-            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_NAME_HEADER_KEY, trackedTestCase);
+            span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_NAME_HEADER_KEY, trackedTestCase);
         }
         if (trackedTestType != null && !trackedTestType.isEmpty()) {
-            span.setAttribute(HEADER_EXTRACTED_PREFIX + TRACKED_TEST_TYPE_HEADER_KEY, trackedTestType);
+            span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_TYPE_HEADER_KEY, trackedTestType);
         }
         String sessionId = extractSessionId(httpServletRequest.getHeader("cookie"));
         if (sessionId != null && !sessionId.isEmpty()) {

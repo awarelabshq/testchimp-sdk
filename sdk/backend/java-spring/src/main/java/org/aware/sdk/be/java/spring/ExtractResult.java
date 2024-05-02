@@ -1,9 +1,10 @@
-package org.trackedtests.sdk.be.java.spring;
+package org.aware.sdk.be.java.spring;
 
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.aware.model.Payload;
 
 import java.util.Map;
 
@@ -12,7 +13,6 @@ import java.util.Map;
 @AllArgsConstructor
 public class ExtractResult {
 
-    String sanitizedBody;
-    Map<String, String> sanitizedHeaderMap;
+    Payload sanitizedPayload;
     Map<String, String> spanAttributes;
 }

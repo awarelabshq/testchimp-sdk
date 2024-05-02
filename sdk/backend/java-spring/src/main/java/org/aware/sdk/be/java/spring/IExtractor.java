@@ -1,4 +1,4 @@
-package org.trackedtests.sdk.be.java.spring;
+package org.aware.sdk.be.java.spring;
 
 import java.util.Map;
 
@@ -8,5 +8,5 @@ public interface IExtractor {
     ExtractResult extractFromRequest(String uri, String originalRequestBody, Map<String, String> originalHeaderMap);
 
     // Return the sanitized response body, header map and span attributes to attach.
-    ExtractResult extractFromResponse(String uri, String originalRequestBody, Map<String, String> originalHeaderMap);
+    ExtractResult extractFromResponse(String uri, String originalResponseBody, Map<String, String> originalHeaderMap);
 }

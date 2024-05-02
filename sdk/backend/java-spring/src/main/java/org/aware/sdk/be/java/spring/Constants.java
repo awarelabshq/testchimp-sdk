@@ -1,4 +1,4 @@
-package org.trackedtests.sdk.be.java.spring;
+package org.aware.sdk.be.java.spring;
 
 public class Constants {
 
@@ -13,7 +13,6 @@ public class Constants {
 
     public static final String REQUEST_PAYLOAD_SPAN_ATTRIBUTE = "http.request.payload";
     public static final String RESPONSE_PAYLOAD_SPAN_ATTRIBUTE = "http.response.payload";
-   public static final String RESPONSE_HEADERS_SPAN_ATTRIBUTE = "http.response.all_headers";
     public static final String SELF_HTTP_URL_SPAN_ATTRIBUTE = "url.path.self";
 
 }

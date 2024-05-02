@@ -1,4 +1,4 @@
-package org.trackedtests.sdk.be.java.spring;
+package org.aware.sdk.be.java.spring;
 
 
 import org.springframework.context.annotation.Import;

@@ -1,4 +1,4 @@
-package org.trackedtests.sdk.be.java.spring;
+package org.aware.sdk.be.java.spring;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -7,6 +7,7 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
+import org.aware.model.Payload;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
@@ -179,14 +180,13 @@ public class DefaultRequestExtractor implements IExtractor {
             // Clean the headers.
             return getExtractResult(ignoreAll, originalRequestBody, originalHeaderMap, ignoredHeaders, spanAttribsToExtract, ignoredFields);
         }
-        result.sanitizedBody = ignoreAll ? "" : originalRequestBody;
-        result.sanitizedHeaderMap = ignoreAll ? new HashMap<>() : originalHeaderMap;
+        result.sanitizedPayload = ignoreAll ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalRequestBody,originalHeaderMap);
         result.spanAttributes = new HashMap<>();
         return result;
     }
 
     @Override
-    public ExtractResult extractFromResponse(String originalUri, String orignalResponseBody, Map<String, String> originalHeaderMap) {
+    public ExtractResult extractFromResponse(String originalUri, String originalResponseBody, Map<String, String> originalHeaderMap) {
         logger.fine("Extracting response details for " + originalUri);
         // Check if the content type passed in the header is JSON
         ExtractResult result = new ExtractResult();
@@ -217,10 +217,9 @@ public class DefaultRequestExtractor implements IExtractor {
             }
 
             // Clean the headers.
-            return getExtractResult(ignoreAll, orignalResponseBody, originalHeaderMap, ignoredHeaders, spanAttribsToExtract, ignoredFields);
+            return getExtractResult(ignoreAll, originalResponseBody, originalHeaderMap, ignoredHeaders, spanAttribsToExtract, ignoredFields);
         }
-        result.sanitizedBody = ignoreAll ? "" : orignalResponseBody;
-        result.sanitizedHeaderMap = ignoreAll ? new HashMap<>() : originalHeaderMap;
+        result.sanitizedPayload = ignoreAll ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalResponseBody,originalHeaderMap);
         result.spanAttributes = new HashMap<>();
         return result;
     }
@@ -266,16 +265,14 @@ public class DefaultRequestExtractor implements IExtractor {
 
             // Return extraction result
             ExtractResult result = new ExtractResult();
-            result.sanitizedHeaderMap = ignoreAll ? new HashMap<>() : originalHeaderMap;
-            result.sanitizedBody = ignoreAll ? "" : jsonContext.jsonString();
+            result.sanitizedPayload=ignoreAll?Payload.getDefaultInstance():PayloadUtils.getHttpJsonPayload(jsonContext.jsonString(),originalHeaderMap);
             result.spanAttributes = spanAttributes.entrySet().stream()
                     .map(entry -> new AbstractMap.SimpleEntry<>(entry.getKey(), entry.getValue()))
                     .collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
             return result;
         }
         ExtractResult result = new ExtractResult();
-        result.sanitizedBody = ignoreAll ? "" : originalBody;
-        result.sanitizedHeaderMap = ignoreAll ? new HashMap<>() : originalHeaderMap;
+        result.sanitizedPayload = ignoreAll ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalBody,originalHeaderMap);
         result.spanAttributes = new HashMap<>();
         return result;
     }
