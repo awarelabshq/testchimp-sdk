@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package org.aware.model;
+
+option java_multiple_files = true;
+option java_package = "org.aware.model";
+option java_outer_classname = "Model";
+
+// Represents an arbitrary http(s) payload of requests / responses.
+message HttpPayload{
+  map<string, string> header_map = 1;
+  oneof body{
+    string json_body = 2;
+  }
+}
+
+// Represents an arbitrary payload of requests / responses.
+message Payload{
+  // Span ID corresponding to the payload. This is used for correlating requests with corresponding responses.
+  optional string span_id = 1;
+  oneof payload{
+    HttpPayload http_payload = 2;
+  }
+}
