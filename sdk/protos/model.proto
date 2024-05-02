@@ -22,3 +22,7 @@ message Payload{
     HttpPayload http_payload = 2;
   }
 }
+
+message PayloadList{
+  repeated Payload payloads=1;
+}

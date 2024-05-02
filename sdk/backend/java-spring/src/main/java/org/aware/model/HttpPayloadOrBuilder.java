@@ -30,6 +30,7 @@ public interface HttpPayloadOrBuilder extends
   /**
    * <code>map&lt;string, string&gt; header_map = 1;</code>
    */
+
   /* nullable */
 java.lang.String getHeaderMapOrDefault(
       java.lang.String key,
@@ -38,6 +39,7 @@ java.lang.String defaultValue);
   /**
    * <code>map&lt;string, string&gt; header_map = 1;</code>
    */
+
   java.lang.String getHeaderMapOrThrow(
       java.lang.String key);
 

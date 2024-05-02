@@ -110,7 +110,6 @@ private static final long serialVersionUID = 0L;
                 com.google.protobuf.WireFormat.FieldType.STRING,
                 "");
   }
-  @SuppressWarnings("serial")
   private com.google.protobuf.MapField<
       java.lang.String, java.lang.String> headerMap_;
   private com.google.protobuf.MapField<java.lang.String, java.lang.String>
@@ -121,12 +120,14 @@ private static final long serialVersionUID = 0L;
     }
     return headerMap_;
   }
+
   public int getHeaderMapCount() {
     return internalGetHeaderMap().getMap().size();
   }
   /**
    * <code>map&lt;string, string&gt; header_map = 1;</code>
    */
+
   @java.lang.Override
   public boolean containsHeaderMap(
       java.lang.String key) {
@@ -145,6 +146,7 @@ private static final long serialVersionUID = 0L;
    * <code>map&lt;string, string&gt; header_map = 1;</code>
    */
   @java.lang.Override
+
   public java.util.Map<java.lang.String, java.lang.String> getHeaderMapMap() {
     return internalGetHeaderMap().getMap();
   }
@@ -152,11 +154,10 @@ private static final long serialVersionUID = 0L;
    * <code>map&lt;string, string&gt; header_map = 1;</code>
    */
   @java.lang.Override
-  public /* nullable */
-java.lang.String getHeaderMapOrDefault(
+
+  public java.lang.String getHeaderMapOrDefault(
       java.lang.String key,
-      /* nullable */
-java.lang.String defaultValue) {
+      java.lang.String defaultValue) {
     if (key == null) { throw new NullPointerException("map key"); }
     java.util.Map<java.lang.String, java.lang.String> map =
         internalGetHeaderMap().getMap();
@@ -166,6 +167,7 @@ java.lang.String defaultValue) {
    * <code>map&lt;string, string&gt; header_map = 1;</code>
    */
   @java.lang.Override
+
   public java.lang.String getHeaderMapOrThrow(
       java.lang.String key) {
     if (key == null) { throw new NullPointerException("map key"); }
@@ -477,7 +479,6 @@ java.lang.String defaultValue) {
     @java.lang.Override
     public Builder clear() {
       super.clear();
-      bitField0_ = 0;
       internalGetMutableHeaderMap().clear();
       bodyCase_ = 0;
       body_ = null;
@@ -507,23 +508,15 @@ java.lang.String defaultValue) {
     @java.lang.Override
     public org.aware.model.HttpPayload buildPartial() {
       org.aware.model.HttpPayload result = new org.aware.model.HttpPayload(this);
-      if (bitField0_ != 0) { buildPartial0(result); }
-      buildPartialOneofs(result);
+      int from_bitField0_ = bitField0_;
+      result.headerMap_ = internalGetHeaderMap();
+      result.headerMap_.makeImmutable();
+      if (bodyCase_ == 2) {
+        result.body_ = body_;
+      }
+      result.bodyCase_ = bodyCase_;
       onBuilt();
       return result;
-    }
-
-    private void buildPartial0(org.aware.model.HttpPayload result) {
-      int from_bitField0_ = bitField0_;
-      if (((from_bitField0_ & 0x00000001) != 0)) {
-        result.headerMap_ = internalGetHeaderMap();
-        result.headerMap_.makeImmutable();
-      }
-    }
-
-    private void buildPartialOneofs(org.aware.model.HttpPayload result) {
-      result.bodyCase_ = bodyCase_;
-      result.body_ = this.body_;
     }
 
     @java.lang.Override
@@ -572,7 +565,6 @@ java.lang.String defaultValue) {
       if (other == org.aware.model.HttpPayload.getDefaultInstance()) return this;
       internalGetMutableHeaderMap().mergeFrom(
           other.internalGetHeaderMap());
-      bitField0_ |= 0x00000001;
       switch (other.getBodyCase()) {
         case JSON_BODY: {
           bodyCase_ = 2;
@@ -616,7 +608,6 @@ java.lang.String defaultValue) {
                   HeaderMapDefaultEntryHolder.defaultEntry.getParserForType(), extensionRegistry);
               internalGetMutableHeaderMap().getMutableMap().put(
                   headerMap__.getKey(), headerMap__.getValue());
-              bitField0_ |= 0x00000001;
               break;
             } // case 10
             case 18: {
@@ -660,7 +651,7 @@ java.lang.String defaultValue) {
     private com.google.protobuf.MapField<
         java.lang.String, java.lang.String> headerMap_;
     private com.google.protobuf.MapField<java.lang.String, java.lang.String>
-        internalGetHeaderMap() {
+    internalGetHeaderMap() {
       if (headerMap_ == null) {
         return com.google.protobuf.MapField.emptyMapField(
             HeaderMapDefaultEntryHolder.defaultEntry);
@@ -668,7 +659,8 @@ java.lang.String defaultValue) {
       return headerMap_;
     }
     private com.google.protobuf.MapField<java.lang.String, java.lang.String>
-        internalGetMutableHeaderMap() {
+    internalGetMutableHeaderMap() {
+      onChanged();;
       if (headerMap_ == null) {
         headerMap_ = com.google.protobuf.MapField.newMapField(
             HeaderMapDefaultEntryHolder.defaultEntry);
@@ -676,16 +668,16 @@ java.lang.String defaultValue) {
       if (!headerMap_.isMutable()) {
         headerMap_ = headerMap_.copy();
       }
-      bitField0_ |= 0x00000001;
-      onChanged();
       return headerMap_;
     }
+
     public int getHeaderMapCount() {
       return internalGetHeaderMap().getMap().size();
     }
     /**
      * <code>map&lt;string, string&gt; header_map = 1;</code>
      */
+
     @java.lang.Override
     public boolean containsHeaderMap(
         java.lang.String key) {
@@ -704,6 +696,7 @@ java.lang.String defaultValue) {
      * <code>map&lt;string, string&gt; header_map = 1;</code>
      */
     @java.lang.Override
+
     public java.util.Map<java.lang.String, java.lang.String> getHeaderMapMap() {
       return internalGetHeaderMap().getMap();
     }
@@ -711,11 +704,10 @@ java.lang.String defaultValue) {
      * <code>map&lt;string, string&gt; header_map = 1;</code>
      */
     @java.lang.Override
-    public /* nullable */
-java.lang.String getHeaderMapOrDefault(
+
+    public java.lang.String getHeaderMapOrDefault(
         java.lang.String key,
-        /* nullable */
-java.lang.String defaultValue) {
+        java.lang.String defaultValue) {
       if (key == null) { throw new NullPointerException("map key"); }
       java.util.Map<java.lang.String, java.lang.String> map =
           internalGetHeaderMap().getMap();
@@ -725,6 +717,7 @@ java.lang.String defaultValue) {
      * <code>map&lt;string, string&gt; header_map = 1;</code>
      */
     @java.lang.Override
+
     public java.lang.String getHeaderMapOrThrow(
         java.lang.String key) {
       if (key == null) { throw new NullPointerException("map key"); }
@@ -735,8 +728,8 @@ java.lang.String defaultValue) {
       }
       return map.get(key);
     }
+
     public Builder clearHeaderMap() {
-      bitField0_ = (bitField0_ & ~0x00000001);
       internalGetMutableHeaderMap().getMutableMap()
           .clear();
       return this;
@@ -744,6 +737,7 @@ java.lang.String defaultValue) {
     /**
      * <code>map&lt;string, string&gt; header_map = 1;</code>
      */
+
     public Builder removeHeaderMap(
         java.lang.String key) {
       if (key == null) { throw new NullPointerException("map key"); }
@@ -756,8 +750,7 @@ java.lang.String defaultValue) {
      */
     @java.lang.Deprecated
     public java.util.Map<java.lang.String, java.lang.String>
-        getMutableHeaderMap() {
-      bitField0_ |= 0x00000001;
+    getMutableHeaderMap() {
       return internalGetMutableHeaderMap().getMutableMap();
     }
     /**
@@ -767,20 +760,22 @@ java.lang.String defaultValue) {
         java.lang.String key,
         java.lang.String value) {
       if (key == null) { throw new NullPointerException("map key"); }
-      if (value == null) { throw new NullPointerException("map value"); }
+      if (value == null) {
+  throw new NullPointerException("map value");
+}
+
       internalGetMutableHeaderMap().getMutableMap()
           .put(key, value);
-      bitField0_ |= 0x00000001;
       return this;
     }
     /**
      * <code>map&lt;string, string&gt; header_map = 1;</code>
      */
+
     public Builder putAllHeaderMap(
         java.util.Map<java.lang.String, java.lang.String> values) {
       internalGetMutableHeaderMap().getMutableMap()
           .putAll(values);
-      bitField0_ |= 0x00000001;
       return this;
     }
 
@@ -844,8 +839,10 @@ java.lang.String defaultValue) {
      */
     public Builder setJsonBody(
         java.lang.String value) {
-      if (value == null) { throw new NullPointerException(); }
-      bodyCase_ = 2;
+      if (value == null) {
+    throw new NullPointerException();
+  }
+  bodyCase_ = 2;
       body_ = value;
       onChanged();
       return this;
@@ -869,8 +866,10 @@ java.lang.String defaultValue) {
      */
     public Builder setJsonBodyBytes(
         com.google.protobuf.ByteString value) {
-      if (value == null) { throw new NullPointerException(); }
-      checkByteStringIsUtf8(value);
+      if (value == null) {
+    throw new NullPointerException();
+  }
+  checkByteStringIsUtf8(value);
       bodyCase_ = 2;
       body_ = value;
       onChanged();

@@ -29,6 +29,11 @@ public final class Model {
   static final 
     com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
       internal_static_org_aware_model_Payload_fieldAccessorTable;
+  static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_org_aware_model_PayloadList_descriptor;
+  static final 
+    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+      internal_static_org_aware_model_PayloadList_fieldAccessorTable;
 
   public static com.google.protobuf.Descriptors.FileDescriptor
       getDescriptor() {
@@ -45,8 +50,9 @@ public final class Model {
       "\001(\t\022\r\n\005value\030\002 \001(\t:\0028\001B\006\n\004body\"l\n\007Payloa" +
       "d\022\024\n\007span_id\030\001 \001(\tH\001\210\001\001\0224\n\014http_payload\030" +
       "\002 \001(\0132\034.org.aware.model.HttpPayloadH\000B\t\n" +
-      "\007payloadB\n\n\010_span_idB\032\n\017org.aware.modelB" +
-      "\005ModelP\001b\006proto3"
+      "\007payloadB\n\n\010_span_id\"9\n\013PayloadList\022*\n\010p" +
+      "ayloads\030\001 \003(\0132\030.org.aware.model.PayloadB" +
+      "\032\n\017org.aware.modelB\005ModelP\001b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -70,6 +76,12 @@ public final class Model {
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_org_aware_model_Payload_descriptor,
         new java.lang.String[] { "SpanId", "HttpPayload", "Payload", "SpanId", });
+    internal_static_org_aware_model_PayloadList_descriptor =
+      getDescriptor().getMessageTypes().get(2);
+    internal_static_org_aware_model_PayloadList_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
+        internal_static_org_aware_model_PayloadList_descriptor,
+        new java.lang.String[] { "Payloads", });
   }
 
   // @@protoc_insertion_point(outer_class_scope)

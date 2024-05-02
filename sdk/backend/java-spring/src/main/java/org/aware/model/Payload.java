@@ -89,8 +89,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int SPAN_ID_FIELD_NUMBER = 1;
-  @SuppressWarnings("serial")
-  private volatile java.lang.Object spanId_ = "";
+  private volatile java.lang.Object spanId_;
   /**
    * <pre>
    * Span ID corresponding to the payload. This is used for correlating requests with corresponding responses.
@@ -398,8 +397,8 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public Builder clear() {
       super.clear();
-      bitField0_ = 0;
       spanId_ = "";
+      bitField0_ = (bitField0_ & ~0x00000001);
       if (httpPayloadBuilder_ != null) {
         httpPayloadBuilder_.clear();
       }
@@ -431,29 +430,23 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public org.aware.model.Payload buildPartial() {
       org.aware.model.Payload result = new org.aware.model.Payload(this);
-      if (bitField0_ != 0) { buildPartial0(result); }
-      buildPartialOneofs(result);
-      onBuilt();
-      return result;
-    }
-
-    private void buildPartial0(org.aware.model.Payload result) {
       int from_bitField0_ = bitField0_;
       int to_bitField0_ = 0;
       if (((from_bitField0_ & 0x00000001) != 0)) {
-        result.spanId_ = spanId_;
         to_bitField0_ |= 0x00000001;
       }
-      result.bitField0_ |= to_bitField0_;
-    }
-
-    private void buildPartialOneofs(org.aware.model.Payload result) {
-      result.payloadCase_ = payloadCase_;
-      result.payload_ = this.payload_;
-      if (payloadCase_ == 2 &&
-          httpPayloadBuilder_ != null) {
-        result.payload_ = httpPayloadBuilder_.build();
+      result.spanId_ = spanId_;
+      if (payloadCase_ == 2) {
+        if (httpPayloadBuilder_ == null) {
+          result.payload_ = payload_;
+        } else {
+          result.payload_ = httpPayloadBuilder_.build();
+        }
       }
+      result.bitField0_ = to_bitField0_;
+      result.payloadCase_ = payloadCase_;
+      onBuilt();
+      return result;
     }
 
     @java.lang.Override
@@ -501,8 +494,8 @@ private static final long serialVersionUID = 0L;
     public Builder mergeFrom(org.aware.model.Payload other) {
       if (other == org.aware.model.Payload.getDefaultInstance()) return this;
       if (other.hasSpanId()) {
-        spanId_ = other.spanId_;
         bitField0_ |= 0x00000001;
+        spanId_ = other.spanId_;
         onChanged();
       }
       switch (other.getPayloadCase()) {
@@ -648,9 +641,11 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setSpanId(
         java.lang.String value) {
-      if (value == null) { throw new NullPointerException(); }
+      if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000001;
       spanId_ = value;
-      bitField0_ |= 0x00000001;
       onChanged();
       return this;
     }
@@ -663,8 +658,8 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearSpanId() {
-      spanId_ = getDefaultInstance().getSpanId();
       bitField0_ = (bitField0_ & ~0x00000001);
+      spanId_ = getDefaultInstance().getSpanId();
       onChanged();
       return this;
     }
@@ -679,10 +674,12 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setSpanIdBytes(
         com.google.protobuf.ByteString value) {
-      if (value == null) { throw new NullPointerException(); }
-      checkByteStringIsUtf8(value);
-      spanId_ = value;
+      if (value == null) {
+    throw new NullPointerException();
+  }
+  checkByteStringIsUtf8(value);
       bitField0_ |= 0x00000001;
+      spanId_ = value;
       onChanged();
       return this;
     }
@@ -825,7 +822,7 @@ private static final long serialVersionUID = 0L;
         payload_ = null;
       }
       payloadCase_ = 2;
-      onChanged();
+      onChanged();;
       return httpPayloadBuilder_;
     }
     @java.lang.Override
