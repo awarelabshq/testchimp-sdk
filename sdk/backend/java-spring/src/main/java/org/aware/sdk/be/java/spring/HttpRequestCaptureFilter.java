@@ -126,6 +126,7 @@ public class HttpRequestCaptureFilter implements Filter {
                         }
                         if (span != null) {
                             if (extractResult.sanitizedPayload.isInitialized()) {
+                                logger.info("Setting reqyest payload attribute");
                                 span.setAttribute(REQUEST_PAYLOAD_SPAN_ATTRIBUTE, JsonFormat.printer()
                                         .print(extractResult.sanitizedPayload));
                             }
@@ -163,6 +164,7 @@ public class HttpRequestCaptureFilter implements Filter {
                             if (span != null) {
                                 if (span != null) {
                                     if (extractResult.sanitizedPayload.isInitialized()) {
+                                        logger.info("Setting response payload attribute");
                                         span.setAttribute(RESPONSE_PAYLOAD_SPAN_ATTRIBUTE, JsonFormat.printer()
                                                 .print(extractResult.sanitizedPayload));
                                     }

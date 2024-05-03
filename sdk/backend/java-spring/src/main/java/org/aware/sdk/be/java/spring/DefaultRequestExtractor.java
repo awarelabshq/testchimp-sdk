@@ -3,10 +3,12 @@ package org.aware.sdk.be.java.spring;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.protobuf.util.JsonFormat;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
+import lombok.SneakyThrows;
 import org.aware.model.Payload;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -80,6 +82,7 @@ public class DefaultRequestExtractor implements IExtractor {
                     Iterator<String> fieldNames = urlConfigsNode.fieldNames();
                     while (fieldNames.hasNext()) {
                         String uriPattern = fieldNames.next();
+                        logger.info("uri pattern " + uriPattern + " will be intercepted");
                         uris.add(uriPattern);
                         JsonNode uriNode = urlConfigsNode.get(uriPattern);
 
@@ -98,6 +101,7 @@ public class DefaultRequestExtractor implements IExtractor {
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Error reading request_body_capture_config.yml", e);
         }
+        logger.info("Request ignore uris: " + String.join(",", requestIgnoreUris));
     }
 
     private void parseGlobalConfig(JsonNode globalConfigNode) {
@@ -165,7 +169,6 @@ public class DefaultRequestExtractor implements IExtractor {
 
     @Override
     public ExtractResult extractFromRequest(String originalUri, String originalRequestBody, Map<String, String> originalHeaderMap) {
-        logger.fine("Extracting request details for " + originalUri);
         // Check if the content type passed in the header is JSON
         ExtractResult result = new ExtractResult();
         boolean ignorePayload = false;
@@ -184,6 +187,7 @@ public class DefaultRequestExtractor implements IExtractor {
         if (!hasMatchedUri) {
             ignorePayload = true;
         }
+        logger.info("Extracting request details for " + originalUri + " ignorePayload: " + ignorePayload + " hasMatchedUri  " + hasMatchedUri);
 
         String contentType = originalHeaderMap.getOrDefault("content-type", "");
         if (contentType != null && contentType.toLowerCase().contains("application/json")) {
@@ -206,6 +210,7 @@ public class DefaultRequestExtractor implements IExtractor {
         return result;
     }
 
+    @SneakyThrows
     @Override
     public ExtractResult extractFromResponse(String originalUri, String originalResponseBody, Map<String, String> originalHeaderMap) {
         logger.fine("Extracting response details for " + originalUri);
@@ -241,13 +246,16 @@ public class DefaultRequestExtractor implements IExtractor {
             }
 
             // Clean the headers.
-            return getExtractResult(ignorePayload, originalResponseBody, originalHeaderMap, ignoredHeaders, spanAttribsToExtract, ignoredFields);
+            result = getExtractResult(ignorePayload, originalResponseBody, originalHeaderMap, ignoredHeaders, spanAttribsToExtract, ignoredFields);
+        } else {
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalResponseBody, originalHeaderMap);
+            result.spanAttributes = new HashMap<>();
         }
-        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalResponseBody, originalHeaderMap);
-        result.spanAttributes = new HashMap<>();
+        logger.info("Extracted payload: " + JsonFormat.printer().print(result.sanitizedPayload));
         return result;
     }
 
+    @SneakyThrows
     private ExtractResult getExtractResult(Boolean ignorePayload, String originalBody, Map<String, String> originalHeaderMap, List<String> ignoredHeaders, List<String> spanAttribsToExtract, List<String> ignoredFields) {
         for (String ignoredHeader : ignoredHeaders) {
             originalHeaderMap.remove(ignoredHeader);
@@ -282,7 +290,7 @@ public class DefaultRequestExtractor implements IExtractor {
                 if (!valueList.isEmpty()) {
                     String strValue = String.join(",", valueList.stream().map(v -> String.valueOf(v))
                             .collect(Collectors.toList()));
-                    logger.fine("Extracting " + attribute + " as " + fieldName + " with value: " + strValue);
+                    logger.info("Extracting " + attribute + " as " + fieldName + " with value: " + strValue);
                     spanAttributes.put(fieldName, strValue);
                 }
             }
@@ -293,11 +301,14 @@ public class DefaultRequestExtractor implements IExtractor {
             result.spanAttributes = spanAttributes.entrySet().stream()
                     .map(entry -> new AbstractMap.SimpleEntry<>(entry.getKey(), entry.getValue()))
                     .collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
+            logger.info("Extracted payload: " + JsonFormat.printer().print(result.sanitizedPayload));
             return result;
+
         }
         ExtractResult result = new ExtractResult();
         result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalBody, originalHeaderMap);
         result.spanAttributes = new HashMap<>();
+        logger.info("Extracted payload: " + JsonFormat.printer().print(result.sanitizedPayload));
         return result;
     }
 
