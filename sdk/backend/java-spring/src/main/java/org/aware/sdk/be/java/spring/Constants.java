@@ -11,8 +11,8 @@ public class Constants {
 
     public static final String HEADER_EXTRACTED_PREFIX = "http.request.header.";
 
-    public static final String REQUEST_PAYLOAD_SPAN_ATTRIBUTE = "http.request.payload";
-    public static final String RESPONSE_PAYLOAD_SPAN_ATTRIBUTE = "http.response.payload";
+    public static final String REQUEST_PAYLOAD_SPAN_ATTRIBUTE = "aware.derived.request.payload";
+    public static final String RESPONSE_PAYLOAD_SPAN_ATTRIBUTE = "aware.derived.response.payload";
     public static final String SELF_HTTP_URL_SPAN_ATTRIBUTE = "url.path.self";
 
 }
