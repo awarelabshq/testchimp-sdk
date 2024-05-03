@@ -1,0 +1,27 @@
+global_config:
+  # payload of urls that match this set will not be captured
+  ignored_urls:
+    - ".*/admin/get_detailed_user_info"
+  # globally, the following headers will not be captured
+  ignored_headers:
+    - "Authorization"
+url_configs:
+  # Each section is formatted as "url_pattern" under which:
+  # request - section will describe how requests are captured for uris matching the url_pattern (if request block not present, request won't be captured)
+  # response - section will describe how responses are captured for uris matching the url_pattern (if response block not present, response won't be captured)
+  .*/admin/.*:
+    request:
+    response:
+      # listed headers under this will be specifically not captured for this url_pattern
+      ignored_headers:
+        - "User-Id"
+      # fields matching the following json path queries will be ignored in the captured request / response.
+      ignored_fields:
+        - "$.results[*].items[*].bar"
+      # fields matching the following json queries will be captured as span attributes (the name of the span attribute will be the name of the field). If there are multiple matches, the values will be concat using ","
+      extract_to_span_attributes:
+        - "$.results[*].item_type"
+
+  .*/user/.*:
+    request:
+    response:

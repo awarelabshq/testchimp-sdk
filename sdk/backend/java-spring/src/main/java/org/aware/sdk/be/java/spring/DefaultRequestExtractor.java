@@ -25,27 +25,36 @@ import java.util.stream.Collectors;
 @Component
 public class DefaultRequestExtractor implements IExtractor {
     private static final Logger logger = Logger.getLogger(DefaultRequestExtractor.class.getName());
-    public static final String EXTRACT_TO_SPAN_ATTRIBUTES_YML_FIELD = "extractToSpanAttributes";
-    public static final String IGNORED_FIELDS_YML_FIELD = "ignoredFields";
-    public static final String IGNORED_HEADERS_YML_FIELD = "ignoredHeaders";
+    private static final String GLOBAL_CONFIG_YML_FIELD = "global_config";
+    private static final String URL_CONFIGS_YML_FIELD = "url_configs";
+
+    private static final String IGNORE_URLS_YML_FIELD = "ignored_urls";
+    private static final String IGNORE_HEADERS_YML_FIELD = "ignored_headers";
+
     public static final String REQUEST_YML_FIELD = "request";
     public static final String RESPONSE_YML_FIELD = "response";
-    private static final String IGNORE_ALL_YML_FIELD = "ignoreAll";
+
+    public static final String EXTRACT_TO_SPAN_ATTRIBUTES_YML_FIELD = "extract_to_span_attributes";
+    public static final String IGNORED_FIELDS_YML_FIELD = "ignored_fields";
+    public static final String IGNORED_HEADERS_YML_FIELD = "ignored_headers";
+    private static final String IGNORE_PAYLOAD_YML_FIELD = "ignore_payload";
 
     @Value("${aware.request_body_capture.config.file.path:classpath:aware_request_body_capture_config.yml}")
     private String configFilePath;
 
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
 
+    // for uris in this set, all request bodies will be ignored.
+    private Set<String> requestIgnoreUris = new HashSet<>();
+    // for uris in this set, all response bodies will be ignored.
+    private Set<String> responseIgnoreUris = new HashSet<>();
+
     private Map<String, List<String>> requestExtractToSpanAttributesMap = new HashMap<>();
     private Map<String, List<String>> requestIgnoredFieldsMap = new HashMap<>();
     private Map<String, List<String>> requestIgnoredHeadersMap = new HashMap<>();
 
+
     private Map<String, List<String>> responseExtractToSpanAttributesMap = new HashMap<>();
-    // for uris in this set, all response bodies will be ignored.
-    private Set<String> responseIgnoreAllUris = new HashSet<>();
-    // for uris in this set, all request bodies will be ignored.
-    private Set<String> requestIgnoreAllUris = new HashSet<>();
     private Map<String, List<String>> responseIgnoredFieldsMap = new HashMap<>();
     private Map<String, List<String>> responseIgnoredHeadersMap = new HashMap<>();
 
@@ -61,80 +70,26 @@ public class DefaultRequestExtractor implements IExtractor {
                 logger.info("Found tracked tests request capture config yml @ " + configFilePath);
                 InputStream inputStream = resource.getInputStream();
                 JsonNode rootNode = YAML_MAPPER.readTree(inputStream);
-                Iterator<String> fieldNames = rootNode.fieldNames();
-                while (fieldNames.hasNext()) {
-                    String uriPattern = fieldNames.next();
-                    uris.add(uriPattern);
-                    JsonNode uriNode = rootNode.get(uriPattern);
 
-                    // Request section
-                    if (uriNode.has(REQUEST_YML_FIELD)) {
-                        JsonNode requestNode = uriNode.get(REQUEST_YML_FIELD);
-                        if (requestNode.has(EXTRACT_TO_SPAN_ATTRIBUTES_YML_FIELD)) {
-                            List<String> extractAttributes = new ArrayList<>();
-                            for (JsonNode attributeNode : requestNode.get(EXTRACT_TO_SPAN_ATTRIBUTES_YML_FIELD)) {
-                                extractAttributes.add(attributeNode.asText());
-                                logger.info("Rule: extract " + attributeNode.asText() + " for " + uriPattern + " (request)");
-                            }
-                            requestExtractToSpanAttributesMap.put(uriPattern, extractAttributes);
-                        }
-                        if (requestNode.has(IGNORE_ALL_YML_FIELD)) {
-                            logger.info("Rule: ignore all of request for extract " + uriPattern);
-                            requestIgnoreAllUris.add(uriPattern);
-                        }
-                        if (requestNode.has(IGNORED_FIELDS_YML_FIELD)) {
-                            List<String> ignoredFields = new ArrayList<>();
-                            for (JsonNode ignoredFieldNode : requestNode.get(IGNORED_FIELDS_YML_FIELD)) {
-                                ignoredFields.add(ignoredFieldNode.asText());
-                                logger.info("Rule: ignore field " + ignoredFieldNode.asText() + " for " + uriPattern + " (request)");
-                            }
-                            requestIgnoredFieldsMap.put(uriPattern, ignoredFields);
-                        }
-                        if (requestNode.has(IGNORED_HEADERS_YML_FIELD)) {
-                            List<String> ignoredHeaders = new ArrayList<>();
-                            for (JsonNode ignoredHeadersNode : requestNode.get(IGNORED_HEADERS_YML_FIELD)) {
-                                ignoredHeaders.add(ignoredHeadersNode.asText());
-                                logger.info("Rule: ignore header " + ignoredHeadersNode.asText() + " for " + uriPattern + " (request)");
-                            }
-                            requestIgnoredHeadersMap.put(uriPattern, ignoredHeaders);
-                        }
-                    } else {
-                        requestIgnoreAllUris.add(uriPattern);
-                    }
+                // Parse global config
+                parseGlobalConfig(rootNode.get(GLOBAL_CONFIG_YML_FIELD));
 
-                    // Response section
-                    if (uriNode.has(RESPONSE_YML_FIELD)) {
-                        JsonNode responseNode = uriNode.get(RESPONSE_YML_FIELD);
-                        if (responseNode.has(EXTRACT_TO_SPAN_ATTRIBUTES_YML_FIELD)) {
-                            List<String> extractAttributes = new ArrayList<>();
-                            for (JsonNode attributeNode : responseNode.get(EXTRACT_TO_SPAN_ATTRIBUTES_YML_FIELD)) {
-                                extractAttributes.add(attributeNode.asText());
-                                logger.info("Rule: extract " + attributeNode.asText() + " for " + uriPattern + " (response)");
-                            }
-                            responseExtractToSpanAttributesMap.put(uriPattern, extractAttributes);
-                        }
-                        if (responseNode.has(IGNORE_ALL_YML_FIELD)) {
-                            logger.info("Rule: ignore all of response for extract " + uriPattern);
-                            responseIgnoreAllUris.add(uriPattern);
-                        }
-                        if (responseNode.has(IGNORED_FIELDS_YML_FIELD)) {
-                            List<String> ignoredFields = new ArrayList<>();
-                            for (JsonNode ignoredFieldNode : responseNode.get(IGNORED_FIELDS_YML_FIELD)) {
-                                ignoredFields.add(ignoredFieldNode.asText());
-                                logger.info("Rule: ignore field " + ignoredFieldNode.asText() + " for " + uriPattern + " (response)");
-                            }
-                            responseIgnoredFieldsMap.put(uriPattern, ignoredFields);
-                        }
-                        if (responseNode.has(IGNORED_HEADERS_YML_FIELD)) {
-                            List<String> ignoredHeaders = new ArrayList<>();
-                            for (JsonNode ignoredHeadersNode : responseNode.get(IGNORED_HEADERS_YML_FIELD)) {
-                                ignoredHeaders.add(ignoredHeadersNode.asText());
-                                logger.info("Rule: ignore header " + ignoredHeadersNode.asText() + " for " + uriPattern + " (request)");
-                            }
-                            responseIgnoredHeadersMap.put(uriPattern, ignoredHeaders);
-                        }
-                    } else {
-                        responseIgnoreAllUris.add(uriPattern);
+                // Parse URL configs
+                if (rootNode.has(URL_CONFIGS_YML_FIELD)) {
+                    JsonNode urlConfigsNode = rootNode.get(URL_CONFIGS_YML_FIELD);
+                    Iterator<String> fieldNames = urlConfigsNode.fieldNames();
+                    while (fieldNames.hasNext()) {
+                        String uriPattern = fieldNames.next();
+                        uris.add(uriPattern);
+                        JsonNode uriNode = urlConfigsNode.get(uriPattern);
+
+                        // Parse request section
+                        parseSection(uriPattern, uriNode.get(REQUEST_YML_FIELD), requestExtractToSpanAttributesMap,
+                                requestIgnoredFieldsMap, requestIgnoredHeadersMap, requestIgnoreUris);
+
+                        // Parse response section
+                        parseSection(uriPattern, uriNode.get(RESPONSE_YML_FIELD), responseExtractToSpanAttributesMap,
+                                responseIgnoredFieldsMap, responseIgnoredHeadersMap, responseIgnoreUris);
                     }
                 }
             } else {
@@ -145,23 +100,89 @@ public class DefaultRequestExtractor implements IExtractor {
         }
     }
 
+    private void parseGlobalConfig(JsonNode globalConfigNode) {
+        if (globalConfigNode != null) {
+            if (globalConfigNode.has(IGNORE_URLS_YML_FIELD)) {
+                for (JsonNode ignoreUrlNode : globalConfigNode.get(IGNORE_URLS_YML_FIELD)) {
+                    String ignoreUrl = ignoreUrlNode.asText();
+                    requestIgnoreUris.add(ignoreUrl);
+                    responseIgnoreUris.add(ignoreUrl);
+                    logger.info("Rule: ignore all payload capture for URLs matching: " + ignoreUrl);
+                }
+            }
+            if (globalConfigNode.has(IGNORE_HEADERS_YML_FIELD)) {
+                for (JsonNode ignoreHeaderNode : globalConfigNode.get(IGNORE_HEADERS_YML_FIELD)) {
+                    String ignoreHeader = ignoreHeaderNode.asText();
+                    requestIgnoredHeadersMap.put(".*", Arrays.asList(ignoreHeader));
+                    responseIgnoredHeadersMap.put(".*", Arrays.asList(ignoreHeader));
+                    logger.info("Rule: For all requests / responses, ignore header " + ignoreHeader);
+                }
+            }
+        }
+    }
+
+    private void parseSection(String uriPattern, JsonNode sectionNode,
+                              Map<String, List<String>> extractToSpanAttributesMap,
+                              Map<String, List<String>> ignoredFieldsMap,
+                              Map<String, List<String>> ignoredHeadersMap,
+                              Set<String> ignoreUris) {
+        if (sectionNode != null) {
+            if (sectionNode.has(EXTRACT_TO_SPAN_ATTRIBUTES_YML_FIELD)) {
+                List<String> extractAttributes = new ArrayList<>();
+                for (JsonNode attributeNode : sectionNode.get(EXTRACT_TO_SPAN_ATTRIBUTES_YML_FIELD)) {
+                    String attribute = attributeNode.asText();
+                    extractAttributes.add(attribute);
+                    logger.info("Rule: extract " + attribute + " for " + uriPattern);
+                }
+                extractToSpanAttributesMap.put(uriPattern, extractAttributes);
+            }
+            if (sectionNode.has(IGNORE_PAYLOAD_YML_FIELD)) {
+                logger.info("Rule: ignore payload for " + uriPattern);
+                ignoreUris.add(uriPattern);
+            }
+            if (sectionNode.has(IGNORED_FIELDS_YML_FIELD)) {
+                List<String> ignoredFields = new ArrayList<>();
+                for (JsonNode ignoredFieldNode : sectionNode.get(IGNORED_FIELDS_YML_FIELD)) {
+                    String ignoredField = ignoredFieldNode.asText();
+                    ignoredFields.add(ignoredField);
+                    logger.info("Rule: ignore field " + ignoredField + " for " + uriPattern);
+                }
+                ignoredFieldsMap.put(uriPattern, ignoredFields);
+            }
+            if (sectionNode.has(IGNORED_HEADERS_YML_FIELD)) {
+                List<String> ignoredHeaders = new ArrayList<>();
+                for (JsonNode ignoredHeadersNode : sectionNode.get(IGNORED_HEADERS_YML_FIELD)) {
+                    String ignoredHeader = ignoredHeadersNode.asText();
+                    ignoredHeaders.add(ignoredHeader);
+                    logger.info("Rule: ignore header " + ignoredHeader + " for " + uriPattern);
+                }
+                ignoredHeadersMap.put(uriPattern, ignoredHeaders);
+            }
+        } else {
+            ignoreUris.add(uriPattern);
+        }
+    }
+
     @Override
     public ExtractResult extractFromRequest(String originalUri, String originalRequestBody, Map<String, String> originalHeaderMap) {
         logger.fine("Extracting request details for " + originalUri);
         // Check if the content type passed in the header is JSON
         ExtractResult result = new ExtractResult();
-        boolean ignoreAll = false;
+        boolean ignorePayload = false;
         boolean hasMatchedUri = false;
         for (String uri : uris) {
             if (originalUri.matches(uri)) {
                 hasMatchedUri = true;
-                if (requestIgnoreAllUris.contains(uri)) {
-                    ignoreAll = true;
-                }
+            }
+        }
+        for (String uri : requestIgnoreUris) {
+            if (originalUri.matches(uri)) {
+                ignorePayload = true;
+                break;
             }
         }
         if (!hasMatchedUri) {
-            ignoreAll = true;
+            ignorePayload = true;
         }
 
         String contentType = originalHeaderMap.getOrDefault("content-type", "");
@@ -178,9 +199,9 @@ public class DefaultRequestExtractor implements IExtractor {
             }
 
             // Clean the headers.
-            return getExtractResult(ignoreAll, originalRequestBody, originalHeaderMap, ignoredHeaders, spanAttribsToExtract, ignoredFields);
+            return getExtractResult(ignorePayload, originalRequestBody, originalHeaderMap, ignoredHeaders, spanAttribsToExtract, ignoredFields);
         }
-        result.sanitizedPayload = ignoreAll ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalRequestBody,originalHeaderMap);
+        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalRequestBody, originalHeaderMap);
         result.spanAttributes = new HashMap<>();
         return result;
     }
@@ -190,18 +211,21 @@ public class DefaultRequestExtractor implements IExtractor {
         logger.fine("Extracting response details for " + originalUri);
         // Check if the content type passed in the header is JSON
         ExtractResult result = new ExtractResult();
-        boolean ignoreAll = false;
+        boolean ignorePayload = false;
         boolean hasMatchedUri = false;
         for (String uri : uris) {
             if (originalUri.matches(uri)) {
                 hasMatchedUri = true;
-                if (requestIgnoreAllUris.contains(uri)) {
-                    ignoreAll = true;
-                }
+            }
+        }
+        for (String uri : requestIgnoreUris) {
+            if (originalUri.matches(uri)) {
+                ignorePayload = true;
+                break;
             }
         }
         if (!hasMatchedUri) {
-            ignoreAll = true;
+            ignorePayload = true;
         }
         String contentType = originalHeaderMap.getOrDefault("content-type", "");
         if (contentType != null && contentType.toLowerCase().contains("application/json")) {
@@ -217,14 +241,14 @@ public class DefaultRequestExtractor implements IExtractor {
             }
 
             // Clean the headers.
-            return getExtractResult(ignoreAll, originalResponseBody, originalHeaderMap, ignoredHeaders, spanAttribsToExtract, ignoredFields);
+            return getExtractResult(ignorePayload, originalResponseBody, originalHeaderMap, ignoredHeaders, spanAttribsToExtract, ignoredFields);
         }
-        result.sanitizedPayload = ignoreAll ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalResponseBody,originalHeaderMap);
+        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalResponseBody, originalHeaderMap);
         result.spanAttributes = new HashMap<>();
         return result;
     }
 
-    private ExtractResult getExtractResult(Boolean ignoreAll, String originalBody, Map<String, String> originalHeaderMap, List<String> ignoredHeaders, List<String> spanAttribsToExtract, List<String> ignoredFields) {
+    private ExtractResult getExtractResult(Boolean ignorePayload, String originalBody, Map<String, String> originalHeaderMap, List<String> ignoredHeaders, List<String> spanAttribsToExtract, List<String> ignoredFields) {
         for (String ignoredHeader : ignoredHeaders) {
             originalHeaderMap.remove(ignoredHeader);
         }
@@ -265,14 +289,14 @@ public class DefaultRequestExtractor implements IExtractor {
 
             // Return extraction result
             ExtractResult result = new ExtractResult();
-            result.sanitizedPayload=ignoreAll?Payload.getDefaultInstance():PayloadUtils.getHttpJsonPayload(jsonContext.jsonString(),originalHeaderMap);
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(jsonContext.jsonString(), originalHeaderMap);
             result.spanAttributes = spanAttributes.entrySet().stream()
                     .map(entry -> new AbstractMap.SimpleEntry<>(entry.getKey(), entry.getValue()))
                     .collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
             return result;
         }
         ExtractResult result = new ExtractResult();
-        result.sanitizedPayload = ignoreAll ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalBody,originalHeaderMap);
+        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalBody, originalHeaderMap);
         result.spanAttributes = new HashMap<>();
         return result;
     }
