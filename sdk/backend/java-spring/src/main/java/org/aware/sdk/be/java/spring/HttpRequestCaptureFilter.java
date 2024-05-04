@@ -18,6 +18,7 @@ import javax.servlet.*;
 import javax.servlet.http.*;
 import java.io.*;
 import java.util.*;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static org.aware.sdk.be.java.spring.Constants.REQUEST_PAYLOAD_SPAN_ATTRIBUTE;
@@ -127,7 +128,6 @@ public class HttpRequestCaptureFilter implements Filter {
                         }
                         if (span != null) {
                             if (extractResult.sanitizedPayload.isInitialized()) {
-                                logger.info("Setting reqyest payload attribute");
                                 span.setAttribute(REQUEST_PAYLOAD_SPAN_ATTRIBUTE, JsonFormat.printer()
                                         .print(extractResult.sanitizedPayload.toBuilder().setSpanId(spanId).build()));
                             }
@@ -165,7 +165,6 @@ public class HttpRequestCaptureFilter implements Filter {
                             if (span != null) {
                                 if (span != null) {
                                     if (extractResult.sanitizedPayload.isInitialized()) {
-                                        logger.info("Setting response payload attribute");
                                         span.setAttribute(RESPONSE_PAYLOAD_SPAN_ATTRIBUTE, JsonFormat.printer()
                                                 .print(extractResult.sanitizedPayload.toBuilder().setSpanId(spanId)
                                                         .build()));
@@ -200,7 +199,6 @@ public class HttpRequestCaptureFilter implements Filter {
             }
         }
         if (headerExtractedSessionRecordingTrackingId != null && !headerExtractedSessionRecordingTrackingId.isEmpty()) {
-            logger.info("Header extracted tracking id found " + headerExtractedSessionRecordingTrackingId);
             span.setAttribute(Constants.HEADER_EXTRACTED_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, headerExtractedSessionRecordingTrackingId);
         }
         if (trackedTestSuite != null && !trackedTestSuite.isEmpty()) {
@@ -305,7 +303,7 @@ public class HttpRequestCaptureFilter implements Filter {
             try {
                 return cachedBodyInputStream.available() == 0;
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.log(Level.SEVERE,"Error in HttpRequestCapture",e);
             }
             return false;
         }
