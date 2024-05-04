@@ -68,6 +68,7 @@ public class HttpRequestCaptureFilter implements Filter {
         }
 
         Span span = Span.current();
+        String spanId = span.getSpanContext().getSpanId();
         HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
         extractTrackingHeaders(httpServletRequest, span);
 
@@ -128,7 +129,7 @@ public class HttpRequestCaptureFilter implements Filter {
                             if (extractResult.sanitizedPayload.isInitialized()) {
                                 logger.info("Setting reqyest payload attribute");
                                 span.setAttribute(REQUEST_PAYLOAD_SPAN_ATTRIBUTE, JsonFormat.printer()
-                                        .print(extractResult.sanitizedPayload));
+                                        .print(extractResult.sanitizedPayload.toBuilder().setSpanId(spanId).build()));
                             }
                         }
                         break;
@@ -166,7 +167,8 @@ public class HttpRequestCaptureFilter implements Filter {
                                     if (extractResult.sanitizedPayload.isInitialized()) {
                                         logger.info("Setting response payload attribute");
                                         span.setAttribute(RESPONSE_PAYLOAD_SPAN_ATTRIBUTE, JsonFormat.printer()
-                                                .print(extractResult.sanitizedPayload));
+                                                .print(extractResult.sanitizedPayload.toBuilder().setSpanId(spanId)
+                                                        .build()));
                                     }
                                 }
                             }
