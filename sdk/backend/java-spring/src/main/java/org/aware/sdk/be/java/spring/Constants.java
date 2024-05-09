@@ -13,7 +13,8 @@ public class Constants {
 
     public static final String REQUEST_PAYLOAD_SPAN_ATTRIBUTE = "aware.derived.request.payload";
     public static final String RESPONSE_PAYLOAD_SPAN_ATTRIBUTE = "aware.derived.response.payload";
-    public static final String SELF_HTTP_URL_SPAN_ATTRIBUTE = "url.path.self";
+    public static final String SELF_HTTP_URL_SPAN_ATTRIBUTE = "aware.derived.url.path.self";
+    public static final String USER_ID_SPAN_ATTRIBUTE = "aware.derived.user.id";
 
 }
 
