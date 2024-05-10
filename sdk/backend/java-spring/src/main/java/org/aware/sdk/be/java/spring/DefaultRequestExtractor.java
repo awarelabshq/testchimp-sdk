@@ -161,7 +161,9 @@ public class DefaultRequestExtractor implements IExtractor {
                 extractHeadersToSpanAttributesMap.put(uriPattern, extractHeaderAttributes);
             }
             if (sectionNode.has(USER_ID_BODY_FIELD_YML_FIELD)) {
-                userIdFieldMap.put(uriPattern, sectionNode.get(USER_ID_BODY_FIELD_YML_FIELD).asText());
+                String userIdField = sectionNode.get(USER_ID_BODY_FIELD_YML_FIELD).asText();
+                logger.info("Rule: user id field: " + userIdField + " captured for uris: " + uriPattern);
+                userIdFieldMap.put(uriPattern, userIdField);
             }
             if (sectionNode.has(IGNORE_PAYLOAD_YML_FIELD)) {
                 logger.info("Rule: ignore payload for " + uriPattern);
@@ -337,6 +339,7 @@ public class DefaultRequestExtractor implements IExtractor {
             }
 
             for (String attribute : userIdBodyFields) {
+                logger.info("Found userIdBody field config : " + attribute);
                 Object value = jsonContext.read(attribute);
 
                 List<Object> valueList = new ArrayList<>();
@@ -348,7 +351,7 @@ public class DefaultRequestExtractor implements IExtractor {
                 }
                 if (!valueList.isEmpty()) {
                     String strValue = String.valueOf(valueList.get(0));
-                    logger.fine("Extracting " + attribute + " as " + Constants.USER_ID_SPAN_ATTRIBUTE + " with value: " + strValue);
+                    logger.info("Extracting " + attribute + " as " + Constants.USER_ID_SPAN_ATTRIBUTE + " with value: " + strValue);
                     spanAttributes.put(Constants.USER_ID_SPAN_ATTRIBUTE, strValue);
                 }
             }
@@ -356,9 +359,7 @@ public class DefaultRequestExtractor implements IExtractor {
             // Return extraction result
             ExtractResult result = new ExtractResult();
             result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(jsonContext.jsonString(), originalHeaderMap);
-            result.spanAttributes = spanAttributes.entrySet().stream()
-                    .map(entry -> new AbstractMap.SimpleEntry<>(entry.getKey(), entry.getValue()))
-                    .collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
+            result.spanAttributes = spanAttributes;
             logger.fine("Extracted payload: " + JsonFormat.printer().print(result.sanitizedPayload));
             return result;
 

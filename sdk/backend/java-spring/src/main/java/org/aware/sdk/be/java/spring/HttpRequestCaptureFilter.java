@@ -124,6 +124,7 @@ public class HttpRequestCaptureFilter implements Filter {
                         ExtractResult extractResult = extractor.extractFromRequest(httpServletRequest.getRequestURI(), requestBody, requestHeaders);
                         Map<String, String> spanAttribs = extractResult.spanAttributes;
                         for (Map.Entry<String, String> entry : spanAttribs.entrySet()) {
+                            logger.info("Setting span attribute from request : " + entry.getKey() + " : " + entry.getValue());
                             span.setAttribute(entry.getKey(), entry.getValue());
                         }
                         if (span != null) {
@@ -160,6 +161,7 @@ public class HttpRequestCaptureFilter implements Filter {
                             ExtractResult extractResult = extractor.extractFromResponse(httpServletRequest.getRequestURI(), responseBody, responseHeaders);
                             Map<String, String> spanAttribs = extractResult.spanAttributes;
                             for (Map.Entry<String, String> entry : spanAttribs.entrySet()) {
+                                logger.info("Setting span attribute from response : " + entry.getKey() + " : " + entry.getValue());
                                 span.setAttribute(entry.getKey(), entry.getValue());
                             }
                             if (span != null) {
@@ -303,7 +305,7 @@ public class HttpRequestCaptureFilter implements Filter {
             try {
                 return cachedBodyInputStream.available() == 0;
             } catch (IOException e) {
-                logger.log(Level.SEVERE,"Error in HttpRequestCapture",e);
+                logger.log(Level.SEVERE, "Error in HttpRequestCapture", e);
             }
             return false;
         }
