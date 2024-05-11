@@ -1,121 +1,171 @@
-# Tracked Tests - Bringing Full Stack Visibility to Automation Tests
-[![](https://jitpack.io/v/awarelabshq/tracked-tests.svg)](https://jitpack.io/#awarelabshq/tracked-tests)
+# Aware SDK - Enabling Full Stack Recording for Test Creation
+[![](https://jitpack.io/v/awarelabshq/aware-sdk.svg)](https://jitpack.io/#awarelabshq/aware-sdk)
 
 ## Introduction
 
-"Tracked Tests" connects your automation tests (Cypress, Selenium, Appium, Playwright, Locust etc.) to the full stack execution data of your system by utilizing telemetric tracking, giving you complete transparency in to how the backend systems behaved within the execution of each test case. This is utilized by [Aware Labs](https://awarelabs.io), to deliver powerful capabilities such as:
-1) Add assertions on backend behaviour expectations anywhere in the stack - enabling you to augment your existing frontend automation tests to become full stack whitebox tests - so that you dont need to write separate integration tests.
-2) Identify root causes faster when a test fails by leveraging the full stack visibility of what happened in each layer of your backend when serving the requests made within the frontend test
-3) Enable powerful governance functionalities such as identify production execution paths of related flows that are not covered by a given test case - helping you to plan how to improve the test case
-4) View related test cases that cover a given backend operation - so that you can identify which tests should be improved when a backend operation is identified as failing for certain conditions.
+[Aware Labs](https://awarelabs.io) empowers teams to capture what happens in their entire stack during manual testing / prod sessions, and create repeatable full-stack automation tests that cover the entire stack.
 
-Currently, Tracked Tests project supports the following automation tools:
-1) Cypress
-2) Locust
+Aware SDK consists of frontend and backend libraries for different technologies enabling Aware’s full stack capturing capabilities. Teams simply need to install the relevant SDKs (and configure) in their tech stack. After that, via Aware platform, they can then create automated full stack tests from the captured sessions.
 
-If your preferred automation tool or backend is not supported, feel free to raise a [feature request](https://github.com/awarelabshq/tracked-tests/issues/new).
+Prerequisite: Your system should be instrumented with OpenTelemetry. Refer to guide [here](https://awarelabs.io/blog/getting-started) for more details.
 
-For more details on value added capabilities Aware Platform provides using Tracked Tests, visit: [https://awarelabs.io/blog/tracked-tests](https://awarelabs.io/blog/tracked-tests).
+If your preferred tech stack is not supported, feel free to raise a [feature request](https://github.com/awarelabshq/aware-sdk/issues/new).
 
-## How it Works
+The sdk is organized as follows:
 
-Tracked Tests works by adding the following attributes to the Traces at the backend (when initiated by an automation test case):
+1) frontend/ : This includes SDKs for enabling frontend recording
+2) backend/ : This includes SDKs for enabling backend service recording
 
-1) `trackedtest.suite`: name of the current test suite
-2) `trackedtest.name`: name of the current test case
-3) `traceparent`: traceparent which sets the trace id as well as the parent id for that trace (which groups all the traces generated in a single run of a given test case)
-4) `trackedtest.type`: type of test (for instance, `cypress`)
+## Frontend
 
-This is achieved by adding an interceptor on the automation test tool side which adds equivalently named http headers to all the requests that are sent from a test case, and an interceptor at the backend which extracts those http headers and injects them to the current Trace.span attributes - enabling correlation of traces at an individual test case (invocation) level.
+### JavaScript
 
-## How to Use
+#### Installation Guide
 
-Enabling Tracked Tests requires enabling it in your automation tests and enabing your backend systems to receive (and inject) the additional tracking metadata sent via the request headers.
-
-### Enabling in Automation Script
-
-#### Cypress
-
-Steps:
-
-1. Install `tracked-tests-cypress` npm library:  
+1) Run: ```npm install aware-sdk-js@latest```
+2) Include the following code snippet (with updated configuration as detailed below) in your initial loading js file (index.js or equivalent) to configure the sdk.
 
 ```
-npm install tracked-tests-cypress
-``` 
+import {AwareSDK} from "aware-sdk-js"
 
-  
-2. Add the following in `support/e2e.js` file:  
 
-```
-const enableTracking = require('tracked-tests-cypress')
-enableTracking();
-```
-
-  
-### Updating backends to receive the tracking metadata
-
-Simply update your ```OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_REQUEST``` environment variable to include the trackedtests related headers like below, which will capture the headers and inject in to the spans as an attribute:
-```
-ENV OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_REQUEST="trackedtest.suite,trackedtest.name,traceparent,test.type"
+window.onload = function () {
+ AwareSDK.startRecording({
+   projectId: "<YOUR AWARE PROJECT ID",
+   apiKey: "<YOUR SESSION RECORDING API  KEY FOR AWARE PROJECT",
+   samplingProbabilityOnError: 0.1,
+   samplingProbability: 1.0,
+   maxSessionDurationSecs: 500,
+   eventWindowToSaveOnError: 200,
+   urlRegexToAddTracking:".*\.awarelabs\.io.*$"
+ });
 ```
 
-## Request Capture
+#### Configuration Guide
 
-Tracked Tests library also supports capturing request body / headers and extracting specific request fields and injecting them as OTel span attributes. This enables software teams to capture actual requests relating to arbitrary criteria such as:
-1) Find a sampling of payloads for erroring requests
-2) Find a sampling of payloads for slow requests
-3) Find a sampling of payloads for API calls that went through a certain execution path / attribute value in the execution tree.
+The SDK behaviour can be configured with the following config params:
 
-Aware platform utilizes this to enable building tests using production traffic as a baseline, allowing teams to create tests for erroring scenarios / high latency scenarios / untested execution paths etc.
+```projectId```: This is the project id for your project in Aware Platform (Access via Project Settings -> General -> Project ID)
 
-Currently Java (Spring) is supported for request capture.
+```apiKey```: This is the session recording api key for your project (Access via Project Settings -> General -> Session Recording API key) - Note: Not Api Key (which is used for data api access for integration with your CI / CD pipelines etc.)
 
-### Java Spring integration of Request Capture
+```samplingProbability```: This is the probability an arbitrary session will be recorded. Set this to 1.0 to capture all sessions (recommended setting for test environments).
 
-1) Add gradle dependency:
+```samplingProbabilityOnError```: This is the probability of recording if an error occurs. Useful for capturing erroring scenario recordings in production. ```<eventWindowToSaveOnError>``` number of preceding events will be recorded if being sampled on error.
+
+```maxSessionDurationSecs```: Maximum number of seconds of a session to be recorded. (Default: 300)
+
+```eventWindowToSaveOnError```: number of events to be recoded preceding an error.
+
+```urlRegexToAddTracking```: Regex describing the uris to which calls should be tracked (usually the urls of your API layer that the client app communicates with)
+
+## Backend
+
+### Java (Spring)
+
+#### Installation Guide
+
+1) Add following to your gradle file to import Aware SDK library:
 
 ```
-    implementation("com.github.awarelabshq:tracked-tests:<latest_version>")
+repositories {
+   maven { url = uri("https://jitpack.io") }
+}
+
+...
+
+implementation("com.github.awarelabshq:aware-sdk:0.0.1")
+
 ```
 
-2) Enable the request capture filter:
+2) Add ```@EnableAspectJAutoProxy``` In your ```@SpringApplication``` annotated class (This wires up the sdk components to the spring contexts. However, the components are by default disabled, which can be enabled via property definitions).
 
-Set aware.request_body_capture.enabled property to true (if not set, defaults to false).
+#### Configuration Guide
+
+Aware SDK looks for the following properties (defined via ```application.properties``` or equivalent) to enable / disable features:
+
+```aware.sdk.enabled```: true | false (default: false)
+
+This enables the sdk and captures tracking headers (session tracking / test invocation tracking etc.)
+
+```aware.request_body_capture.enabled```: true | false (default: false)
+
+This enables request body capture on incoming requests to the service. The exact requests captured, the fields that are captured and ignored etc. are configured via request_body_captrue_config.yml file.
+
+```aware.response_body_capture.enabled```: true | false (default: false)
+
+This enables response body capture on the service. The exact responses captured, the fields that are captured and ignored etc. are configured via request_body_captrue_config.yml file.
+
+```aware.request_body_capture.config.file.path```: (default: ```classpath:aware_request_body_capture_config.yml```)
+
+This yml file details how the requests / responses should be captured (field masking, header ignoring etc.) Refer to Aware Request Capture Config section for more details.
+
+### Aware Request / Response Capture Configuration
+
+Aware backend sdks request / response capture behaviour can be configured via a yml file with the following structure:
 
 ```
-aware.request_body_capture.enabled=true
+global_config:
+  # payload of urls that match this set will not be captured
+  ignored_urls:
+    - ".*/admin/get_detailed_user_info"
+  # globally, the following headers will not be captured
+  ignored_headers:
+    - "Authorization"
+  # If there is a user id field passed as a header, it can be specified here. This will be used to tag the session to
+  # the given user so that sessions for a given test user can be queried later from Aware Studio. This is only expected
+  # to be extracted in test environments and not prod for PII preservation.
+  user_id_header: "x-user-id"
+url_configs:
+  # Each section is formatted as "url_pattern" under which:
+  # request - section will describe how requests are captured for uris matching the url_pattern (if request block not present, request won't be captured)
+  # response - section will describe how responses are captured for uris matching the url_pattern (if response block not present, response won't be captured)
+  .*/admin/.*:
+    request:
+    response:
+      # listed headers under this will be specifically not captured for this url_pattern
+      ignored_headers:
+        - "User-Auth-Token"
+      # fields matching the following json path queries will be ignored in the captured request / response.
+      ignored_fields:
+        - "$.results[*].items[*].bar"
+      # fields matching the following json queries will be captured as span attributes (the name of the span attribute will be the name of the field). If there are multiple matches, the values will be concat using ","
+      extract_to_span_attributes:
+        - "$.results[*].item_type"
+      # Headers listed below will be captured as separate span attributes. The name of the attribute will be the name of the header field.
+      extract_headers_to_span_attributes:
+        - "project_id"
+      # If the unique user id is part of the body (either response or request) rather than a header, the json path to
+      # the body element can be specified here. This will be used to extract and tag each session to the corresponding
+      # test user so that sessions for a given user can be queried via Aware Studio. This is only recommended in test
+      # envs to preserve PII in prod.
+      user_id_field:
+        "$.user_info.user_id"
 ```
 
-3) (Optional) Configure the request scrubbing / span attribute extraction
+For example, the following configuration does the following:
+1) Ignore ```Authorization``` header from all requests / responses
+2) Ignore payload capturing for all urls matching ```.*/health/.*```
+3) Captures request & response payloads for urls matching ```.*/user/.*```. Ignores ```$.password``` field in json request body.
+4) Captures _only_ request payloads for urls matching ```.*/admin/.*```. Captures ```$.user_info.email``` json field as user_id of the requestor (which enables teams to find sessions corresponding to a given test user via Aware Studio)
 
-   The behaviour of the filter can be configured to specify which request fields should be scrubbed and which request fields need to be extracted in to separate span attributes. By default, it looks for a file named: aware_request_body_capture_config.yml in the classpath. This can be overridden by specifiying aware.request_body_capture.config.file.path in your application.properties / yml file.
-   The yml is of the following format:
-   ```
-   <uri pattern>:
-     ignoredFields:
-       - "<json selector>"
-       - "<json selector>"
-     extractToSpanAttributes:
-       - "<json selector>"
-       - "<json selector>"
-   ```
+Sample Config:
 
-   Sample:
-  ```
-   /foo/bar:
-    extractToSpanAttributes:
-      - "$.user_country"
-    ignoredFields:
-      - "$.user_info.user_id
+```
+global_config:
+  ignored_urls:
+    - ".*/health/.*
+  ignored_headers:
+    - "Authorization"
+url_configs:
+  .*/user/.*:
+    request:
+      ignored_fields:
+        - "$.password
+    response:
+  .*/admin/.*:
+    request:
+      user_id_field:
+        "$.user_info.email"
+```
 
-  /foo/*:
-    ignoredFields:
-      - "$.auth_info.token
- ```
-
-  When a request to a uri is received, all the uri patterns configured in the yml file that matches that uri is utilized. So, in the above example, all uris under /foo will get its auth_info.token field scrubbed (so that you dont need to repeatedly specify it for all endpoints), and /foo/bar requests will specifically have their user_info.user_id field scrubbed. Additionally, user_country field will be extracted as a separate span attribute. The name of the extracted attribute will be the name of the json field (user_country).
-  
-For questions / suggestions, reach out to [contact@awarelabs.io](mailto:contact@awarelabs.io).
-
-Proudly powered by [Aware Labs](https://awarelabs.io)
