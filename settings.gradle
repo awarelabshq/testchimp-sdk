@@ -8,5 +8,5 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
-rootProject.name = 'tracked-tests'
-include 'sdk:backend:java-spring'
+rootProject.name = 'aware-sdk'
+include 'backend:java-spring'
