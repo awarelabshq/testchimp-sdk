@@ -339,7 +339,7 @@ public class DefaultRequestExtractor implements IExtractor {
             }
 
             for (String attribute : userIdBodyFields) {
-                logger.info("Found userIdBody field config : " + attribute);
+                logger.fine("Found userIdBody field config : " + attribute);
                 Object value = jsonContext.read(attribute);
 
                 List<Object> valueList = new ArrayList<>();
@@ -351,7 +351,7 @@ public class DefaultRequestExtractor implements IExtractor {
                 }
                 if (!valueList.isEmpty()) {
                     String strValue = String.valueOf(valueList.get(0));
-                    logger.info("Extracting " + attribute + " as " + Constants.USER_ID_SPAN_ATTRIBUTE + " with value: " + strValue);
+                    logger.fine("Extracting " + attribute + " as " + Constants.USER_ID_SPAN_ATTRIBUTE + " with value: " + strValue);
                     spanAttributes.put(Constants.USER_ID_SPAN_ATTRIBUTE, strValue);
                 }
             }

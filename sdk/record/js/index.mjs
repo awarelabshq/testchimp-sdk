@@ -213,6 +213,15 @@ function initRecording(endpoint,config,sessionId){
   }
 };
 
+function clearTrackingIdCookie(){
+    document.cookie = "aware.session-record-tracking-id=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;max-age=0;";
+}
+
+function endTrackedSession(){
+    stopSendingEvents()
+    clearTrackingIdCookie();
+}
+
 // Function to start recording user sessions
 function startRecording(config) {
   console.log("Initializing recording for Aware Project: " + config.projectId);
@@ -271,6 +280,7 @@ function startRecording(config) {
 // Expose the startRecording function along with other recording-related methods to consumers
 var AwareSDK = {
   startRecording: startRecording,
+  endTrackedSession:endTrackedSession,
   stopRecording: stopSendingEvents // Expose the stopRecording function
 };
 
