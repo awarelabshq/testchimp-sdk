@@ -15,6 +15,7 @@ The sdk is organized as follows:
 
 1) frontend/ : This includes SDKs for enabling frontend recording
 2) backend/ : This includes SDKs for enabling backend service recording
+3) protos/ : Defines proto structure for communicating payloads (this is used by different backend SDKs to communicate payloads consistently in a tech-stack agnostic manner).
 
 ## Frontend
 
@@ -31,8 +32,8 @@ import {AwareSDK} from "aware-sdk-js"
 
 window.onload = function () {
  AwareSDK.startRecording({
-   projectId: "<YOUR AWARE PROJECT ID",
-   apiKey: "<YOUR SESSION RECORDING API  KEY FOR AWARE PROJECT",
+   projectId: "<YOUR AWARE PROJECT ID>",
+   apiKey: "<YOUR SESSION RECORDING API  KEY FOR AWARE PROJECT>",
    samplingProbabilityOnError: 0.1,
    samplingProbability: 1.0,
    maxSessionDurationSecs: 500,
