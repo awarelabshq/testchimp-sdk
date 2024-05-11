@@ -13,9 +13,11 @@ If your preferred tech stack is not supported, feel free to raise a [feature req
 
 The sdk is organized as follows:
 
-1) frontend/ : This includes SDKs for enabling frontend recording
-2) backend/ : This includes SDKs for enabling backend service recording
-3) protos/ : Defines proto structure for communicating payloads (this is used by different backend SDKs to communicate payloads consistently in a tech-stack agnostic manner).
+- frontend/ : This includes SDKs for enabling frontend recording
+  - [js](https://github.com/awarelabshq/aware-sdk?tab=readme-ov-file#javascript)    
+- backend/ : This includes SDKs for enabling backend service recording
+  - [Java (Spring)](https://github.com/awarelabshq/aware-sdk?tab=readme-ov-file#java-spring)
+- protos/ : Defines proto structure for communicating payloads (this is used by different backend SDKs to communicate payloads consistently in a tech-stack agnostic manner).
 
 ## Frontend
 
