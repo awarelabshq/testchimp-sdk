@@ -10,6 +10,7 @@ var stopFn;
 var sessionStartTime;
 var shouldRecordSession = false;
 var shouldRecordSessionOnError = false;
+const requestIdToSpanIdMap = new Map();
 
 let samplingConfig = {
   // do not record mouse movement
@@ -24,6 +25,37 @@ let samplingConfig = {
   input: 'last' // When input multiple characters, only record the final input
 };
 
+function generateSpanId() {
+  let spanId = '';
+  for (let i = 0; i < 8; i++) {
+    // Generate a random byte and convert it to a 2-character hexadecimal string
+    const byte = Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
+    spanId += byte;
+  }
+  return spanId;
+}
+
+function generateTraceparent(parentSpanId) {
+    // Generate random trace ID (hexadecimal, 32 characters)
+    const traceId = Array(32)
+        .fill()
+        .map(() => Math.floor(Math.random() * 16).toString(16))
+        .join('');
+
+    // Combine trace ID and parent ID in a traceparent format
+    const traceparent = `00-${traceId}-${parentSpanId}-01`;
+    return traceparent;
+  }
+
+function setCurrentUserId(userId) {
+  document.cookie = "aware.current_user_id=" + userId + ";path=/";
+}
+
+// Function to get the current_user_id from the cookie
+function getCurrentUserId() {
+  return getCookie("aware.current_user_id");
+}
+
 // Function to generate a unique session ID
 function generateSessionId() {
   // Custom UUID generation logic
@@ -33,6 +65,12 @@ function generateSessionId() {
     return v.toString(16);
   });
   return 'session_' + uuid;
+}
+
+function log(config,log){
+    if(config.enableLogging){
+        console.log(log);
+    }
 }
 
 // Function to retrieve session ID from standard session ID cookies or custom cookie key
@@ -88,10 +126,27 @@ function getCookie(name) {
   return "";
 }
 
-function enableRequestIntercept(urlRegex){
+function sendPayloadToEndpoint(payload, endpoint) {
+  const body = JSON.stringify(payload);
+  fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    mode: 'no-cors',
+    body: body,
+  }).catch(function (error) {
+    console.error('Error sending payload:', error);
+  });
+}
+
+function enableRequestIntercept(config){
+  let urlRegex = config.urlRegexToAddTracking;
+  let untracedUrisToTrackRegex=config.untracedUrisToTrackRegex;
+
   // Get sessionId from the storage
   var sessionId = getTrackingIdCookie();
-  console.log("Using interception to add tracking cookie in header value: " + sessionId + " for url regex: " + urlRegex);
+  log(config,"Using interception to add tracking cookie in header value: " + sessionId + " for url regex: " + urlRegex);
 
   // Create instances of the interceptors
   const fetchInterceptor = new FetchInterceptor();
@@ -103,12 +158,95 @@ function enableRequestIntercept(urlRegex){
     interceptors: [fetchInterceptor, xhrInterceptor],
   });
 
+  // Map to store requestId -> request.url
+  const requestUrls = new Map();
+
+  // Object to store request payloads
+  const requestPayloads = {};
+
   // Add listeners for the 'request' event on the BatchInterceptor
   interceptor.on('request', ({ request, requestId }) => {
     if (request.url.match(urlRegex)) {
-      console.log("request matches regex for interception " + request.url);
+      log(config,"request matches regex for interception " + request.url);
       // Add the 'aware-session-record-tracking-id' header
       request.headers.set('aware-session-record-tracking-id', sessionId);
+    } else if (request.url.match(untracedUrisToTrackRegex)) {
+      log(config,"request matches regex for untraced uris to track " + request.url);
+      // Store the request URL in the map
+      requestUrls.set(requestId, request.url);
+      let traceparent = request.headers.get('traceparent');
+      if (!traceparent) {
+       traceparent=generateTraceparent(generateSpanId());
+       log(config,"Generating new traceparent " + traceparent);
+       request.headers.set('traceparent', traceparent);
+     }
+      const parts = traceparent.split('-');
+      let spanId = parts[2];
+      requestIdToSpanIdMap.set(requestId, spanId);
+
+      // Capture request body and headers
+      const requestPayload = {
+        headerMap: {},
+        jsonBody: null
+      };
+      request.headers.forEach((value, key) => {
+        requestPayload.headerMap[key] = value;
+      });
+      request.text().then(body => {
+        requestPayload.jsonBody = body;
+        // Store the request payload
+        requestPayloads[requestId] = requestPayload;
+      });
+    }
+  });
+
+  // Add listeners for the 'response' event on the BatchInterceptor
+  interceptor.on('response', ({ response, requestId }) => {
+    if (response.url.match(untracedUrisToTrackRegex) || requestUrls.has(requestId)) {
+      // Capture response body and headers
+      const responsePayload = {
+        headerMap: {},
+        jsonBody: null
+      };
+      response.headers.forEach((value, key) => {
+        responsePayload.headerMap[key] = value;
+      });
+      response.text().then(body => {
+        responsePayload.jsonBody = body;
+        const requestPayload = requestPayloads[requestId];
+        const requestUrl = requestUrls.get(requestId);
+        const spanId = requestIdToSpanIdMap.get(requestId);
+
+        if (requestPayload && requestUrl && spanId) {
+          const payload = {
+            requestPayload: {
+              spanId: spanId,
+              httpPayload: requestPayload
+            },
+            responsePayload: {
+              spanId: spanId,
+              httpPayload: responsePayload
+            }
+          };
+          const insertPayloadRequest = {
+            aware_project_id: config.projectId,
+            aware_session_tracking_api_key: config.sessionRecordingApiKey,
+            request_payload: JSON.stringify(payload.requestPayload),
+            response_payload: JSON.stringify(payload.responsePayload),
+            current_user_id: getCurrentUserId(), // Include the current_user_id
+            url: requestUrl, // Use the stored request.url
+            tracking_id: sessionId,
+            request_timestamp: new Date().getTime(),
+            response_timestamp: new Date().getTime()
+          };
+          sendPayloadToEndpoint(insertPayloadRequest, config.endpoint + '/insert_client_recorded_payloads');
+
+          // Remove the requestId from the maps after processing
+          requestUrls.delete(requestId);
+          requestIdToSpanIdMap.delete(requestId);
+          delete requestPayloads[requestId];
+        }
+      });
     }
   });
 
@@ -118,7 +256,7 @@ function enableRequestIntercept(urlRegex){
 
 // Function to send events to the backend and reset the events array
 function sendEvents(endpoint, config, sessionId, events) {
-  if (events.length === 0 || !config.projectId || !config.apiKey) return;
+  if (events.length === 0 || !config.projectId || !config.sessionRecordingApiKey) return;
 
   const sessionRecordEvents = events.map(event => {
     return {
@@ -129,27 +267,19 @@ function sendEvents(endpoint, config, sessionId, events) {
   // Clear the event buffer. While sendEvents is used in both onError and normal recording, the eventBuffer is utilized only in normal recording.
   eventBuffer = [];
 
-  const body = JSON.stringify({
+  const body = {
     tracking_id: sessionId,
     aware_project_id: config.projectId,
-    aware_session_tracking_api_key: config.apiKey,
+    aware_session_tracking_api_key: config.sessionRecordingApiKey,
     event_list:{
         events: sessionRecordEvents
     }
-  });
+  };
 
   let sessionSendEnabled=true;
+  let sessionRecordEndpoint=endpoint+"/session_records";
   if(sessionSendEnabled){
-    fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      mode: 'no-cors',
-      body: body,
-    }).catch(function (error) {
-      console.error('Error sending events:', error);
-    });
+    sendPayloadToEndpoint(body,sessionRecordEndpoint);
   }
 }
 
@@ -226,7 +356,7 @@ function endTrackedSession(){
 function startRecording(config) {
   console.log("Initializing recording for Aware Project: " + config.projectId);
   // Default endpoint if not provided
-  var endpoint = config.endpoint || 'https://ingress.awarelabs.io/session_records';
+  var endpoint = (config.endpoint || 'https://ingress.awarelabs.io');
 
   // Retrieve session ID from cookie
   var sessionId = getSessionIdFromCookie(config.sessionIdCookieKey);
@@ -241,30 +371,51 @@ function startRecording(config) {
   // Record the session start time
   sessionStartTime = new Date().getTime();
 
+  const defaultMaxSessionDurationSecs = 600; // 10 mins
+  const defaultEventWindowToSaveOnError = 200;
+  const defaultUrlRegexToAddTracking = /^$/; // Match no URLs
+  const defaultUntracedUrisToTrackRegex = /^$/; // Match no URLs
+  const defaultSamplingProbability=0.0;
+  const defaultSamplingProbabilityOnError=0.0;
+
+    if(!config.projectId){
+      console.log("No project id specified for session capture");
+      return;
+    }
+    if(!config.sessionRecordingApiKey){
+      console.log("No session recording api key specified for session capture");
+      return;
+    }
+
+  // Store endpoint, projectId, sessionRecordingApiKey, samplingProbability, maxSessionDurationSecs, samplingProbabilityOnError, and maxDurationToSaveOnError in window.AwareSDKConfig
+  window.AwareSDKConfig = {
+    endpoint: endpoint,
+    projectId: config.projectId,
+    sessionRecordingApiKey: config.sessionRecordingApiKey,
+    samplingProbability: config.samplingProbability || defaultSamplingProbability,
+    maxSessionDurationSecs: config.maxSessionDurationSecs || defaultMaxSessionDurationSecs,
+    samplingProbabilityOnError: config.samplingProbabilityOnError || defaultSamplingProbabilityOnError,
+    eventWindowToSaveOnError: config.eventWindowToSaveOnError || defaultEventWindowToSaveOnError,
+    urlRegexToAddTracking: config.urlRegexToAddTracking || defaultUrlRegexToAddTracking,
+    untracedUrisToTrackRegex: config.untracedUrisToTrackRegex || defaultUntracedUrisToTrackRegex,
+    enableLogging:config.enableLogging || true
+ };
+
+  config=window.AwareSDKConfig;
+  console.log("config used for session recording: " + config);
+
   // Determine whether to record the session based on samplingProbability
   shouldRecordSession = config.samplingProbability && Math.random() <= config.samplingProbability;
 
   // Determine the sampling decision for error scenarios
   shouldRecordSessionOnError = config.samplingProbabilityOnError && Math.random() <= config.samplingProbabilityOnError;
 
-  console.log("Should record session: " + shouldRecordSession + " should record on error: " + shouldRecordSessionOnError);
+  log(config,"Should record session: " + shouldRecordSession + " should record on error: " + shouldRecordSessionOnError);
   // Intercept all outgoing requests and add additional HTTP header
   if (shouldRecordSession || shouldRecordSessionOnError) {
-      console.log("Setting tracking id in cookie " + sessionId);
-      enableRequestIntercept(config.urlRegexToAddTracking);
+      log(config,"Setting tracking id in cookie " + sessionId);
+      enableRequestIntercept(config);
   }
-
-  // Store endpoint, projectId, apiKey, samplingProbability, maxSessionDurationSecs, samplingProbabilityOnError, and maxDurationToSaveOnError in window.AwareSDKConfig
-  window.AwareSDKConfig = {
-    endpoint: endpoint,
-    projectId: config.projectId,
-    apiKey: config.apiKey,
-    samplingProbability: config.samplingProbability,
-    maxSessionDurationSecs: config.maxSessionDurationSecs,
-    samplingProbabilityOnError: config.samplingProbabilityOnError,
-    eventWindowToSaveOnError: config.eventWindowToSaveOnError,
-    urlRegexToAddTracking:config.urlRegexToAddTracking
-  };
 
   window.onerror = function () {
     if (shouldRecordSessionOnError && !shouldRecordSession) {
@@ -281,7 +432,8 @@ function startRecording(config) {
 var AwareSDK = {
   startRecording: startRecording,
   endTrackedSession:endTrackedSession,
-  stopRecording: stopSendingEvents // Expose the stopRecording function
+  stopRecording: stopSendingEvents, // Expose the stopRecording function
+  setCurrentUserId: setCurrentUserId // Expose the setCurrentUserId function
 };
 
 // Export AwareSDK
