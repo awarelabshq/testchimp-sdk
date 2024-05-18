@@ -308,7 +308,7 @@ public class DefaultRequestExtractor implements IExtractor {
             return result;
         }
         String contentType = originalContentType.toLowerCase();
-        if (contentType != null && contentType.toLowerCase().contains("application/json")) {
+        if (contentType.contains("application/json")) {
             List<String> spanAttribsToExtract = new ArrayList<>();
             List<String> ignoredFields = new ArrayList<>();
             List<String> userIdBodyFields = new ArrayList<>();
