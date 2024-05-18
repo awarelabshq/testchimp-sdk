@@ -9,9 +9,28 @@ option java_outer_classname = "Model";
 // Represents an arbitrary http(s) payload of requests / responses.
 message HttpPayload{
   map<string, string> header_map = 1;
+  string http_method = 3;
   oneof body{
     string json_body = 2;
+    HttpGetBody http_get_body = 4;
+    string text_body = 5;
+    string html_body = 6;
+    string xml_body = 7;
+    HttpFormDataBody http_form_data_body = 8;
+    BinaryDataBody binary_data_body = 9;
   }
+}
+
+message HttpGetBody{
+  map<string, string> key_value_map = 1;
+}
+
+message HttpFormDataBody{
+  map<string, string> key_value_map = 1;
+}
+
+message BinaryDataBody{
+  optional bytes data = 1;
 }
 
 // Represents an arbitrary payload of requests / responses.
@@ -24,5 +43,13 @@ message Payload{
 }
 
 message PayloadList{
-  repeated Payload payloads=1;
+  repeated Payload payloads = 1;
+}
+
+message InsertClientRecordedPayloadRequest{
+  optional Payload request_payload = 1;
+  optional Payload response_payload = 2;
+  optional string url = 3;
+  optional string session_recording_tracking_id = 4;
+  optional string current_user_id = 5;
 }

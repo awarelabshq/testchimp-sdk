@@ -11,14 +11,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StreamUtils;
 
 import javax.annotation.PostConstruct;
 import javax.servlet.*;
 import javax.servlet.http.*;
 import java.io.*;
 import java.util.*;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static org.aware.sdk.be.java.spring.Constants.REQUEST_PAYLOAD_SPAN_ATTRIBUTE;
@@ -113,15 +111,12 @@ public class HttpRequestCaptureFilter implements Filter {
             String completeUrl = protocol + "://" + httpServletRequest.getServerName() + httpServletRequest.getRequestURI();
             span.setAttribute(Constants.SELF_HTTP_URL_SPAN_ATTRIBUTE, completeUrl);
 
-            String requestBody = getBody(cachedRequestHttpServletRequest);
-            Map<String, String> requestHeaders = getRequestHeaders(cachedRequestHttpServletRequest);
-
             if (config != null && config.getExtractorMap() != null) {
                 NavigableSet<String> uriPatterns = config.getExtractorMap().navigableKeySet();
                 for (String uriPattern : uriPatterns) {
                     if (cachedRequestHttpServletRequest.getRequestURI().matches(uriPattern)) {
                         IExtractor extractor = config.getExtractorMap().get(uriPattern);
-                        ExtractResult extractResult = extractor.extractFromRequest(httpServletRequest.getRequestURI(), requestBody, requestHeaders);
+                        ExtractResult extractResult = extractor.extractFromRequest(cachedRequestHttpServletRequest);
                         Map<String, String> spanAttribs = extractResult.spanAttributes;
                         for (Map.Entry<String, String> entry : spanAttribs.entrySet()) {
                             logger.fine("Setting span attribute from request : " + entry.getKey() + " : " + entry.getValue());
@@ -150,15 +145,12 @@ public class HttpRequestCaptureFilter implements Filter {
             responseFilterSpan = openTelemetry.getTracer("aware-sdk").spanBuilder("capture_response_body")
                     .setParent(Context.current()).startSpan();
             try (Scope responseScope = responseFilterSpan.makeCurrent()) {
-                String responseBody = cachedResponseHttpServletResponse.getResponseBody();
-                Map<String, String> responseHeaders = cachedResponseHttpServletResponse.getResponseHeaders();
-
                 if (config != null && config.getExtractorMap() != null) {
                     NavigableSet<String> uriPatterns = config.getExtractorMap().navigableKeySet();
                     for (String uriPattern : uriPatterns) {
                         if (cachedRequestHttpServletRequest.getRequestURI().matches(uriPattern)) {
                             IExtractor extractor = config.getExtractorMap().get(uriPattern);
-                            ExtractResult extractResult = extractor.extractFromResponse(httpServletRequest.getRequestURI(), responseBody, responseHeaders);
+                            ExtractResult extractResult = extractor.extractFromResponse(httpServletRequest.getRequestURI(), cachedResponseHttpServletResponse);
                             Map<String, String> spanAttribs = extractResult.spanAttributes;
                             for (Map.Entry<String, String> entry : spanAttribs.entrySet()) {
                                 logger.fine("Setting span attribute from response : " + entry.getKey() + " : " + entry.getValue());
@@ -263,136 +255,5 @@ public class HttpRequestCaptureFilter implements Filter {
         return headersMap;
     }
 
-    private String getBody(CachedRequestHttpServletRequest request) throws IOException {
-        StringBuilder body = new StringBuilder();
-        String line;
-        BufferedReader reader = request.getReader();
-        while ((line = reader.readLine()) != null) {
-            body.append(line);
-        }
-        return body.toString();
-    }
 
-    private static class CachedRequestHttpServletRequest extends HttpServletRequestWrapper {
-        private byte[] cachedBody;
-
-        public CachedRequestHttpServletRequest(HttpServletRequest request) throws IOException {
-            super(request);
-            this.cachedBody = StreamUtils.copyToByteArray(request.getInputStream());
-        }
-
-
-        @Override
-        public ServletInputStream getInputStream() {
-            return new CachedRequestServletInputStream(this.cachedBody);
-        }
-
-        @Override
-        public BufferedReader getReader() {
-            return new BufferedReader(new InputStreamReader(new ByteArrayInputStream(this.cachedBody)));
-        }
-    }
-
-    private static class CachedRequestServletInputStream extends ServletInputStream {
-        private InputStream cachedBodyInputStream;
-
-        public CachedRequestServletInputStream(byte[] cachedBody) {
-            this.cachedBodyInputStream = new ByteArrayInputStream(cachedBody);
-        }
-
-        @Override
-        public boolean isFinished() {
-            try {
-                return cachedBodyInputStream.available() == 0;
-            } catch (IOException e) {
-                logger.log(Level.SEVERE, "Error in HttpRequestCapture", e);
-            }
-            return false;
-        }
-
-        @Override
-        public boolean isReady() {
-            return true;
-        }
-
-        @Override
-        public void setReadListener(ReadListener readListener) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public int read() throws IOException {
-            return cachedBodyInputStream.read();
-        }
-    }
-
-    private static class CachedResponseHttpServletResponse extends HttpServletResponseWrapper {
-        private ByteArrayOutputStream cachedResponse = new ByteArrayOutputStream();
-        private PrintWriter cachedWriter = new PrintWriter(cachedResponse, true);
-
-        public CachedResponseHttpServletResponse(HttpServletResponse response) {
-            super(response);
-        }
-
-        @Override
-        public ServletOutputStream getOutputStream() throws IOException {
-            return new FilterServletOutputStream(super.getOutputStream(), cachedResponse);
-        }
-
-        @Override
-        public PrintWriter getWriter() {
-            return cachedWriter;
-        }
-
-        public String getResponseBody() {
-            return cachedResponse.toString();
-        }
-
-        public Map<String, String> getResponseHeaders() {
-            Map<String, String> headersMap = new HashMap<>();
-            Collection<String> headerNames = getHeaderNames();
-            for (String headerName : headerNames) {
-                headersMap.put(headerName, getHeader(headerName));
-            }
-            return headersMap;
-        }
-    }
-
-    private static class FilterServletOutputStream extends ServletOutputStream {
-        private ServletOutputStream originalStream;
-        private ByteArrayOutputStream cachedResponse;
-
-        public FilterServletOutputStream(ServletOutputStream originalStream, ByteArrayOutputStream cachedResponse) {
-            this.originalStream = originalStream;
-            this.cachedResponse = cachedResponse;
-        }
-
-        @Override
-        public void write(int b) throws IOException {
-            cachedResponse.write(b);
-            originalStream.write(b);
-        }
-
-        @Override
-        public void write(byte[] b) throws IOException {
-            cachedResponse.write(b);
-            originalStream.write(b);
-        }
-
-        @Override
-        public void write(byte[] b, int off, int len) throws IOException {
-            cachedResponse.write(b, off, len);
-            originalStream.write(b, off, len);
-        }
-
-        @Override
-        public boolean isReady() {
-            return true;
-        }
-
-        @Override
-        public void setWriteListener(WriteListener writeListener) {
-            throw new UnsupportedOperationException();
-        }
-    }
 }

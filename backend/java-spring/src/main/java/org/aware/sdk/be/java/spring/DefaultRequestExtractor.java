@@ -9,6 +9,9 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 import lombok.SneakyThrows;
+import org.aware.model.HttpFormDataBody;
+import org.aware.model.HttpGetBody;
+import org.aware.model.HttpPayload;
 import org.aware.model.Payload;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -19,6 +22,9 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -193,16 +199,19 @@ public class DefaultRequestExtractor implements IExtractor {
     }
 
     @Override
-    public ExtractResult extractFromRequest(String originalUri, String originalRequestBody, Map<String, String> originalHeaderMap) {
-        // Check if the content type passed in the header is JSON
-        ExtractResult result = new ExtractResult();
+    public ExtractResult extractFromRequest(CachedRequestHttpServletRequest request) {
+        String originalUri = request.getRequestURI();
+        String method = request.getMethod();
+
         List<String> headerAttribsToExtract = new ArrayList<>();
+        List<String> ignoredHeaders = new ArrayList<>();
         boolean ignorePayload = false;
         boolean hasMatchedUri = false;
         for (String uri : uris) {
             if (originalUri.matches(uri)) {
                 hasMatchedUri = true;
                 headerAttribsToExtract.addAll(requestHeaderExtractToSpanAttributesMap.getOrDefault(uri, new ArrayList<>()));
+                ignoredHeaders.addAll(requestIgnoredHeadersMap.getOrDefault(uri, new ArrayList<>()));
             }
         }
         for (String uri : requestIgnoreUris) {
@@ -214,45 +223,70 @@ public class DefaultRequestExtractor implements IExtractor {
         if (!hasMatchedUri) {
             ignorePayload = true;
         }
+
         logger.fine("Extracting request details for " + originalUri + " ignorePayload: " + ignorePayload + " hasMatchedUri  " + hasMatchedUri);
 
-        String contentType = originalHeaderMap.getOrDefault("content-type", "");
-        if (contentType != null && contentType.toLowerCase().contains("application/json")) {
-            List<String> spanAttribsToExtract = new ArrayList<>();
-            List<String> ignoredFields = new ArrayList<>();
-            List<String> ignoredHeaders = new ArrayList<>();
-            List<String> userIdBodyFields = new ArrayList<>();
-            for (String uri : uris) {
-                if (originalUri.matches(uri)) {
-                    spanAttribsToExtract.addAll(requestExtractToSpanAttributesMap.getOrDefault(uri, new ArrayList<>()));
-                    ignoredFields.addAll(requestIgnoredFieldsMap.getOrDefault(uri, new ArrayList<>()));
-                    ignoredHeaders.addAll(requestIgnoredHeadersMap.getOrDefault(uri, new ArrayList<>()));
-                    userIdBodyFields.add(requestExtractToUserIdMap.getOrDefault(uri, ""));
-                }
-            }
-
-            // Clean the headers.
-            return getExtractResult(ignorePayload, originalRequestBody, originalHeaderMap, ignoredHeaders, spanAttribsToExtract, headerAttribsToExtract, ignoredFields, userIdBodyFields.stream()
-                    .filter(field -> !field.isEmpty()).collect(Collectors.toList()));
+        // Parse the header section and build a partial ExtractResult.
+        ExtractResult result = getPartialExtractionResultFromHeader(ignorePayload, request.getRequestHeaders(), headerAttribsToExtract, ignoredHeaders);
+        Map<String, String> sanitizedHeaderMap = result.sanitizedPayload.getHttpPayload()
+                .getHeaderMapMap();
+        String originalContentType = request.getRequestHeaders().getOrDefault("content-type", "");
+        if (originalContentType == null) {
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(request.getBodyString(), sanitizedHeaderMap, method);
+            return result;
         }
-        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalRequestBody, originalHeaderMap);
-        result.spanAttributes = new HashMap<>();
+
+        // Parse the body portion and build on the partial extract result to construct the final extract result.
+        List<String> spanAttribsToExtract = new ArrayList<>();
+        List<String> ignoredFields = new ArrayList<>();
+        List<String> userIdBodyFields = new ArrayList<>();
+        for (String uri : uris) {
+            if (originalUri.matches(uri)) {
+                spanAttribsToExtract.addAll(requestExtractToSpanAttributesMap.getOrDefault(uri, new ArrayList<>()));
+                ignoredFields.addAll(requestIgnoredFieldsMap.getOrDefault(uri, new ArrayList<>()));
+                userIdBodyFields.add(requestExtractToUserIdMap.getOrDefault(uri, ""));
+            }
+        }
+
+        if (method.equals("GET")) {
+            // Handle HTTP GET method
+            return handleHttpGet(request, ignorePayload, sanitizedHeaderMap, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields);
+        }
+
+        String contentType = originalContentType.toLowerCase();
+        if (contentType.contains("application/json")) {
+            return getJsonBodyExtractResult(ignorePayload, method, request.getBodyString(), sanitizedHeaderMap, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields.stream()
+                    .filter(field -> !field.isEmpty()).collect(Collectors.toList()));
+        } else if (contentType.contains("text/plain")) {
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(request.getBodyString(), sanitizedHeaderMap, method);
+            return result;
+        } else if (contentType.contains("text/html")) {
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpHtmlPayload(request.getBodyString(), sanitizedHeaderMap, method);
+            return result;
+        } else if (contentType.contains("text/xml") || contentType
+                .contains("application/xml")) {
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpXmlPayload(request.getBodyString(), sanitizedHeaderMap, method);
+            return result;
+        } else if (contentType.contains("application/x-www-form-urlencoded")) {
+            return handleUrlEncodedFormData(request, ignorePayload, sanitizedHeaderMap, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields);
+        }
+        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(request.getBodyString(), sanitizedHeaderMap, method);
         return result;
     }
 
     @SneakyThrows
     @Override
-    public ExtractResult extractFromResponse(String originalUri, String originalResponseBody, Map<String, String> originalHeaderMap) {
-        logger.fine("Extracting response details for " + originalUri);
+    public ExtractResult extractFromResponse(String originalUri, CachedResponseHttpServletResponse response) {
         // Check if the content type passed in the header is JSON
-        ExtractResult result = new ExtractResult();
         List<String> headerAttribsToExtract = new ArrayList<>();
+        List<String> ignoredHeaders = new ArrayList<>();
         boolean ignorePayload = false;
         boolean hasMatchedUri = false;
         for (String uri : uris) {
             if (originalUri.matches(uri)) {
                 hasMatchedUri = true;
                 headerAttribsToExtract.addAll(responseHeaderExtractToSpanAttributesMap.getOrDefault(uri, new ArrayList<>()));
+                ignoredHeaders.addAll(responseIgnoredHeadersMap.getOrDefault(uri, new ArrayList<>()));
             }
         }
         for (String uri : requestIgnoreUris) {
@@ -264,34 +298,51 @@ public class DefaultRequestExtractor implements IExtractor {
         if (!hasMatchedUri) {
             ignorePayload = true;
         }
-        String contentType = originalHeaderMap.getOrDefault("content-type", "");
+
+        ExtractResult result = getPartialExtractionResultFromHeader(ignorePayload, response.getResponseHeaders(), headerAttribsToExtract, ignoredHeaders);
+        Map<String, String> sanitizedHeaderMap = result.sanitizedPayload.getHttpPayload()
+                .getHeaderMapMap();
+        String originalContentType = sanitizedHeaderMap.getOrDefault("content-type", "");
+        if (originalContentType == null) {
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(response.getBodyString(), sanitizedHeaderMap, "");
+            return result;
+        }
+        String contentType = originalContentType.toLowerCase();
         if (contentType != null && contentType.toLowerCase().contains("application/json")) {
             List<String> spanAttribsToExtract = new ArrayList<>();
             List<String> ignoredFields = new ArrayList<>();
-            List<String> ignoredHeaders = new ArrayList<>();
             List<String> userIdBodyFields = new ArrayList<>();
             for (String uri : uris) {
                 if (originalUri.matches(uri)) {
                     spanAttribsToExtract.addAll(responseExtractToSpanAttributesMap.getOrDefault(uri, new ArrayList<>()));
                     ignoredFields.addAll(responseIgnoredFieldsMap.getOrDefault(uri, new ArrayList<>()));
-                    ignoredHeaders.addAll(responseIgnoredHeadersMap.getOrDefault(uri, new ArrayList<>()));
                     userIdBodyFields.add(responseExtractToUserIdMap.getOrDefault(uri, ""));
                 }
             }
 
-            // Clean the headers.
-            result = getExtractResult(ignorePayload, originalResponseBody, originalHeaderMap, ignoredHeaders, spanAttribsToExtract, headerAttribsToExtract, ignoredFields, userIdBodyFields.stream()
+            String originalResponseBody = response.getBodyString();
+            return getJsonBodyExtractResult(ignorePayload, "", originalResponseBody, sanitizedHeaderMap, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields.stream()
                     .filter(field -> !field.isEmpty()).collect(Collectors.toList()));
-        } else {
-            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalResponseBody, originalHeaderMap);
-            result.spanAttributes = new HashMap<>();
+        } else if (contentType.contains("text/plain")) {
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(response.getBodyString(), sanitizedHeaderMap, "");
+            return result;
+        } else if (contentType.contains("text/html")) {
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpHtmlPayload(response.getBodyString(), sanitizedHeaderMap, "");
+            return result;
+
+        } else if (contentType.contains("text/xml") || contentType
+                .contains("application/xml")) {
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpXmlPayload(response.getBodyString(), sanitizedHeaderMap, "");
+            return result;
         }
-        logger.fine("Extracted payload: " + JsonFormat.printer().print(result.sanitizedPayload));
+        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(response.getBodyString(), sanitizedHeaderMap, "");
         return result;
     }
 
-    @SneakyThrows
-    private ExtractResult getExtractResult(Boolean ignorePayload, String originalBody, Map<String, String> originalHeaderMap, List<String> ignoredHeaders, List<String> spanAttribsToExtract, List<String> headerAttribsToExtract, List<String> ignoredFields, List<String> userIdBodyFields) {
+    private ExtractResult getPartialExtractionResultFromHeader(boolean ignorePayload, Map<String, String> originalHeaderMap, List<String> headerAttribsToExtract, List<String> ignoredHeaders) {
+        if (ignorePayload) {
+            return new ExtractResult();
+        }
         Map<String, String> spanAttributes = new HashMap<>();
         if (originalHeaderMap.containsKey(userIdHeader)) {
             spanAttributes.put(Constants.USER_ID_SPAN_ATTRIBUTE, originalHeaderMap.get(userIdHeader));
@@ -304,6 +355,106 @@ public class DefaultRequestExtractor implements IExtractor {
         for (String ignoredHeader : ignoredHeaders) {
             originalHeaderMap.remove(ignoredHeader);
         }
+        ExtractResult result = new ExtractResult();
+        result.setSpanAttributes(spanAttributes);
+        result.setSanitizedPayload(Payload.newBuilder()
+                .setHttpPayload(HttpPayload.newBuilder().putAllHeaderMap(originalHeaderMap)).build());
+        return result;
+    }
+
+    private ExtractResult handleHttpGet(CachedRequestHttpServletRequest request, boolean ignorePayload, Map<String, String> sanitizedHeaderMap, Map<String, String> partialSpanAttributes, List<String> spanAttributesToExtract, List<String> ignoredFields, List<String> userIdBodyFields) {
+        ExtractResult result = new ExtractResult();
+        // Build the HttpGetBody
+        HttpGetBody.Builder httpGetBodyBuilder = HttpGetBody.newBuilder();
+
+        // Extract GET parameters from the request URL
+        String queryString = request.getQueryString();
+        if (queryString != null && !queryString.isEmpty()) {
+            // Split the query string into key-value pairs
+            String[] params = queryString.split("&");
+            for (String param : params) {
+                String[] keyValue = param.split("=");
+                if (keyValue.length == 2) {
+                    // Add key-value pair to the HttpGetBody builder
+                    String key = keyValue[0];
+                    String value = keyValue[1];
+                    if (!ignoredFields.contains(key)) {
+                        httpGetBodyBuilder.putKeyValueMap(key, value);
+                    }
+                    if (spanAttributesToExtract.contains(key)) {
+                        partialSpanAttributes.put(key, value);
+                    }
+                    if (userIdBodyFields.contains(key)) {
+                        partialSpanAttributes.put(Constants.USER_ID_SPAN_ATTRIBUTE, value);
+                    }
+                }
+            }
+        }
+
+        // Set the HttpGetBody to the HttpPayload
+        result.sanitizedPayload = Payload.newBuilder()
+                .setHttpPayload(HttpPayload.newBuilder()
+                        .putAllHeaderMap(sanitizedHeaderMap)
+                        .setHttpMethod(request.getMethod())
+                        .setHttpGetBody(httpGetBodyBuilder)
+                        .build())
+                .build();
+        result.spanAttributes = partialSpanAttributes;
+        return result;
+    }
+
+    private ExtractResult handleUrlEncodedFormData(CachedRequestHttpServletRequest request, boolean ignorePayload, Map<String, String> sanitizedHeaderMap, Map<String, String> spanAttributes, List<String> spanAttributesToExtract, List<String> ignoredFields, List<String> userIdFields) {
+        if (ignorePayload) {
+            return new ExtractResult();
+        }
+
+        ExtractResult result = new ExtractResult();
+        // Build the HttpFormDataBody
+        HttpFormDataBody.Builder httpFormDataBodyBuilder = HttpFormDataBody.newBuilder();
+
+        // Check if the request has form data
+        String requestBody = request.getBodyString();
+        String[] params = requestBody.split("&");
+        for (String param : params) {
+            String[] keyValue = param.split("=");
+            if (keyValue.length == 2) {
+                String key;
+                String value;
+                try {
+                    key = URLDecoder.decode(keyValue[0], StandardCharsets.UTF_8.name());
+                    value = URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8.name());
+                } catch (UnsupportedEncodingException e) {
+                    // Handle encoding exception as needed
+                    key = keyValue[0];
+                    value = keyValue[1];
+                }
+                if (!ignoredFields.contains(key)) {
+                    // Add key-value pair to the HttpFormDataBody builder
+                    httpFormDataBodyBuilder.putKeyValueMap(key, value);
+                }
+                if (userIdFields.contains(key)) {
+                    spanAttributes.put(Constants.USER_ID_SPAN_ATTRIBUTE, value);
+                }
+                if (spanAttributesToExtract.contains(key)) {
+                    spanAttributes.put(key, value);
+                }
+            }
+        }
+
+        // Set the HttpFormDataBody to the HttpPayload
+        result.sanitizedPayload = Payload.newBuilder()
+                .setHttpPayload(HttpPayload.newBuilder()
+                        .putAllHeaderMap(sanitizedHeaderMap)
+                        .setHttpMethod(request.getMethod())
+                        .setHttpFormDataBody(httpFormDataBodyBuilder)
+                        .build())
+                .build();
+        return result;
+    }
+
+    @SneakyThrows
+    private ExtractResult getJsonBodyExtractResult(Boolean ignorePayload, String httpMethod, String originalBody, Map<String, String> sanitizedHeaderMap, Map<String, String> spanAttributes, List<String> spanAttribsToExtract, List<String> ignoredFields, List<String> userIdBodyFields) {
+
         if (!spanAttribsToExtract.isEmpty() || !ignoredFields.isEmpty() || !userIdBodyFields.isEmpty()) {
             // Parse the JSON string
             DocumentContext jsonContext = JsonPath.parse(originalBody, Configuration.defaultConfiguration()
@@ -358,14 +509,14 @@ public class DefaultRequestExtractor implements IExtractor {
 
             // Return extraction result
             ExtractResult result = new ExtractResult();
-            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(jsonContext.jsonString(), originalHeaderMap);
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(jsonContext.jsonString(), sanitizedHeaderMap, httpMethod);
             result.spanAttributes = spanAttributes;
             logger.fine("Extracted payload: " + JsonFormat.printer().print(result.sanitizedPayload));
             return result;
 
         }
         ExtractResult result = new ExtractResult();
-        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalBody, originalHeaderMap);
+        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalBody, sanitizedHeaderMap, httpMethod);
         result.spanAttributes = spanAttributes;
         logger.fine("Extracted payload: " + JsonFormat.printer().print(result.sanitizedPayload));
         return result;
