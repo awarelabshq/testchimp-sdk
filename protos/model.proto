@@ -10,6 +10,8 @@ option java_outer_classname = "Model";
 message HttpPayload{
   map<string, string> header_map = 1;
   string http_method = 3;
+  // Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
+  map<string, string> template_path_variable_map = 10;
   oneof body{
     string json_body = 2;
     HttpGetBody http_get_body = 4;

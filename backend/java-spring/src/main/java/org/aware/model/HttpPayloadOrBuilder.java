@@ -56,6 +56,62 @@ java.lang.String defaultValue);
       getHttpMethodBytes();
 
   /**
+   * <pre>
+   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
+   * </pre>
+   *
+   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
+   */
+  int getTemplatePathVariableMapCount();
+  /**
+   * <pre>
+   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
+   * </pre>
+   *
+   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
+   */
+  boolean containsTemplatePathVariableMap(
+      java.lang.String key);
+  /**
+   * Use {@link #getTemplatePathVariableMapMap()} instead.
+   */
+  @java.lang.Deprecated
+  java.util.Map<java.lang.String, java.lang.String>
+  getTemplatePathVariableMap();
+  /**
+   * <pre>
+   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
+   * </pre>
+   *
+   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
+   */
+  java.util.Map<java.lang.String, java.lang.String>
+  getTemplatePathVariableMapMap();
+  /**
+   * <pre>
+   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
+   * </pre>
+   *
+   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
+   */
+
+  /* nullable */
+java.lang.String getTemplatePathVariableMapOrDefault(
+      java.lang.String key,
+      /* nullable */
+java.lang.String defaultValue);
+  /**
+   * <pre>
+   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
+   * </pre>
+   *
+   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
+   */
+
+  java.lang.String getTemplatePathVariableMapOrThrow(
+      java.lang.String key);
+
+  /**
    * <code>string json_body = 2;</code>
    * @return Whether the jsonBody field is set.
    */
