@@ -9,10 +9,7 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 import lombok.SneakyThrows;
-import org.aware.model.HttpFormDataBody;
-import org.aware.model.HttpGetBody;
-import org.aware.model.HttpPayload;
-import org.aware.model.Payload;
+import org.aware.model.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
@@ -20,9 +17,9 @@ import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
+import javax.servlet.ServletException;
+import javax.servlet.http.Part;
+import java.io.*;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -269,6 +266,8 @@ public class DefaultRequestExtractor implements IExtractor {
             return result;
         } else if (contentType.contains("application/x-www-form-urlencoded")) {
             return handleUrlEncodedFormData(request, ignorePayload, sanitizedHeaderMap, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields);
+        } else if (contentType.contains("multipart/form-data")) {
+            return handleMultipartFormData(request, ignorePayload, sanitizedHeaderMap, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields);
         }
         result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(request.getBodyString(), sanitizedHeaderMap, method);
         return result;
@@ -403,6 +402,48 @@ public class DefaultRequestExtractor implements IExtractor {
         return result;
     }
 
+    private ExtractResult handleMultipartFormData(CachedRequestHttpServletRequest request, boolean ignorePayload, Map<String, String> sanitizedHeaderMap, Map<String, String> spanAttributes, List<String> spanAttribsToExtract, List<String> ignoredFields, List<String> userIdBodyFields) {
+        Map<String, String> keyValueMap = new HashMap<>();
+        try {
+            Collection<Part> parts = request.getParts();
+            for (Part part : parts) {
+                if (part.getSubmittedFileName() == null) { // Ignore file uploads
+                    String key = part.getName();
+                    if (!ignoredFields.contains(key)) {
+                        String value = convertStreamToString(part.getInputStream());
+                        if (spanAttribsToExtract.contains(key)) {
+                            spanAttributes.put(key, value);
+                        }
+                        if (userIdBodyFields.contains(key)) {
+                            spanAttributes.put(Constants.USER_ID_SPAN_ATTRIBUTE, value);
+                        }
+                        keyValueMap.put(key, value);
+                    }
+                }
+            }
+        } catch (IOException | ServletException e) {
+            logger.severe("Error handling multipart/form-data: " + e.getMessage());
+        }
+
+        if (ignorePayload) {
+            return new ExtractResult(Payload.getDefaultInstance(), spanAttributes);
+        } else {
+            Payload payload = PayloadUtils.getHttpFormDataPayload(keyValueMap, sanitizedHeaderMap, request.getMethod());
+            return new ExtractResult(payload, spanAttributes);
+        }
+    }
+
+    private String convertStreamToString(InputStream is) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+        char[] buffer = new char[1024];
+        int length;
+        while ((length = reader.read(buffer)) != -1) {
+            sb.append(buffer, 0, length);
+        }
+        return sb.toString();
+    }
+
     private ExtractResult handleUrlEncodedFormData(CachedRequestHttpServletRequest request, boolean ignorePayload, Map<String, String> sanitizedHeaderMap, Map<String, String> spanAttributes, List<String> spanAttributesToExtract, List<String> ignoredFields, List<String> userIdFields) {
         if (ignorePayload) {
             return new ExtractResult();
@@ -410,7 +451,7 @@ public class DefaultRequestExtractor implements IExtractor {
 
         ExtractResult result = new ExtractResult();
         // Build the HttpFormDataBody
-        HttpFormDataBody.Builder httpFormDataBodyBuilder = HttpFormDataBody.newBuilder();
+        HttpFormUrlencodedBody.Builder builder = HttpFormUrlencodedBody.newBuilder();
 
         // Check if the request has form data
         String requestBody = request.getBodyString();
@@ -430,7 +471,7 @@ public class DefaultRequestExtractor implements IExtractor {
                 }
                 if (!ignoredFields.contains(key)) {
                     // Add key-value pair to the HttpFormDataBody builder
-                    httpFormDataBodyBuilder.putKeyValueMap(key, value);
+                    builder.putKeyValueMap(key, value);
                 }
                 if (userIdFields.contains(key)) {
                     spanAttributes.put(Constants.USER_ID_SPAN_ATTRIBUTE, value);
@@ -446,7 +487,7 @@ public class DefaultRequestExtractor implements IExtractor {
                 .setHttpPayload(HttpPayload.newBuilder()
                         .putAllHeaderMap(sanitizedHeaderMap)
                         .setHttpMethod(request.getMethod())
-                        .setHttpFormDataBody(httpFormDataBodyBuilder)
+                        .setHttpFormUrlencodedBody(builder)
                         .build())
                 .build();
         return result;
