@@ -356,9 +356,9 @@ public class DefaultRequestExtractor implements IExtractor {
             originalHeaderMap.remove(ignoredHeader);
         }
         ExtractResult result = new ExtractResult();
-        result.setSpanAttributes(spanAttributes);
-        result.setSanitizedPayload(Payload.newBuilder()
-                .setHttpPayload(HttpPayload.newBuilder().putAllHeaderMap(originalHeaderMap)).build());
+        result.spanAttributes = spanAttributes;
+        result.sanitizedPayload = Payload.newBuilder()
+                .setHttpPayload(HttpPayload.newBuilder().putAllHeaderMap(originalHeaderMap)).build();
         return result;
     }
 

@@ -1,16 +1,17 @@
 package org.aware.sdk.be.java.spring;
 
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.aware.model.Payload;
+import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Getter
+@Setter
 public class ExtractResult {
 
     Payload sanitizedPayload;
