@@ -19,6 +19,7 @@ message HttpPayload{
     string html_body = 6;
     string xml_body = 7;
     HttpFormDataBody http_form_data_body = 8;
+    HttpFormUrlencodedBody http_form_urlencoded_body = 11;
     BinaryDataBody binary_data_body = 9;
   }
 }
@@ -28,6 +29,10 @@ message HttpGetBody{
 }
 
 message HttpFormDataBody{
+  map<string, string> key_value_map = 1;
+}
+
+message HttpFormUrlencodedBody{
   map<string, string> key_value_map = 1;
 }
 

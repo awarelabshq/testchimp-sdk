@@ -207,6 +207,16 @@ async function populateHttpPayload(rawPayload, method) {
             }).catch(() => {
                 callback(httpPayload);
             });
+        } else if (contentType.includes('application/x-www-form-urlencoded')) {
+               const body = new URLSearchParams(await rawPayload.text());
+               const keyValueMap = {};
+               body.forEach((value, key) => {
+                 keyValueMap[key] = value;
+               });
+               httpPayload.httpFormUrlencodedBody = {
+                 keyValueMap
+               };
+
         } else {
             // Handle other content types safely
             let body = '';

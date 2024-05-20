@@ -73,6 +73,7 @@ private static final long serialVersionUID = 0L;
     HTML_BODY(6),
     XML_BODY(7),
     HTTP_FORM_DATA_BODY(8),
+    HTTP_FORM_URLENCODED_BODY(11),
     BINARY_DATA_BODY(9),
     BODY_NOT_SET(0);
     private final int value;
@@ -97,6 +98,7 @@ private static final long serialVersionUID = 0L;
         case 6: return HTML_BODY;
         case 7: return XML_BODY;
         case 8: return HTTP_FORM_DATA_BODY;
+        case 11: return HTTP_FORM_URLENCODED_BODY;
         case 9: return BINARY_DATA_BODY;
         case 0: return BODY_NOT_SET;
         default: return null;
@@ -599,6 +601,37 @@ private static final long serialVersionUID = 0L;
     return org.aware.model.HttpFormDataBody.getDefaultInstance();
   }
 
+  public static final int HTTP_FORM_URLENCODED_BODY_FIELD_NUMBER = 11;
+  /**
+   * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+   * @return Whether the httpFormUrlencodedBody field is set.
+   */
+  @java.lang.Override
+  public boolean hasHttpFormUrlencodedBody() {
+    return bodyCase_ == 11;
+  }
+  /**
+   * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+   * @return The httpFormUrlencodedBody.
+   */
+  @java.lang.Override
+  public org.aware.model.HttpFormUrlencodedBody getHttpFormUrlencodedBody() {
+    if (bodyCase_ == 11) {
+       return (org.aware.model.HttpFormUrlencodedBody) body_;
+    }
+    return org.aware.model.HttpFormUrlencodedBody.getDefaultInstance();
+  }
+  /**
+   * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+   */
+  @java.lang.Override
+  public org.aware.model.HttpFormUrlencodedBodyOrBuilder getHttpFormUrlencodedBodyOrBuilder() {
+    if (bodyCase_ == 11) {
+       return (org.aware.model.HttpFormUrlencodedBody) body_;
+    }
+    return org.aware.model.HttpFormUrlencodedBody.getDefaultInstance();
+  }
+
   public static final int BINARY_DATA_BODY_FIELD_NUMBER = 9;
   /**
    * <code>.org.aware.model.BinaryDataBody binary_data_body = 9;</code>
@@ -680,6 +713,9 @@ private static final long serialVersionUID = 0L;
         internalGetTemplatePathVariableMap(),
         TemplatePathVariableMapDefaultEntryHolder.defaultEntry,
         10);
+    if (bodyCase_ == 11) {
+      output.writeMessage(11, (org.aware.model.HttpFormUrlencodedBody) body_);
+    }
     getUnknownFields().writeTo(output);
   }
 
@@ -736,6 +772,10 @@ private static final long serialVersionUID = 0L;
       size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(10, templatePathVariableMap__);
     }
+    if (bodyCase_ == 11) {
+      size += com.google.protobuf.CodedOutputStream
+        .computeMessageSize(11, (org.aware.model.HttpFormUrlencodedBody) body_);
+    }
     size += getUnknownFields().getSerializedSize();
     memoizedSize = size;
     return size;
@@ -782,6 +822,10 @@ private static final long serialVersionUID = 0L;
       case 8:
         if (!getHttpFormDataBody()
             .equals(other.getHttpFormDataBody())) return false;
+        break;
+      case 11:
+        if (!getHttpFormUrlencodedBody()
+            .equals(other.getHttpFormUrlencodedBody())) return false;
         break;
       case 9:
         if (!getBinaryDataBody()
@@ -835,6 +879,10 @@ private static final long serialVersionUID = 0L;
       case 8:
         hash = (37 * hash) + HTTP_FORM_DATA_BODY_FIELD_NUMBER;
         hash = (53 * hash) + getHttpFormDataBody().hashCode();
+        break;
+      case 11:
+        hash = (37 * hash) + HTTP_FORM_URLENCODED_BODY_FIELD_NUMBER;
+        hash = (53 * hash) + getHttpFormUrlencodedBody().hashCode();
         break;
       case 9:
         hash = (37 * hash) + BINARY_DATA_BODY_FIELD_NUMBER;
@@ -1011,6 +1059,9 @@ private static final long serialVersionUID = 0L;
       if (httpFormDataBodyBuilder_ != null) {
         httpFormDataBodyBuilder_.clear();
       }
+      if (httpFormUrlencodedBodyBuilder_ != null) {
+        httpFormUrlencodedBodyBuilder_.clear();
+      }
       if (binaryDataBodyBuilder_ != null) {
         binaryDataBodyBuilder_.clear();
       }
@@ -1072,6 +1123,13 @@ private static final long serialVersionUID = 0L;
           result.body_ = body_;
         } else {
           result.body_ = httpFormDataBodyBuilder_.build();
+        }
+      }
+      if (bodyCase_ == 11) {
+        if (httpFormUrlencodedBodyBuilder_ == null) {
+          result.body_ = body_;
+        } else {
+          result.body_ = httpFormUrlencodedBodyBuilder_.build();
         }
       }
       if (bodyCase_ == 9) {
@@ -1169,6 +1227,10 @@ private static final long serialVersionUID = 0L;
         }
         case HTTP_FORM_DATA_BODY: {
           mergeHttpFormDataBody(other.getHttpFormDataBody());
+          break;
+        }
+        case HTTP_FORM_URLENCODED_BODY: {
+          mergeHttpFormUrlencodedBody(other.getHttpFormUrlencodedBody());
           break;
         }
         case BINARY_DATA_BODY: {
@@ -1271,6 +1333,13 @@ private static final long serialVersionUID = 0L;
                   templatePathVariableMap__.getKey(), templatePathVariableMap__.getValue());
               break;
             } // case 82
+            case 90: {
+              input.readMessage(
+                  getHttpFormUrlencodedBodyFieldBuilder().getBuilder(),
+                  extensionRegistry);
+              bodyCase_ = 11;
+              break;
+            } // case 90
             default: {
               if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                 done = true; // was an endgroup tag
@@ -2339,6 +2408,148 @@ private static final long serialVersionUID = 0L;
       bodyCase_ = 8;
       onChanged();;
       return httpFormDataBodyBuilder_;
+    }
+
+    private com.google.protobuf.SingleFieldBuilderV3<
+        org.aware.model.HttpFormUrlencodedBody, org.aware.model.HttpFormUrlencodedBody.Builder, org.aware.model.HttpFormUrlencodedBodyOrBuilder> httpFormUrlencodedBodyBuilder_;
+    /**
+     * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+     * @return Whether the httpFormUrlencodedBody field is set.
+     */
+    @java.lang.Override
+    public boolean hasHttpFormUrlencodedBody() {
+      return bodyCase_ == 11;
+    }
+    /**
+     * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+     * @return The httpFormUrlencodedBody.
+     */
+    @java.lang.Override
+    public org.aware.model.HttpFormUrlencodedBody getHttpFormUrlencodedBody() {
+      if (httpFormUrlencodedBodyBuilder_ == null) {
+        if (bodyCase_ == 11) {
+          return (org.aware.model.HttpFormUrlencodedBody) body_;
+        }
+        return org.aware.model.HttpFormUrlencodedBody.getDefaultInstance();
+      } else {
+        if (bodyCase_ == 11) {
+          return httpFormUrlencodedBodyBuilder_.getMessage();
+        }
+        return org.aware.model.HttpFormUrlencodedBody.getDefaultInstance();
+      }
+    }
+    /**
+     * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+     */
+    public Builder setHttpFormUrlencodedBody(org.aware.model.HttpFormUrlencodedBody value) {
+      if (httpFormUrlencodedBodyBuilder_ == null) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        body_ = value;
+        onChanged();
+      } else {
+        httpFormUrlencodedBodyBuilder_.setMessage(value);
+      }
+      bodyCase_ = 11;
+      return this;
+    }
+    /**
+     * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+     */
+    public Builder setHttpFormUrlencodedBody(
+        org.aware.model.HttpFormUrlencodedBody.Builder builderForValue) {
+      if (httpFormUrlencodedBodyBuilder_ == null) {
+        body_ = builderForValue.build();
+        onChanged();
+      } else {
+        httpFormUrlencodedBodyBuilder_.setMessage(builderForValue.build());
+      }
+      bodyCase_ = 11;
+      return this;
+    }
+    /**
+     * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+     */
+    public Builder mergeHttpFormUrlencodedBody(org.aware.model.HttpFormUrlencodedBody value) {
+      if (httpFormUrlencodedBodyBuilder_ == null) {
+        if (bodyCase_ == 11 &&
+            body_ != org.aware.model.HttpFormUrlencodedBody.getDefaultInstance()) {
+          body_ = org.aware.model.HttpFormUrlencodedBody.newBuilder((org.aware.model.HttpFormUrlencodedBody) body_)
+              .mergeFrom(value).buildPartial();
+        } else {
+          body_ = value;
+        }
+        onChanged();
+      } else {
+        if (bodyCase_ == 11) {
+          httpFormUrlencodedBodyBuilder_.mergeFrom(value);
+        } else {
+          httpFormUrlencodedBodyBuilder_.setMessage(value);
+        }
+      }
+      bodyCase_ = 11;
+      return this;
+    }
+    /**
+     * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+     */
+    public Builder clearHttpFormUrlencodedBody() {
+      if (httpFormUrlencodedBodyBuilder_ == null) {
+        if (bodyCase_ == 11) {
+          bodyCase_ = 0;
+          body_ = null;
+          onChanged();
+        }
+      } else {
+        if (bodyCase_ == 11) {
+          bodyCase_ = 0;
+          body_ = null;
+        }
+        httpFormUrlencodedBodyBuilder_.clear();
+      }
+      return this;
+    }
+    /**
+     * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+     */
+    public org.aware.model.HttpFormUrlencodedBody.Builder getHttpFormUrlencodedBodyBuilder() {
+      return getHttpFormUrlencodedBodyFieldBuilder().getBuilder();
+    }
+    /**
+     * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+     */
+    @java.lang.Override
+    public org.aware.model.HttpFormUrlencodedBodyOrBuilder getHttpFormUrlencodedBodyOrBuilder() {
+      if ((bodyCase_ == 11) && (httpFormUrlencodedBodyBuilder_ != null)) {
+        return httpFormUrlencodedBodyBuilder_.getMessageOrBuilder();
+      } else {
+        if (bodyCase_ == 11) {
+          return (org.aware.model.HttpFormUrlencodedBody) body_;
+        }
+        return org.aware.model.HttpFormUrlencodedBody.getDefaultInstance();
+      }
+    }
+    /**
+     * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+     */
+    private com.google.protobuf.SingleFieldBuilderV3<
+        org.aware.model.HttpFormUrlencodedBody, org.aware.model.HttpFormUrlencodedBody.Builder, org.aware.model.HttpFormUrlencodedBodyOrBuilder> 
+        getHttpFormUrlencodedBodyFieldBuilder() {
+      if (httpFormUrlencodedBodyBuilder_ == null) {
+        if (!(bodyCase_ == 11)) {
+          body_ = org.aware.model.HttpFormUrlencodedBody.getDefaultInstance();
+        }
+        httpFormUrlencodedBodyBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
+            org.aware.model.HttpFormUrlencodedBody, org.aware.model.HttpFormUrlencodedBody.Builder, org.aware.model.HttpFormUrlencodedBodyOrBuilder>(
+                (org.aware.model.HttpFormUrlencodedBody) body_,
+                getParentForChildren(),
+                isClean());
+        body_ = null;
+      }
+      bodyCase_ = 11;
+      onChanged();;
+      return httpFormUrlencodedBodyBuilder_;
     }
 
     private com.google.protobuf.SingleFieldBuilderV3<

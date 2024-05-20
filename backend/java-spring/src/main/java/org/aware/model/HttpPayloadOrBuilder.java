@@ -210,6 +210,21 @@ java.lang.String defaultValue);
   org.aware.model.HttpFormDataBodyOrBuilder getHttpFormDataBodyOrBuilder();
 
   /**
+   * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+   * @return Whether the httpFormUrlencodedBody field is set.
+   */
+  boolean hasHttpFormUrlencodedBody();
+  /**
+   * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+   * @return The httpFormUrlencodedBody.
+   */
+  org.aware.model.HttpFormUrlencodedBody getHttpFormUrlencodedBody();
+  /**
+   * <code>.org.aware.model.HttpFormUrlencodedBody http_form_urlencoded_body = 11;</code>
+   */
+  org.aware.model.HttpFormUrlencodedBodyOrBuilder getHttpFormUrlencodedBodyOrBuilder();
+
+  /**
    * <code>.org.aware.model.BinaryDataBody binary_data_body = 9;</code>
    * @return Whether the binaryDataBody field is set.
    */

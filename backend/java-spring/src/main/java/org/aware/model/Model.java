@@ -50,6 +50,16 @@ public final class Model {
     com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
       internal_static_org_aware_model_HttpFormDataBody_KeyValueMapEntry_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_org_aware_model_HttpFormUrlencodedBody_descriptor;
+  static final 
+    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+      internal_static_org_aware_model_HttpFormUrlencodedBody_fieldAccessorTable;
+  static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_org_aware_model_HttpFormUrlencodedBody_KeyValueMapEntry_descriptor;
+  static final 
+    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+      internal_static_org_aware_model_HttpFormUrlencodedBody_KeyValueMapEntry_fieldAccessorTable;
+  static final com.google.protobuf.Descriptors.Descriptor
     internal_static_org_aware_model_BinaryDataBody_descriptor;
   static final 
     com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
@@ -78,7 +88,7 @@ public final class Model {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\013model.proto\022\017org.aware.model\"\305\004\n\013HttpP" +
+      "\n\013model.proto\022\017org.aware.model\"\223\005\n\013HttpP" +
       "ayload\022?\n\nheader_map\030\001 \003(\0132+.org.aware.m" +
       "odel.HttpPayload.HeaderMapEntry\022\023\n\013http_" +
       "method\030\003 \001(\t\022]\n\032template_path_variable_m" +
@@ -88,34 +98,40 @@ public final class Model {
       "are.model.HttpGetBodyH\000\022\023\n\ttext_body\030\005 \001" +
       "(\tH\000\022\023\n\thtml_body\030\006 \001(\tH\000\022\022\n\010xml_body\030\007 " +
       "\001(\tH\000\022@\n\023http_form_data_body\030\010 \001(\0132!.org" +
-      ".aware.model.HttpFormDataBodyH\000\022;\n\020binar" +
-      "y_data_body\030\t \001(\0132\037.org.aware.model.Bina" +
-      "ryDataBodyH\000\0320\n\016HeaderMapEntry\022\013\n\003key\030\001 " +
-      "\001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\032>\n\034TemplatePathVa" +
-      "riableMapEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001" +
-      "(\t:\0028\001B\006\n\004body\"\207\001\n\013HttpGetBody\022D\n\rkey_va" +
-      "lue_map\030\001 \003(\0132-.org.aware.model.HttpGetB" +
-      "ody.KeyValueMapEntry\0322\n\020KeyValueMapEntry" +
-      "\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"\221\001\n\020Htt" +
-      "pFormDataBody\022I\n\rkey_value_map\030\001 \003(\01322.o" +
-      "rg.aware.model.HttpFormDataBody.KeyValue" +
-      "MapEntry\0322\n\020KeyValueMapEntry\022\013\n\003key\030\001 \001(" +
-      "\t\022\r\n\005value\030\002 \001(\t:\0028\001\",\n\016BinaryDataBody\022\021" +
-      "\n\004data\030\001 \001(\014H\000\210\001\001B\007\n\005_data\"l\n\007Payload\022\024\n" +
-      "\007span_id\030\001 \001(\tH\001\210\001\001\0224\n\014http_payload\030\002 \001(" +
-      "\0132\034.org.aware.model.HttpPayloadH\000B\t\n\007pay" +
-      "loadB\n\n\010_span_id\"9\n\013PayloadList\022*\n\010paylo" +
-      "ads\030\001 \003(\0132\030.org.aware.model.Payload\"\330\002\n\"" +
-      "InsertClientRecordedPayloadRequest\0226\n\017re" +
-      "quest_payload\030\001 \001(\0132\030.org.aware.model.Pa" +
-      "yloadH\000\210\001\001\0227\n\020response_payload\030\002 \001(\0132\030.o" +
-      "rg.aware.model.PayloadH\001\210\001\001\022\020\n\003url\030\003 \001(\t" +
-      "H\002\210\001\001\022*\n\035session_recording_tracking_id\030\004" +
-      " \001(\tH\003\210\001\001\022\034\n\017current_user_id\030\005 \001(\tH\004\210\001\001B" +
-      "\022\n\020_request_payloadB\023\n\021_response_payload" +
-      "B\006\n\004_urlB \n\036_session_recording_tracking_" +
-      "idB\022\n\020_current_user_idB\032\n\017org.aware.mode" +
-      "lB\005ModelP\001b\006proto3"
+      ".aware.model.HttpFormDataBodyH\000\022L\n\031http_" +
+      "form_urlencoded_body\030\013 \001(\0132\'.org.aware.m" +
+      "odel.HttpFormUrlencodedBodyH\000\022;\n\020binary_" +
+      "data_body\030\t \001(\0132\037.org.aware.model.Binary" +
+      "DataBodyH\000\0320\n\016HeaderMapEntry\022\013\n\003key\030\001 \001(" +
+      "\t\022\r\n\005value\030\002 \001(\t:\0028\001\032>\n\034TemplatePathVari" +
+      "ableMapEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t" +
+      ":\0028\001B\006\n\004body\"\207\001\n\013HttpGetBody\022D\n\rkey_valu" +
+      "e_map\030\001 \003(\0132-.org.aware.model.HttpGetBod" +
+      "y.KeyValueMapEntry\0322\n\020KeyValueMapEntry\022\013" +
+      "\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"\221\001\n\020HttpF" +
+      "ormDataBody\022I\n\rkey_value_map\030\001 \003(\01322.org" +
+      ".aware.model.HttpFormDataBody.KeyValueMa" +
+      "pEntry\0322\n\020KeyValueMapEntry\022\013\n\003key\030\001 \001(\t\022" +
+      "\r\n\005value\030\002 \001(\t:\0028\001\"\235\001\n\026HttpFormUrlencode" +
+      "dBody\022O\n\rkey_value_map\030\001 \003(\01328.org.aware" +
+      ".model.HttpFormUrlencodedBody.KeyValueMa" +
+      "pEntry\0322\n\020KeyValueMapEntry\022\013\n\003key\030\001 \001(\t\022" +
+      "\r\n\005value\030\002 \001(\t:\0028\001\",\n\016BinaryDataBody\022\021\n\004" +
+      "data\030\001 \001(\014H\000\210\001\001B\007\n\005_data\"l\n\007Payload\022\024\n\007s" +
+      "pan_id\030\001 \001(\tH\001\210\001\001\0224\n\014http_payload\030\002 \001(\0132" +
+      "\034.org.aware.model.HttpPayloadH\000B\t\n\007paylo" +
+      "adB\n\n\010_span_id\"9\n\013PayloadList\022*\n\010payload" +
+      "s\030\001 \003(\0132\030.org.aware.model.Payload\"\330\002\n\"In" +
+      "sertClientRecordedPayloadRequest\0226\n\017requ" +
+      "est_payload\030\001 \001(\0132\030.org.aware.model.Payl" +
+      "oadH\000\210\001\001\0227\n\020response_payload\030\002 \001(\0132\030.org" +
+      ".aware.model.PayloadH\001\210\001\001\022\020\n\003url\030\003 \001(\tH\002" +
+      "\210\001\001\022*\n\035session_recording_tracking_id\030\004 \001" +
+      "(\tH\003\210\001\001\022\034\n\017current_user_id\030\005 \001(\tH\004\210\001\001B\022\n" +
+      "\020_request_payloadB\023\n\021_response_payloadB\006" +
+      "\n\004_urlB \n\036_session_recording_tracking_id" +
+      "B\022\n\020_current_user_idB\032\n\017org.aware.modelB" +
+      "\005ModelP\001b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -126,7 +142,7 @@ public final class Model {
     internal_static_org_aware_model_HttpPayload_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_org_aware_model_HttpPayload_descriptor,
-        new java.lang.String[] { "HeaderMap", "HttpMethod", "TemplatePathVariableMap", "JsonBody", "HttpGetBody", "TextBody", "HtmlBody", "XmlBody", "HttpFormDataBody", "BinaryDataBody", "Body", });
+        new java.lang.String[] { "HeaderMap", "HttpMethod", "TemplatePathVariableMap", "JsonBody", "HttpGetBody", "TextBody", "HtmlBody", "XmlBody", "HttpFormDataBody", "HttpFormUrlencodedBody", "BinaryDataBody", "Body", });
     internal_static_org_aware_model_HttpPayload_HeaderMapEntry_descriptor =
       internal_static_org_aware_model_HttpPayload_descriptor.getNestedTypes().get(0);
     internal_static_org_aware_model_HttpPayload_HeaderMapEntry_fieldAccessorTable = new
@@ -163,26 +179,38 @@ public final class Model {
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_org_aware_model_HttpFormDataBody_KeyValueMapEntry_descriptor,
         new java.lang.String[] { "Key", "Value", });
-    internal_static_org_aware_model_BinaryDataBody_descriptor =
+    internal_static_org_aware_model_HttpFormUrlencodedBody_descriptor =
       getDescriptor().getMessageTypes().get(3);
+    internal_static_org_aware_model_HttpFormUrlencodedBody_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
+        internal_static_org_aware_model_HttpFormUrlencodedBody_descriptor,
+        new java.lang.String[] { "KeyValueMap", });
+    internal_static_org_aware_model_HttpFormUrlencodedBody_KeyValueMapEntry_descriptor =
+      internal_static_org_aware_model_HttpFormUrlencodedBody_descriptor.getNestedTypes().get(0);
+    internal_static_org_aware_model_HttpFormUrlencodedBody_KeyValueMapEntry_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
+        internal_static_org_aware_model_HttpFormUrlencodedBody_KeyValueMapEntry_descriptor,
+        new java.lang.String[] { "Key", "Value", });
+    internal_static_org_aware_model_BinaryDataBody_descriptor =
+      getDescriptor().getMessageTypes().get(4);
     internal_static_org_aware_model_BinaryDataBody_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_org_aware_model_BinaryDataBody_descriptor,
         new java.lang.String[] { "Data", "Data", });
     internal_static_org_aware_model_Payload_descriptor =
-      getDescriptor().getMessageTypes().get(4);
+      getDescriptor().getMessageTypes().get(5);
     internal_static_org_aware_model_Payload_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_org_aware_model_Payload_descriptor,
         new java.lang.String[] { "SpanId", "HttpPayload", "Payload", "SpanId", });
     internal_static_org_aware_model_PayloadList_descriptor =
-      getDescriptor().getMessageTypes().get(5);
+      getDescriptor().getMessageTypes().get(6);
     internal_static_org_aware_model_PayloadList_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_org_aware_model_PayloadList_descriptor,
         new java.lang.String[] { "Payloads", });
     internal_static_org_aware_model_InsertClientRecordedPayloadRequest_descriptor =
-      getDescriptor().getMessageTypes().get(6);
+      getDescriptor().getMessageTypes().get(7);
     internal_static_org_aware_model_InsertClientRecordedPayloadRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_org_aware_model_InsertClientRecordedPayloadRequest_descriptor,
