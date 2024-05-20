@@ -2,7 +2,7 @@ apply plugin: 'java'
 apply plugin: 'maven-publish'
 
 group = 'org.aware-sdk'
-version = '0.1.12'
+version = '0.1.121'
 
 repositories {
     mavenCentral()
