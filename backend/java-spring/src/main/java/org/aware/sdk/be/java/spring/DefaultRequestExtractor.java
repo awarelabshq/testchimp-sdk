@@ -354,15 +354,11 @@ public class DefaultRequestExtractor implements IExtractor {
         for (String ignoredHeader : ignoredHeaders) {
             originalHeaderMap.remove(ignoredHeader);
         }
-        ExtractResult result = new ExtractResult();
-        result.spanAttributes = spanAttributes;
-        result.sanitizedPayload = Payload.newBuilder()
-                .setHttpPayload(HttpPayload.newBuilder().putAllHeaderMap(originalHeaderMap)).build();
-        return result;
+        return new ExtractResult(Payload.newBuilder()
+                .setHttpPayload(HttpPayload.newBuilder().putAllHeaderMap(originalHeaderMap)).build(), spanAttributes);
     }
 
     private ExtractResult handleHttpGet(CachedRequestHttpServletRequest request, boolean ignorePayload, Map<String, String> sanitizedHeaderMap, Map<String, String> partialSpanAttributes, List<String> spanAttributesToExtract, List<String> ignoredFields, List<String> userIdBodyFields) {
-        ExtractResult result = new ExtractResult();
         // Build the HttpGetBody
         HttpGetBody.Builder httpGetBodyBuilder = HttpGetBody.newBuilder();
 
@@ -391,15 +387,13 @@ public class DefaultRequestExtractor implements IExtractor {
         }
 
         // Set the HttpGetBody to the HttpPayload
-        result.sanitizedPayload = Payload.newBuilder()
+        return new ExtractResult(Payload.newBuilder()
                 .setHttpPayload(HttpPayload.newBuilder()
                         .putAllHeaderMap(sanitizedHeaderMap)
                         .setHttpMethod(request.getMethod())
                         .setHttpGetBody(httpGetBodyBuilder)
                         .build())
-                .build();
-        result.spanAttributes = partialSpanAttributes;
-        return result;
+                .build(), partialSpanAttributes);
     }
 
     private ExtractResult handleMultipartFormData(CachedRequestHttpServletRequest request, boolean ignorePayload, Map<String, String> sanitizedHeaderMap, Map<String, String> spanAttributes, List<String> spanAttribsToExtract, List<String> ignoredFields, List<String> userIdBodyFields) {
@@ -449,7 +443,6 @@ public class DefaultRequestExtractor implements IExtractor {
             return new ExtractResult();
         }
 
-        ExtractResult result = new ExtractResult();
         // Build the HttpFormDataBody
         HttpFormUrlencodedBody.Builder builder = HttpFormUrlencodedBody.newBuilder();
 
@@ -483,14 +476,13 @@ public class DefaultRequestExtractor implements IExtractor {
         }
 
         // Set the HttpFormDataBody to the HttpPayload
-        result.sanitizedPayload = Payload.newBuilder()
+        return new ExtractResult(Payload.newBuilder()
                 .setHttpPayload(HttpPayload.newBuilder()
                         .putAllHeaderMap(sanitizedHeaderMap)
                         .setHttpMethod(request.getMethod())
                         .setHttpFormUrlencodedBody(builder)
                         .build())
-                .build();
-        return result;
+                .build(), spanAttributes);
     }
 
     @SneakyThrows
@@ -549,18 +541,9 @@ public class DefaultRequestExtractor implements IExtractor {
             }
 
             // Return extraction result
-            ExtractResult result = new ExtractResult();
-            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(jsonContext.jsonString(), sanitizedHeaderMap, httpMethod);
-            result.spanAttributes = spanAttributes;
-            logger.fine("Extracted payload: " + JsonFormat.printer().print(result.sanitizedPayload));
-            return result;
-
+            return new ExtractResult(ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(jsonContext.jsonString(), sanitizedHeaderMap, httpMethod), spanAttributes);
         }
-        ExtractResult result = new ExtractResult();
-        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalBody, sanitizedHeaderMap, httpMethod);
-        result.spanAttributes = spanAttributes;
-        logger.fine("Extracted payload: " + JsonFormat.printer().print(result.sanitizedPayload));
-        return result;
+        return new ExtractResult(ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalBody, sanitizedHeaderMap, httpMethod), spanAttributes);
     }
 
 

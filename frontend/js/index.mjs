@@ -494,6 +494,7 @@ async function startRecording(config) {
 
   // Store endpoint, projectId, sessionRecordingApiKey, samplingProbability, maxSessionDurationSecs, samplingProbabilityOnError, and maxDurationToSaveOnError in window.AwareSDKConfig
   window.AwareSDKConfig = {
+    enableRecording:config.enableRecording || true,
     endpoint: endpoint,
     projectId: config.projectId,
     sessionRecordingApiKey: config.sessionRecordingApiKey,
