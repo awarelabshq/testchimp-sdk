@@ -48,19 +48,23 @@ window.onload = function () {
 
 The SDK behaviour can be configured with the following config params:
 
-```projectId```: This is the project id for your project in Aware Platform (Access via Project Settings -> General -> Project ID)
+``` enableRecording```: (Optional) This flag helps selectively disable recording (for instance, based on environment). Default: ```true```
 
-```apiKey```: This is the session recording api key for your project (Access via Project Settings -> General -> Session Recording API key) - Note: Not Api Key (which is used for data api access for integration with your CI / CD pipelines etc.)
+```projectId```: (Required) This is the project id for your project in Aware Platform (Access via Project Settings -> General -> Project ID)
 
-```samplingProbability```: This is the probability an arbitrary session will be recorded. Set this to 1.0 to capture all sessions (recommended setting for test environments).
+```sessionRecordingApiKey```: (Required) This is the session recording api key for your project (Access via Project Settings -> General -> Session Recording API key) - Note: Not Api Key (which is used for data api access for integration with your CI / CD pipelines etc.)
 
-```samplingProbabilityOnError```: This is the probability of recording if an error occurs. Useful for capturing erroring scenario recordings in production. ```<eventWindowToSaveOnError>``` number of preceding events will be recorded if being sampled on error.
+```samplingProbability```: (Optional) This is the probability an arbitrary session will be recorded. Set this to 1.0 to capture all sessions (recommended setting for test environments). Default: ```1.0```
 
-```maxSessionDurationSecs```: Maximum number of seconds of a session to be recorded. (Default: 300)
+```samplingProbabilityOnError```: (Optional) This is the probability of recording if an error occurs. Useful for capturing erroring scenario recordings in production. ```<eventWindowToSaveOnError>``` number of preceding events will be recorded if being sampled on error. Default: ```0.0```
 
-```eventWindowToSaveOnError```: number of events to be recoded preceding an error.
+```maxSessionDurationSecs```: (Optional) Maximum number of seconds of a session to be recorded. Default: ```300```
 
-```urlRegexToAddTracking```: Regex describing the uris to which calls should be tracked (usually the urls of your API layer that the client app communicates with)
+```eventWindowToSaveOnError```: (Optional) number of events to be recoded preceding an error. Default: ```200```
+
+```tracedUriRegexListToTrack```: If you have enabled full stack recording with backend Aware SDKs, add regex of your backend entrypoints called by the client for this attribute. Eg:  ".*://your-domain.*$" Default: ```"/^$/"``` (No matched urls)
+
+```untracedUriRegexListToTrack```: If you have NOT enabled full stack recording with backend Aware SDKs, add regex of your backend entrypoints called by the client for this attribute. Eg:  ".*://your-domain.*$" This will capture the API layer interactions, allowing you to create tests covering the API layer from recorded sessions. If you have enabled backend tracing, no need to specify this. Default: ```"/^$/"``` (No matched urls)
 
 ## Backend
 
