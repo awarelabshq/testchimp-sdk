@@ -4,7 +4,7 @@
 package org.aware.model;
 
 /**
- * Protobuf type {@code org.aware.model.HttpFormUrlencodedBody} force
+ * Protobuf type {@code org.aware.model.HttpFormUrlencodedBody}
  */
 public final class HttpFormUrlencodedBody extends
     com.google.protobuf.GeneratedMessageV3 implements

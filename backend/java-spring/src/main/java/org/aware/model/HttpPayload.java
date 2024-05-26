@@ -47,8 +47,6 @@ private static final long serialVersionUID = 0L;
     switch (number) {
       case 1:
         return internalGetHeaderMap();
-      case 10:
-        return internalGetTemplatePathVariableMap();
       default:
         throw new RuntimeException(
             "Invalid map field number: " + number);
@@ -62,6 +60,7 @@ private static final long serialVersionUID = 0L;
             org.aware.model.HttpPayload.class, org.aware.model.HttpPayload.Builder.class);
   }
 
+  private int bitField0_;
   private int bodyCase_ = 0;
   private java.lang.Object body_;
   public enum BodyCase
@@ -199,7 +198,23 @@ private static final long serialVersionUID = 0L;
   public static final int HTTP_METHOD_FIELD_NUMBER = 3;
   private volatile java.lang.Object httpMethod_;
   /**
-   * <code>string http_method = 3;</code>
+   * <pre>
+   * Only applicable for request payloads.
+   * </pre>
+   *
+   * <code>optional string http_method = 3;</code>
+   * @return Whether the httpMethod field is set.
+   */
+  @java.lang.Override
+  public boolean hasHttpMethod() {
+    return ((bitField0_ & 0x00000001) != 0);
+  }
+  /**
+   * <pre>
+   * Only applicable for request payloads.
+   * </pre>
+   *
+   * <code>optional string http_method = 3;</code>
    * @return The httpMethod.
    */
   @java.lang.Override
@@ -216,7 +231,11 @@ private static final long serialVersionUID = 0L;
     }
   }
   /**
-   * <code>string http_method = 3;</code>
+   * <pre>
+   * Only applicable for request payloads.
+   * </pre>
+   *
+   * <code>optional string http_method = 3;</code>
    * @return The bytes for httpMethod.
    */
   @java.lang.Override
@@ -234,101 +253,31 @@ private static final long serialVersionUID = 0L;
     }
   }
 
-  public static final int TEMPLATE_PATH_VARIABLE_MAP_FIELD_NUMBER = 10;
-  private static final class TemplatePathVariableMapDefaultEntryHolder {
-    static final com.google.protobuf.MapEntry<
-        java.lang.String, java.lang.String> defaultEntry =
-            com.google.protobuf.MapEntry
-            .<java.lang.String, java.lang.String>newDefaultInstance(
-                org.aware.model.Model.internal_static_org_aware_model_HttpPayload_TemplatePathVariableMapEntry_descriptor, 
-                com.google.protobuf.WireFormat.FieldType.STRING,
-                "",
-                com.google.protobuf.WireFormat.FieldType.STRING,
-                "");
-  }
-  private com.google.protobuf.MapField<
-      java.lang.String, java.lang.String> templatePathVariableMap_;
-  private com.google.protobuf.MapField<java.lang.String, java.lang.String>
-  internalGetTemplatePathVariableMap() {
-    if (templatePathVariableMap_ == null) {
-      return com.google.protobuf.MapField.emptyMapField(
-          TemplatePathVariableMapDefaultEntryHolder.defaultEntry);
-    }
-    return templatePathVariableMap_;
-  }
-
-  public int getTemplatePathVariableMapCount() {
-    return internalGetTemplatePathVariableMap().getMap().size();
+  public static final int RESPONSE_CODE_FIELD_NUMBER = 12;
+  private int responseCode_;
+  /**
+   * <pre>
+   * Only applicable for response payloads.
+   * </pre>
+   *
+   * <code>optional int32 response_code = 12;</code>
+   * @return Whether the responseCode field is set.
+   */
+  @java.lang.Override
+  public boolean hasResponseCode() {
+    return ((bitField0_ & 0x00000002) != 0);
   }
   /**
    * <pre>
-   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
+   * Only applicable for response payloads.
    * </pre>
    *
-   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
-   */
-
-  @java.lang.Override
-  public boolean containsTemplatePathVariableMap(
-      java.lang.String key) {
-    if (key == null) { throw new NullPointerException("map key"); }
-    return internalGetTemplatePathVariableMap().getMap().containsKey(key);
-  }
-  /**
-   * Use {@link #getTemplatePathVariableMapMap()} instead.
+   * <code>optional int32 response_code = 12;</code>
+   * @return The responseCode.
    */
   @java.lang.Override
-  @java.lang.Deprecated
-  public java.util.Map<java.lang.String, java.lang.String> getTemplatePathVariableMap() {
-    return getTemplatePathVariableMapMap();
-  }
-  /**
-   * <pre>
-   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
-   * </pre>
-   *
-   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
-   */
-  @java.lang.Override
-
-  public java.util.Map<java.lang.String, java.lang.String> getTemplatePathVariableMapMap() {
-    return internalGetTemplatePathVariableMap().getMap();
-  }
-  /**
-   * <pre>
-   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
-   * </pre>
-   *
-   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
-   */
-  @java.lang.Override
-
-  public java.lang.String getTemplatePathVariableMapOrDefault(
-      java.lang.String key,
-      java.lang.String defaultValue) {
-    if (key == null) { throw new NullPointerException("map key"); }
-    java.util.Map<java.lang.String, java.lang.String> map =
-        internalGetTemplatePathVariableMap().getMap();
-    return map.containsKey(key) ? map.get(key) : defaultValue;
-  }
-  /**
-   * <pre>
-   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
-   * </pre>
-   *
-   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
-   */
-  @java.lang.Override
-
-  public java.lang.String getTemplatePathVariableMapOrThrow(
-      java.lang.String key) {
-    if (key == null) { throw new NullPointerException("map key"); }
-    java.util.Map<java.lang.String, java.lang.String> map =
-        internalGetTemplatePathVariableMap().getMap();
-    if (!map.containsKey(key)) {
-      throw new java.lang.IllegalArgumentException();
-    }
-    return map.get(key);
+  public int getResponseCode() {
+    return responseCode_;
   }
 
   public static final int JSON_BODY_FIELD_NUMBER = 2;
@@ -686,7 +635,7 @@ private static final long serialVersionUID = 0L;
     if (bodyCase_ == 2) {
       com.google.protobuf.GeneratedMessageV3.writeString(output, 2, body_);
     }
-    if (!com.google.protobuf.GeneratedMessageV3.isStringEmpty(httpMethod_)) {
+    if (((bitField0_ & 0x00000001) != 0)) {
       com.google.protobuf.GeneratedMessageV3.writeString(output, 3, httpMethod_);
     }
     if (bodyCase_ == 4) {
@@ -707,14 +656,11 @@ private static final long serialVersionUID = 0L;
     if (bodyCase_ == 9) {
       output.writeMessage(9, (org.aware.model.BinaryDataBody) body_);
     }
-    com.google.protobuf.GeneratedMessageV3
-      .serializeStringMapTo(
-        output,
-        internalGetTemplatePathVariableMap(),
-        TemplatePathVariableMapDefaultEntryHolder.defaultEntry,
-        10);
     if (bodyCase_ == 11) {
       output.writeMessage(11, (org.aware.model.HttpFormUrlencodedBody) body_);
+    }
+    if (((bitField0_ & 0x00000002) != 0)) {
+      output.writeInt32(12, responseCode_);
     }
     getUnknownFields().writeTo(output);
   }
@@ -738,7 +684,7 @@ private static final long serialVersionUID = 0L;
     if (bodyCase_ == 2) {
       size += com.google.protobuf.GeneratedMessageV3.computeStringSize(2, body_);
     }
-    if (!com.google.protobuf.GeneratedMessageV3.isStringEmpty(httpMethod_)) {
+    if (((bitField0_ & 0x00000001) != 0)) {
       size += com.google.protobuf.GeneratedMessageV3.computeStringSize(3, httpMethod_);
     }
     if (bodyCase_ == 4) {
@@ -762,19 +708,13 @@ private static final long serialVersionUID = 0L;
       size += com.google.protobuf.CodedOutputStream
         .computeMessageSize(9, (org.aware.model.BinaryDataBody) body_);
     }
-    for (java.util.Map.Entry<java.lang.String, java.lang.String> entry
-         : internalGetTemplatePathVariableMap().getMap().entrySet()) {
-      com.google.protobuf.MapEntry<java.lang.String, java.lang.String>
-      templatePathVariableMap__ = TemplatePathVariableMapDefaultEntryHolder.defaultEntry.newBuilderForType()
-          .setKey(entry.getKey())
-          .setValue(entry.getValue())
-          .build();
-      size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(10, templatePathVariableMap__);
-    }
     if (bodyCase_ == 11) {
       size += com.google.protobuf.CodedOutputStream
         .computeMessageSize(11, (org.aware.model.HttpFormUrlencodedBody) body_);
+    }
+    if (((bitField0_ & 0x00000002) != 0)) {
+      size += com.google.protobuf.CodedOutputStream
+        .computeInt32Size(12, responseCode_);
     }
     size += getUnknownFields().getSerializedSize();
     memoizedSize = size;
@@ -793,10 +733,16 @@ private static final long serialVersionUID = 0L;
 
     if (!internalGetHeaderMap().equals(
         other.internalGetHeaderMap())) return false;
-    if (!getHttpMethod()
-        .equals(other.getHttpMethod())) return false;
-    if (!internalGetTemplatePathVariableMap().equals(
-        other.internalGetTemplatePathVariableMap())) return false;
+    if (hasHttpMethod() != other.hasHttpMethod()) return false;
+    if (hasHttpMethod()) {
+      if (!getHttpMethod()
+          .equals(other.getHttpMethod())) return false;
+    }
+    if (hasResponseCode() != other.hasResponseCode()) return false;
+    if (hasResponseCode()) {
+      if (getResponseCode()
+          != other.getResponseCode()) return false;
+    }
     if (!getBodyCase().equals(other.getBodyCase())) return false;
     switch (bodyCase_) {
       case 2:
@@ -849,11 +795,13 @@ private static final long serialVersionUID = 0L;
       hash = (37 * hash) + HEADER_MAP_FIELD_NUMBER;
       hash = (53 * hash) + internalGetHeaderMap().hashCode();
     }
-    hash = (37 * hash) + HTTP_METHOD_FIELD_NUMBER;
-    hash = (53 * hash) + getHttpMethod().hashCode();
-    if (!internalGetTemplatePathVariableMap().getMap().isEmpty()) {
-      hash = (37 * hash) + TEMPLATE_PATH_VARIABLE_MAP_FIELD_NUMBER;
-      hash = (53 * hash) + internalGetTemplatePathVariableMap().hashCode();
+    if (hasHttpMethod()) {
+      hash = (37 * hash) + HTTP_METHOD_FIELD_NUMBER;
+      hash = (53 * hash) + getHttpMethod().hashCode();
+    }
+    if (hasResponseCode()) {
+      hash = (37 * hash) + RESPONSE_CODE_FIELD_NUMBER;
+      hash = (53 * hash) + getResponseCode();
     }
     switch (bodyCase_) {
       case 2:
@@ -1008,8 +956,6 @@ private static final long serialVersionUID = 0L;
       switch (number) {
         case 1:
           return internalGetHeaderMap();
-        case 10:
-          return internalGetTemplatePathVariableMap();
         default:
           throw new RuntimeException(
               "Invalid map field number: " + number);
@@ -1021,8 +967,6 @@ private static final long serialVersionUID = 0L;
       switch (number) {
         case 1:
           return internalGetMutableHeaderMap();
-        case 10:
-          return internalGetMutableTemplatePathVariableMap();
         default:
           throw new RuntimeException(
               "Invalid map field number: " + number);
@@ -1051,8 +995,9 @@ private static final long serialVersionUID = 0L;
       super.clear();
       internalGetMutableHeaderMap().clear();
       httpMethod_ = "";
-
-      internalGetMutableTemplatePathVariableMap().clear();
+      bitField0_ = (bitField0_ & ~0x00000002);
+      responseCode_ = 0;
+      bitField0_ = (bitField0_ & ~0x00000004);
       if (httpGetBodyBuilder_ != null) {
         httpGetBodyBuilder_.clear();
       }
@@ -1094,11 +1039,17 @@ private static final long serialVersionUID = 0L;
     public org.aware.model.HttpPayload buildPartial() {
       org.aware.model.HttpPayload result = new org.aware.model.HttpPayload(this);
       int from_bitField0_ = bitField0_;
+      int to_bitField0_ = 0;
       result.headerMap_ = internalGetHeaderMap();
       result.headerMap_.makeImmutable();
+      if (((from_bitField0_ & 0x00000002) != 0)) {
+        to_bitField0_ |= 0x00000001;
+      }
       result.httpMethod_ = httpMethod_;
-      result.templatePathVariableMap_ = internalGetTemplatePathVariableMap();
-      result.templatePathVariableMap_.makeImmutable();
+      if (((from_bitField0_ & 0x00000004) != 0)) {
+        result.responseCode_ = responseCode_;
+        to_bitField0_ |= 0x00000002;
+      }
       if (bodyCase_ == 2) {
         result.body_ = body_;
       }
@@ -1139,6 +1090,7 @@ private static final long serialVersionUID = 0L;
           result.body_ = binaryDataBodyBuilder_.build();
         }
       }
+      result.bitField0_ = to_bitField0_;
       result.bodyCase_ = bodyCase_;
       onBuilt();
       return result;
@@ -1190,12 +1142,14 @@ private static final long serialVersionUID = 0L;
       if (other == org.aware.model.HttpPayload.getDefaultInstance()) return this;
       internalGetMutableHeaderMap().mergeFrom(
           other.internalGetHeaderMap());
-      if (!other.getHttpMethod().isEmpty()) {
+      if (other.hasHttpMethod()) {
+        bitField0_ |= 0x00000002;
         httpMethod_ = other.httpMethod_;
         onChanged();
       }
-      internalGetMutableTemplatePathVariableMap().mergeFrom(
-          other.internalGetTemplatePathVariableMap());
+      if (other.hasResponseCode()) {
+        setResponseCode(other.getResponseCode());
+      }
       switch (other.getBodyCase()) {
         case JSON_BODY: {
           bodyCase_ = 2;
@@ -1283,7 +1237,7 @@ private static final long serialVersionUID = 0L;
             } // case 18
             case 26: {
               httpMethod_ = input.readStringRequireUtf8();
-
+              bitField0_ |= 0x00000002;
               break;
             } // case 26
             case 34: {
@@ -1325,14 +1279,6 @@ private static final long serialVersionUID = 0L;
               bodyCase_ = 9;
               break;
             } // case 74
-            case 82: {
-              com.google.protobuf.MapEntry<java.lang.String, java.lang.String>
-              templatePathVariableMap__ = input.readMessage(
-                  TemplatePathVariableMapDefaultEntryHolder.defaultEntry.getParserForType(), extensionRegistry);
-              internalGetMutableTemplatePathVariableMap().getMutableMap().put(
-                  templatePathVariableMap__.getKey(), templatePathVariableMap__.getValue());
-              break;
-            } // case 82
             case 90: {
               input.readMessage(
                   getHttpFormUrlencodedBodyFieldBuilder().getBuilder(),
@@ -1340,6 +1286,11 @@ private static final long serialVersionUID = 0L;
               bodyCase_ = 11;
               break;
             } // case 90
+            case 96: {
+              responseCode_ = input.readInt32();
+              bitField0_ |= 0x00000004;
+              break;
+            } // case 96
             default: {
               if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                 done = true; // was an endgroup tag
@@ -1505,7 +1456,22 @@ private static final long serialVersionUID = 0L;
 
     private java.lang.Object httpMethod_ = "";
     /**
-     * <code>string http_method = 3;</code>
+     * <pre>
+     * Only applicable for request payloads.
+     * </pre>
+     *
+     * <code>optional string http_method = 3;</code>
+     * @return Whether the httpMethod field is set.
+     */
+    public boolean hasHttpMethod() {
+      return ((bitField0_ & 0x00000002) != 0);
+    }
+    /**
+     * <pre>
+     * Only applicable for request payloads.
+     * </pre>
+     *
+     * <code>optional string http_method = 3;</code>
      * @return The httpMethod.
      */
     public java.lang.String getHttpMethod() {
@@ -1521,7 +1487,11 @@ private static final long serialVersionUID = 0L;
       }
     }
     /**
-     * <code>string http_method = 3;</code>
+     * <pre>
+     * Only applicable for request payloads.
+     * </pre>
+     *
+     * <code>optional string http_method = 3;</code>
      * @return The bytes for httpMethod.
      */
     public com.google.protobuf.ByteString
@@ -1538,7 +1508,11 @@ private static final long serialVersionUID = 0L;
       }
     }
     /**
-     * <code>string http_method = 3;</code>
+     * <pre>
+     * Only applicable for request payloads.
+     * </pre>
+     *
+     * <code>optional string http_method = 3;</code>
      * @param value The httpMethod to set.
      * @return This builder for chaining.
      */
@@ -1547,23 +1521,31 @@ private static final long serialVersionUID = 0L;
       if (value == null) {
     throw new NullPointerException();
   }
-  
+  bitField0_ |= 0x00000002;
       httpMethod_ = value;
       onChanged();
       return this;
     }
     /**
-     * <code>string http_method = 3;</code>
+     * <pre>
+     * Only applicable for request payloads.
+     * </pre>
+     *
+     * <code>optional string http_method = 3;</code>
      * @return This builder for chaining.
      */
     public Builder clearHttpMethod() {
-      
+      bitField0_ = (bitField0_ & ~0x00000002);
       httpMethod_ = getDefaultInstance().getHttpMethod();
       onChanged();
       return this;
     }
     /**
-     * <code>string http_method = 3;</code>
+     * <pre>
+     * Only applicable for request payloads.
+     * </pre>
+     *
+     * <code>optional string http_method = 3;</code>
      * @param value The bytes for httpMethod to set.
      * @return This builder for chaining.
      */
@@ -1573,168 +1555,64 @@ private static final long serialVersionUID = 0L;
     throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
-      
+      bitField0_ |= 0x00000002;
       httpMethod_ = value;
       onChanged();
       return this;
     }
 
-    private com.google.protobuf.MapField<
-        java.lang.String, java.lang.String> templatePathVariableMap_;
-    private com.google.protobuf.MapField<java.lang.String, java.lang.String>
-    internalGetTemplatePathVariableMap() {
-      if (templatePathVariableMap_ == null) {
-        return com.google.protobuf.MapField.emptyMapField(
-            TemplatePathVariableMapDefaultEntryHolder.defaultEntry);
-      }
-      return templatePathVariableMap_;
-    }
-    private com.google.protobuf.MapField<java.lang.String, java.lang.String>
-    internalGetMutableTemplatePathVariableMap() {
-      onChanged();;
-      if (templatePathVariableMap_ == null) {
-        templatePathVariableMap_ = com.google.protobuf.MapField.newMapField(
-            TemplatePathVariableMapDefaultEntryHolder.defaultEntry);
-      }
-      if (!templatePathVariableMap_.isMutable()) {
-        templatePathVariableMap_ = templatePathVariableMap_.copy();
-      }
-      return templatePathVariableMap_;
-    }
-
-    public int getTemplatePathVariableMapCount() {
-      return internalGetTemplatePathVariableMap().getMap().size();
+    private int responseCode_ ;
+    /**
+     * <pre>
+     * Only applicable for response payloads.
+     * </pre>
+     *
+     * <code>optional int32 response_code = 12;</code>
+     * @return Whether the responseCode field is set.
+     */
+    @java.lang.Override
+    public boolean hasResponseCode() {
+      return ((bitField0_ & 0x00000004) != 0);
     }
     /**
      * <pre>
-     * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
+     * Only applicable for response payloads.
      * </pre>
      *
-     * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
-     */
-
-    @java.lang.Override
-    public boolean containsTemplatePathVariableMap(
-        java.lang.String key) {
-      if (key == null) { throw new NullPointerException("map key"); }
-      return internalGetTemplatePathVariableMap().getMap().containsKey(key);
-    }
-    /**
-     * Use {@link #getTemplatePathVariableMapMap()} instead.
+     * <code>optional int32 response_code = 12;</code>
+     * @return The responseCode.
      */
     @java.lang.Override
-    @java.lang.Deprecated
-    public java.util.Map<java.lang.String, java.lang.String> getTemplatePathVariableMap() {
-      return getTemplatePathVariableMapMap();
+    public int getResponseCode() {
+      return responseCode_;
     }
     /**
      * <pre>
-     * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
+     * Only applicable for response payloads.
      * </pre>
      *
-     * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
+     * <code>optional int32 response_code = 12;</code>
+     * @param value The responseCode to set.
+     * @return This builder for chaining.
      */
-    @java.lang.Override
-
-    public java.util.Map<java.lang.String, java.lang.String> getTemplatePathVariableMapMap() {
-      return internalGetTemplatePathVariableMap().getMap();
-    }
-    /**
-     * <pre>
-     * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
-     * </pre>
-     *
-     * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
-     */
-    @java.lang.Override
-
-    public java.lang.String getTemplatePathVariableMapOrDefault(
-        java.lang.String key,
-        java.lang.String defaultValue) {
-      if (key == null) { throw new NullPointerException("map key"); }
-      java.util.Map<java.lang.String, java.lang.String> map =
-          internalGetTemplatePathVariableMap().getMap();
-      return map.containsKey(key) ? map.get(key) : defaultValue;
-    }
-    /**
-     * <pre>
-     * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
-     * </pre>
-     *
-     * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
-     */
-    @java.lang.Override
-
-    public java.lang.String getTemplatePathVariableMapOrThrow(
-        java.lang.String key) {
-      if (key == null) { throw new NullPointerException("map key"); }
-      java.util.Map<java.lang.String, java.lang.String> map =
-          internalGetTemplatePathVariableMap().getMap();
-      if (!map.containsKey(key)) {
-        throw new java.lang.IllegalArgumentException();
-      }
-      return map.get(key);
-    }
-
-    public Builder clearTemplatePathVariableMap() {
-      internalGetMutableTemplatePathVariableMap().getMutableMap()
-          .clear();
+    public Builder setResponseCode(int value) {
+      bitField0_ |= 0x00000004;
+      responseCode_ = value;
+      onChanged();
       return this;
     }
     /**
      * <pre>
-     * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
+     * Only applicable for response payloads.
      * </pre>
      *
-     * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
+     * <code>optional int32 response_code = 12;</code>
+     * @return This builder for chaining.
      */
-
-    public Builder removeTemplatePathVariableMap(
-        java.lang.String key) {
-      if (key == null) { throw new NullPointerException("map key"); }
-      internalGetMutableTemplatePathVariableMap().getMutableMap()
-          .remove(key);
-      return this;
-    }
-    /**
-     * Use alternate mutation accessors instead.
-     */
-    @java.lang.Deprecated
-    public java.util.Map<java.lang.String, java.lang.String>
-    getMutableTemplatePathVariableMap() {
-      return internalGetMutableTemplatePathVariableMap().getMutableMap();
-    }
-    /**
-     * <pre>
-     * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
-     * </pre>
-     *
-     * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
-     */
-    public Builder putTemplatePathVariableMap(
-        java.lang.String key,
-        java.lang.String value) {
-      if (key == null) { throw new NullPointerException("map key"); }
-      if (value == null) {
-  throw new NullPointerException("map value");
-}
-
-      internalGetMutableTemplatePathVariableMap().getMutableMap()
-          .put(key, value);
-      return this;
-    }
-    /**
-     * <pre>
-     * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
-     * </pre>
-     *
-     * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
-     */
-
-    public Builder putAllTemplatePathVariableMap(
-        java.util.Map<java.lang.String, java.lang.String> values) {
-      internalGetMutableTemplatePathVariableMap().getMutableMap()
-          .putAll(values);
+    public Builder clearResponseCode() {
+      bitField0_ = (bitField0_ & ~0x00000004);
+      responseCode_ = 0;
+      onChanged();
       return this;
     }
 

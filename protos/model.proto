@@ -9,9 +9,10 @@ option java_outer_classname = "Model";
 // Represents an arbitrary http(s) payload of requests / responses.
 message HttpPayload{
   map<string, string> header_map = 1;
-  string http_method = 3;
-  // Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
-  map<string, string> template_path_variable_map = 10;
+  // Only applicable for request payloads.
+  optional string http_method = 3;
+  // Only applicable for response payloads.
+  optional int32 response_code = 12;
   oneof body{
     string json_body = 2;
     HttpGetBody http_get_body = 4;

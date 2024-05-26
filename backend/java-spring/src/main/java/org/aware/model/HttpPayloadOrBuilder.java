@@ -44,12 +44,29 @@ java.lang.String defaultValue);
       java.lang.String key);
 
   /**
-   * <code>string http_method = 3;</code>
+   * <pre>
+   * Only applicable for request payloads.
+   * </pre>
+   *
+   * <code>optional string http_method = 3;</code>
+   * @return Whether the httpMethod field is set.
+   */
+  boolean hasHttpMethod();
+  /**
+   * <pre>
+   * Only applicable for request payloads.
+   * </pre>
+   *
+   * <code>optional string http_method = 3;</code>
    * @return The httpMethod.
    */
   java.lang.String getHttpMethod();
   /**
-   * <code>string http_method = 3;</code>
+   * <pre>
+   * Only applicable for request payloads.
+   * </pre>
+   *
+   * <code>optional string http_method = 3;</code>
    * @return The bytes for httpMethod.
    */
   com.google.protobuf.ByteString
@@ -57,59 +74,22 @@ java.lang.String defaultValue);
 
   /**
    * <pre>
-   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
+   * Only applicable for response payloads.
    * </pre>
    *
-   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
+   * <code>optional int32 response_code = 12;</code>
+   * @return Whether the responseCode field is set.
    */
-  int getTemplatePathVariableMapCount();
+  boolean hasResponseCode();
   /**
    * <pre>
-   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
+   * Only applicable for response payloads.
    * </pre>
    *
-   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
+   * <code>optional int32 response_code = 12;</code>
+   * @return The responseCode.
    */
-  boolean containsTemplatePathVariableMap(
-      java.lang.String key);
-  /**
-   * Use {@link #getTemplatePathVariableMapMap()} instead.
-   */
-  @java.lang.Deprecated
-  java.util.Map<java.lang.String, java.lang.String>
-  getTemplatePathVariableMap();
-  /**
-   * <pre>
-   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
-   * </pre>
-   *
-   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
-   */
-  java.util.Map<java.lang.String, java.lang.String>
-  getTemplatePathVariableMapMap();
-  /**
-   * <pre>
-   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
-   * </pre>
-   *
-   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
-   */
-
-  /* nullable */
-java.lang.String getTemplatePathVariableMapOrDefault(
-      java.lang.String key,
-      /* nullable */
-java.lang.String defaultValue);
-  /**
-   * <pre>
-   * Not needed to be populated by the data exporters. This will be filled by Aware platform upon ingress by taking in to account the templated path resources been configured.
-   * </pre>
-   *
-   * <code>map&lt;string, string&gt; template_path_variable_map = 10;</code>
-   */
-
-  java.lang.String getTemplatePathVariableMapOrThrow(
-      java.lang.String key);
+  int getResponseCode();
 
   /**
    * <code>string json_body = 2;</code>

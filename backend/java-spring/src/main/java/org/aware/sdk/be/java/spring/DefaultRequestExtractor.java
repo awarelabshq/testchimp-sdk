@@ -3,7 +3,6 @@ package org.aware.sdk.be.java.spring;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.google.protobuf.util.JsonFormat;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -224,7 +223,7 @@ public class DefaultRequestExtractor implements IExtractor {
         logger.fine("Extracting request details for " + originalUri + " ignorePayload: " + ignorePayload + " hasMatchedUri  " + hasMatchedUri);
 
         // Parse the header section and build a partial ExtractResult.
-        ExtractResult result = getPartialExtractionResultFromHeader(ignorePayload, request.getRequestHeaders(), headerAttribsToExtract, ignoredHeaders);
+        ExtractResult result = getPartialExtractionResultFromHeader(ignorePayload, request.getRequestHeaders(), headerAttribsToExtract, ignoredHeaders, /*response code not applicalbe for request payloads*/null);
         Map<String, String> sanitizedHeaderMap = result.sanitizedPayload.getHttpPayload()
                 .getHeaderMapMap();
         String originalContentType = request.getRequestHeaders().getOrDefault("content-type", "");
@@ -298,7 +297,7 @@ public class DefaultRequestExtractor implements IExtractor {
             ignorePayload = true;
         }
 
-        ExtractResult result = getPartialExtractionResultFromHeader(ignorePayload, response.getResponseHeaders(), headerAttribsToExtract, ignoredHeaders);
+        ExtractResult result = getPartialExtractionResultFromHeader(ignorePayload, response.getResponseHeaders(), headerAttribsToExtract, ignoredHeaders, response.getStatus());
         Map<String, String> sanitizedHeaderMap = result.sanitizedPayload.getHttpPayload()
                 .getHeaderMapMap();
         String originalContentType = sanitizedHeaderMap.getOrDefault("content-type", "");
@@ -338,7 +337,7 @@ public class DefaultRequestExtractor implements IExtractor {
         return result;
     }
 
-    private ExtractResult getPartialExtractionResultFromHeader(boolean ignorePayload, Map<String, String> originalHeaderMap, List<String> headerAttribsToExtract, List<String> ignoredHeaders) {
+    private ExtractResult getPartialExtractionResultFromHeader(boolean ignorePayload, Map<String, String> originalHeaderMap, List<String> headerAttribsToExtract, List<String> ignoredHeaders, Integer responseCode) {
         if (ignorePayload) {
             return new ExtractResult();
         }
@@ -354,8 +353,12 @@ public class DefaultRequestExtractor implements IExtractor {
         for (String ignoredHeader : ignoredHeaders) {
             originalHeaderMap.remove(ignoredHeader);
         }
+        HttpPayload.Builder builder = HttpPayload.newBuilder().putAllHeaderMap(originalHeaderMap);
+        if (responseCode != null) {
+            builder.setResponseCode(responseCode);
+        }
         return new ExtractResult(Payload.newBuilder()
-                .setHttpPayload(HttpPayload.newBuilder().putAllHeaderMap(originalHeaderMap)).build(), spanAttributes);
+                .setHttpPayload(builder).build(), spanAttributes);
     }
 
     private ExtractResult handleHttpGet(CachedRequestHttpServletRequest request, boolean ignorePayload, Map<String, String> sanitizedHeaderMap, Map<String, String> partialSpanAttributes, List<String> spanAttributesToExtract, List<String> ignoredFields, List<String> userIdBodyFields) {

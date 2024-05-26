@@ -140,7 +140,8 @@ function sendPayloadToEndpoint(payload, endpoint) {
   });
 }
 
-async function populateHttpPayload(rawPayload, method) {
+async function populateHttpPayload(config,rawPayload) {
+    const method=rawPayload.method;
     const httpPayload = {
         headerMap: {},
         httpMethod: method
@@ -151,9 +152,14 @@ async function populateHttpPayload(rawPayload, method) {
         httpPayload.headerMap[key] = value;
     });
 
+     if (rawPayload.status) {
+        httpPayload.responseCode = rawPayload.status;
+      }
+
     const contentType = rawPayload.headers.get('content-type') || '';
 
     if (method === 'GET') {
+        log(config,"capturing GET request payload");
         // Safely split URL parameters
         const urlParams = new URLSearchParams(rawPayload.url.split('?')[1] || '');
         const keyValueMap = {};
@@ -177,7 +183,7 @@ async function populateHttpPayload(rawPayload, method) {
                     formDataSize += value.size;
                     // If total size exceeds 10MB, drop the data
                     if (formDataSize > 10 * 1024 * 1024) {
-                        console.log("Binary data exceeds 10MB. Dropping data.");
+                        log(config,"Binary data exceeds 10MB. Dropping data.");
                         callback(httpPayload);
                         return;
                     }
@@ -194,7 +200,7 @@ async function populateHttpPayload(rawPayload, method) {
             // Check the size of the binary data
             rawPayload.arrayBuffer().then(buffer => {
                 if (buffer.byteLength > 10 * 1024 * 1024) {
-                    console.log("Binary data exceeds 10MB. Dropping data.");
+                    log(config,"Binary data exceeds 10MB. Dropping data.");
                     callback(httpPayload);
                     return;
                 } else {
@@ -285,8 +291,12 @@ async function enableRequestIntercept(config) {
     } else if (matchedUntracedUri) {
       log(config, "request matches regex for untraced uris to track " + request.url);
       // Store the request URL in the map
-      requestUrls.set(requestId, request.url);
-      let traceparent = request.headers.get('traceparent');
+      const parsedUrl = new URL(request.url);
+      const urlWithoutQueryParams = `${parsedUrl.origin}${parsedUrl.pathname}`;
+      // Store the request URL without query parameters in the map
+      requestUrls.set(requestId, urlWithoutQueryParams);
+
+       let traceparent = request.headers.get('traceparent');
       if (!traceparent) {
         traceparent = generateTraceparent(generateSpanId());
         log(config, "Generating new traceparent " + traceparent);
@@ -298,7 +308,7 @@ async function enableRequestIntercept(config) {
 
       // Capture request body and headers
       try {
-        const requestPayload = await populateHttpPayload(request);
+        const requestPayload = await populateHttpPayload(config,request);
         requestPayloads[requestId] = requestPayload;
       } catch (error) {
         console.error('Error populating request payload:', error);
@@ -313,7 +323,7 @@ async function enableRequestIntercept(config) {
     if (matchedUntracedUri || requestUrls.has(requestId)) {
       // Capture response body and headers
       try {
-        const responsePayload = await populateHttpPayload(response);
+        const responsePayload = await populateHttpPayload(config,response);
         const requestPayload = requestPayloads[requestId];
         const requestUrl = requestUrls.get(requestId);
         const spanId = requestIdToSpanIdMap.get(requestId);
