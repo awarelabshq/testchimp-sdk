@@ -40,7 +40,7 @@ public class CachedResponseHttpServletResponse extends HttpServletResponseWrappe
         Map<String, String> headersMap = new HashMap<>();
         Collection<String> headerNames = getHeaderNames();
         for (String headerName : headerNames) {
-            headersMap.put(headerName, getHeader(headerName));
+            headersMap.put(headerName.toLowerCase(), getHeader(headerName));
         }
         return headersMap;
     }
