@@ -301,7 +301,7 @@ public class DefaultRequestExtractor implements IExtractor {
         Map<String, String> sanitizedHeaderMap = result.sanitizedPayload.getHttpPayload()
                 .getHeaderMapMap();
         String originalContentType = sanitizedHeaderMap.getOrDefault("content-type", "");
-        if (originalContentType == null) {
+        if (originalContentType == null || originalContentType.isEmpty()) {
             result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(response.getBodyString(), sanitizedHeaderMap, "");
             return result;
         }
