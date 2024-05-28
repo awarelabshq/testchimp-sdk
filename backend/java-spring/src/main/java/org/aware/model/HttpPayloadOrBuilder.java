@@ -44,6 +44,42 @@ java.lang.String defaultValue);
       java.lang.String key);
 
   /**
+   * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+   */
+  int getQueryParamMapCount();
+  /**
+   * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+   */
+  boolean containsQueryParamMap(
+      java.lang.String key);
+  /**
+   * Use {@link #getQueryParamMapMap()} instead.
+   */
+  @java.lang.Deprecated
+  java.util.Map<java.lang.String, java.lang.String>
+  getQueryParamMap();
+  /**
+   * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+   */
+  java.util.Map<java.lang.String, java.lang.String>
+  getQueryParamMapMap();
+  /**
+   * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+   */
+
+  /* nullable */
+java.lang.String getQueryParamMapOrDefault(
+      java.lang.String key,
+      /* nullable */
+java.lang.String defaultValue);
+  /**
+   * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+   */
+
+  java.lang.String getQueryParamMapOrThrow(
+      java.lang.String key);
+
+  /**
    * <pre>
    * Only applicable for request payloads.
    * </pre>
@@ -109,19 +145,35 @@ java.lang.String defaultValue);
       getJsonBodyBytes();
 
   /**
-   * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+   * <pre>
+   * Populate query param map instead. This is since query params are not limited to GET methods.
+   * </pre>
+   *
+   * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
+   * @deprecated org.aware.model.HttpPayload.http_get_body is deprecated.
+   *     See model.proto;l=19
    * @return Whether the httpGetBody field is set.
    */
-  boolean hasHttpGetBody();
+  @java.lang.Deprecated boolean hasHttpGetBody();
   /**
-   * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+   * <pre>
+   * Populate query param map instead. This is since query params are not limited to GET methods.
+   * </pre>
+   *
+   * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
+   * @deprecated org.aware.model.HttpPayload.http_get_body is deprecated.
+   *     See model.proto;l=19
    * @return The httpGetBody.
    */
-  org.aware.model.HttpGetBody getHttpGetBody();
+  @java.lang.Deprecated org.aware.model.HttpGetBody getHttpGetBody();
   /**
-   * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+   * <pre>
+   * Populate query param map instead. This is since query params are not limited to GET methods.
+   * </pre>
+   *
+   * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
    */
-  org.aware.model.HttpGetBodyOrBuilder getHttpGetBodyOrBuilder();
+  @java.lang.Deprecated org.aware.model.HttpGetBodyOrBuilder getHttpGetBodyOrBuilder();
 
   /**
    * <code>string text_body = 5;</code>

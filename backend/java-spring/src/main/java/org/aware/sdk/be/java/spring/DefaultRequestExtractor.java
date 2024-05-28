@@ -197,7 +197,6 @@ public class DefaultRequestExtractor implements IExtractor {
     @Override
     public ExtractResult extractFromRequest(CachedRequestHttpServletRequest request) {
         String originalUri = request.getRequestURI();
-        String method = request.getMethod();
 
         List<String> headerAttribsToExtract = new ArrayList<>();
         List<String> ignoredHeaders = new ArrayList<>();
@@ -224,11 +223,13 @@ public class DefaultRequestExtractor implements IExtractor {
 
         // Parse the header section and build a partial ExtractResult.
         ExtractResult result = getPartialExtractionResultFromHeader(ignorePayload, request.getRequestHeaders(), headerAttribsToExtract, ignoredHeaders, /*response code not applicalbe for request payloads*/null);
-        Map<String, String> sanitizedHeaderMap = result.sanitizedPayload.getHttpPayload()
-                .getHeaderMapMap();
+        result = populateQueryParamsAndMethod(result, request);
+        HttpPayload.Builder existingHttpPayload = result.sanitizedPayload.getHttpPayload().toBuilder();
+
+
         String originalContentType = request.getRequestHeaders().getOrDefault("content-type", "");
         if (originalContentType == null) {
-            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(request.getBodyString(), sanitizedHeaderMap, method);
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(request.getBodyString(), existingHttpPayload);
             return result;
         }
 
@@ -244,31 +245,35 @@ public class DefaultRequestExtractor implements IExtractor {
             }
         }
 
-        if (method.equals("GET")) {
-            // Handle HTTP GET method
-            return handleHttpGet(request, ignorePayload, sanitizedHeaderMap, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields);
-        }
-
         String contentType = originalContentType.toLowerCase();
         if (contentType.contains("application/json")) {
-            return getJsonBodyExtractResult(ignorePayload, method, request.getBodyString(), sanitizedHeaderMap, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields.stream()
-                    .filter(field -> !field.isEmpty()).collect(Collectors.toList()));
+            return getJsonBodyExtractResult(ignorePayload, request.getBodyString(), result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields.stream()
+                    .filter(field -> !field.isEmpty()).collect(Collectors.toList()), existingHttpPayload);
         } else if (contentType.contains("text/plain")) {
-            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(request.getBodyString(), sanitizedHeaderMap, method);
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(request.getBodyString(), existingHttpPayload);
             return result;
         } else if (contentType.contains("text/html")) {
-            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpHtmlPayload(request.getBodyString(), sanitizedHeaderMap, method);
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpHtmlPayload(request.getBodyString(), existingHttpPayload);
             return result;
         } else if (contentType.contains("text/xml") || contentType
                 .contains("application/xml")) {
-            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpXmlPayload(request.getBodyString(), sanitizedHeaderMap, method);
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpXmlPayload(request.getBodyString(), existingHttpPayload);
             return result;
         } else if (contentType.contains("application/x-www-form-urlencoded")) {
-            return handleUrlEncodedFormData(request, ignorePayload, sanitizedHeaderMap, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields);
+            return handleUrlEncodedFormData(request, ignorePayload, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields, existingHttpPayload);
         } else if (contentType.contains("multipart/form-data")) {
-            return handleMultipartFormData(request, ignorePayload, sanitizedHeaderMap, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields);
+            return handleMultipartFormData(request, ignorePayload, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields, existingHttpPayload);
         }
-        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(request.getBodyString(), sanitizedHeaderMap, method);
+        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(request.getBodyString(), existingHttpPayload);
+        return result;
+    }
+
+    private ExtractResult populateQueryParamsAndMethod(ExtractResult result, CachedRequestHttpServletRequest request) {
+        HttpPayload.Builder httpPayloadBuilder = result.sanitizedPayload.getHttpPayload().toBuilder();
+        httpPayloadBuilder.setHttpMethod(request.getMethod());
+        populateQueryParams(httpPayloadBuilder, request);
+        result.sanitizedPayload = result.sanitizedPayload.toBuilder().setHttpPayload(httpPayloadBuilder.build())
+                .build();
         return result;
     }
 
@@ -298,11 +303,12 @@ public class DefaultRequestExtractor implements IExtractor {
         }
 
         ExtractResult result = getPartialExtractionResultFromHeader(ignorePayload, response.getResponseHeaders(), headerAttribsToExtract, ignoredHeaders, response.getStatus());
+        HttpPayload.Builder existingHttpPayload = result.sanitizedPayload.getHttpPayload().toBuilder();
         Map<String, String> sanitizedHeaderMap = result.sanitizedPayload.getHttpPayload()
                 .getHeaderMapMap();
         String originalContentType = sanitizedHeaderMap.getOrDefault("content-type", "");
         if (originalContentType == null || originalContentType.isEmpty()) {
-            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(response.getBodyString(), sanitizedHeaderMap, "");
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(response.getBodyString(), existingHttpPayload);
             return result;
         }
         String contentType = originalContentType.toLowerCase();
@@ -319,21 +325,21 @@ public class DefaultRequestExtractor implements IExtractor {
             }
 
             String originalResponseBody = response.getBodyString();
-            return getJsonBodyExtractResult(ignorePayload, "", originalResponseBody, sanitizedHeaderMap, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields.stream()
-                    .filter(field -> !field.isEmpty()).collect(Collectors.toList()));
+            return getJsonBodyExtractResult(ignorePayload, originalResponseBody, result.spanAttributes, spanAttribsToExtract, ignoredFields, userIdBodyFields.stream()
+                    .filter(field -> !field.isEmpty()).collect(Collectors.toList()), existingHttpPayload);
         } else if (contentType.contains("text/plain")) {
-            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(response.getBodyString(), sanitizedHeaderMap, "");
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(response.getBodyString(), existingHttpPayload);
             return result;
         } else if (contentType.contains("text/html")) {
-            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpHtmlPayload(response.getBodyString(), sanitizedHeaderMap, "");
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpHtmlPayload(response.getBodyString(), existingHttpPayload);
             return result;
 
         } else if (contentType.contains("text/xml") || contentType
                 .contains("application/xml")) {
-            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpXmlPayload(response.getBodyString(), sanitizedHeaderMap, "");
+            result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpXmlPayload(response.getBodyString(), existingHttpPayload);
             return result;
         }
-        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(response.getBodyString(), sanitizedHeaderMap, "");
+        result.sanitizedPayload = ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpTextPayload(response.getBodyString(), existingHttpPayload);
         return result;
     }
 
@@ -361,11 +367,7 @@ public class DefaultRequestExtractor implements IExtractor {
                 .setHttpPayload(builder).build(), spanAttributes);
     }
 
-    private ExtractResult handleHttpGet(CachedRequestHttpServletRequest request, boolean ignorePayload, Map<String, String> sanitizedHeaderMap, Map<String, String> partialSpanAttributes, List<String> spanAttributesToExtract, List<String> ignoredFields, List<String> userIdBodyFields) {
-        // Build the HttpGetBody
-        HttpGetBody.Builder httpGetBodyBuilder = HttpGetBody.newBuilder();
-
-        // Extract GET parameters from the request URL
+    private void populateQueryParams(HttpPayload.Builder payload, CachedRequestHttpServletRequest request) {
         String queryString = request.getQueryString();
         if (queryString != null && !queryString.isEmpty()) {
             // Split the query string into key-value pairs
@@ -376,30 +378,13 @@ public class DefaultRequestExtractor implements IExtractor {
                     // Add key-value pair to the HttpGetBody builder
                     String key = keyValue[0];
                     String value = keyValue[1];
-                    if (!ignoredFields.contains(key)) {
-                        httpGetBodyBuilder.putKeyValueMap(key, value);
-                    }
-                    if (spanAttributesToExtract.contains(key)) {
-                        partialSpanAttributes.put(key, value);
-                    }
-                    if (userIdBodyFields.contains(key)) {
-                        partialSpanAttributes.put(Constants.USER_ID_SPAN_ATTRIBUTE, value);
-                    }
+                    payload.putQueryParamMap(key, value);
                 }
             }
         }
-
-        // Set the HttpGetBody to the HttpPayload
-        return new ExtractResult(Payload.newBuilder()
-                .setHttpPayload(HttpPayload.newBuilder()
-                        .putAllHeaderMap(sanitizedHeaderMap)
-                        .setHttpMethod(request.getMethod())
-                        .setHttpGetBody(httpGetBodyBuilder)
-                        .build())
-                .build(), partialSpanAttributes);
     }
 
-    private ExtractResult handleMultipartFormData(CachedRequestHttpServletRequest request, boolean ignorePayload, Map<String, String> sanitizedHeaderMap, Map<String, String> spanAttributes, List<String> spanAttribsToExtract, List<String> ignoredFields, List<String> userIdBodyFields) {
+    private ExtractResult handleMultipartFormData(CachedRequestHttpServletRequest request, boolean ignorePayload, Map<String, String> spanAttributes, List<String> spanAttribsToExtract, List<String> ignoredFields, List<String> userIdBodyFields, HttpPayload.Builder existingPayload) {
         Map<String, String> keyValueMap = new HashMap<>();
         try {
             Collection<Part> parts = request.getParts();
@@ -425,7 +410,7 @@ public class DefaultRequestExtractor implements IExtractor {
         if (ignorePayload) {
             return new ExtractResult(Payload.getDefaultInstance(), spanAttributes);
         } else {
-            Payload payload = PayloadUtils.getHttpFormDataPayload(keyValueMap, sanitizedHeaderMap, request.getMethod());
+            Payload payload = PayloadUtils.getHttpFormDataPayload(keyValueMap, existingPayload);
             return new ExtractResult(payload, spanAttributes);
         }
     }
@@ -441,7 +426,7 @@ public class DefaultRequestExtractor implements IExtractor {
         return sb.toString();
     }
 
-    private ExtractResult handleUrlEncodedFormData(CachedRequestHttpServletRequest request, boolean ignorePayload, Map<String, String> sanitizedHeaderMap, Map<String, String> spanAttributes, List<String> spanAttributesToExtract, List<String> ignoredFields, List<String> userIdFields) {
+    private ExtractResult handleUrlEncodedFormData(CachedRequestHttpServletRequest request, boolean ignorePayload, Map<String, String> spanAttributes, List<String> spanAttributesToExtract, List<String> ignoredFields, List<String> userIdFields, HttpPayload.Builder existingHttpPayload) {
         if (ignorePayload) {
             return new ExtractResult();
         }
@@ -480,16 +465,12 @@ public class DefaultRequestExtractor implements IExtractor {
 
         // Set the HttpFormDataBody to the HttpPayload
         return new ExtractResult(Payload.newBuilder()
-                .setHttpPayload(HttpPayload.newBuilder()
-                        .putAllHeaderMap(sanitizedHeaderMap)
-                        .setHttpMethod(request.getMethod())
-                        .setHttpFormUrlencodedBody(builder)
-                        .build())
+                .setHttpPayload(existingHttpPayload.setHttpFormUrlencodedBody(builder).build())
                 .build(), spanAttributes);
     }
 
     @SneakyThrows
-    private ExtractResult getJsonBodyExtractResult(Boolean ignorePayload, String httpMethod, String originalBody, Map<String, String> sanitizedHeaderMap, Map<String, String> spanAttributes, List<String> spanAttribsToExtract, List<String> ignoredFields, List<String> userIdBodyFields) {
+    private ExtractResult getJsonBodyExtractResult(Boolean ignorePayload, String originalBody, Map<String, String> spanAttributes, List<String> spanAttribsToExtract, List<String> ignoredFields, List<String> userIdBodyFields, HttpPayload.Builder existingPayload) {
 
         if (!spanAttribsToExtract.isEmpty() || !ignoredFields.isEmpty() || !userIdBodyFields.isEmpty()) {
             // Parse the JSON string
@@ -544,9 +525,9 @@ public class DefaultRequestExtractor implements IExtractor {
             }
 
             // Return extraction result
-            return new ExtractResult(ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(jsonContext.jsonString(), sanitizedHeaderMap, httpMethod), spanAttributes);
+            return new ExtractResult(ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(jsonContext.jsonString(), existingPayload), spanAttributes);
         }
-        return new ExtractResult(ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalBody, sanitizedHeaderMap, httpMethod), spanAttributes);
+        return new ExtractResult(ignorePayload ? Payload.getDefaultInstance() : PayloadUtils.getHttpJsonPayload(originalBody, existingPayload), spanAttributes);
     }
 
 

@@ -144,7 +144,8 @@ async function populateHttpPayload(config,rawPayload) {
     const method=rawPayload.method;
     const httpPayload = {
         headerMap: {},
-        httpMethod: method
+        queryParamMap:{},
+        httpMethod: method??""
     };
 
     // Convert headers to a plain object
@@ -156,19 +157,15 @@ async function populateHttpPayload(config,rawPayload) {
         httpPayload.responseCode = rawPayload.status;
       }
 
+    const urlParams = new URLSearchParams(rawPayload.url.split('?')[1] || '');
+    urlParams.forEach((value, key) => {
+        httpPayload.queryParamMap[key] = value;
+    });
+
     const contentType = rawPayload.headers.get('content-type') || '';
 
     if (method === 'GET') {
-        log(config,"capturing GET request payload");
-        // Safely split URL parameters
-        const urlParams = new URLSearchParams(rawPayload.url.split('?')[1] || '');
-        const keyValueMap = {};
-        urlParams.forEach((value, key) => {
-            keyValueMap[key] = value;
-        });
-        httpPayload.httpGetBody = {
-            keyValueMap
-        };
+        // Nothing to do since the query params are captured already in queryParamMap.
     } else {
         if (contentType.includes('application/json')) {
             // Parse JSON body safely

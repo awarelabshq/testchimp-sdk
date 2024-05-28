@@ -47,6 +47,8 @@ private static final long serialVersionUID = 0L;
     switch (number) {
       case 1:
         return internalGetHeaderMap();
+      case 13:
+        return internalGetQueryParamMap();
       default:
         throw new RuntimeException(
             "Invalid map field number: " + number);
@@ -67,7 +69,7 @@ private static final long serialVersionUID = 0L;
       implements com.google.protobuf.Internal.EnumLite,
           com.google.protobuf.AbstractMessage.InternalOneOfEnum {
     JSON_BODY(2),
-    HTTP_GET_BODY(4),
+    @java.lang.Deprecated HTTP_GET_BODY(4),
     TEXT_BODY(5),
     HTML_BODY(6),
     XML_BODY(7),
@@ -189,6 +191,87 @@ private static final long serialVersionUID = 0L;
     if (key == null) { throw new NullPointerException("map key"); }
     java.util.Map<java.lang.String, java.lang.String> map =
         internalGetHeaderMap().getMap();
+    if (!map.containsKey(key)) {
+      throw new java.lang.IllegalArgumentException();
+    }
+    return map.get(key);
+  }
+
+  public static final int QUERY_PARAM_MAP_FIELD_NUMBER = 13;
+  private static final class QueryParamMapDefaultEntryHolder {
+    static final com.google.protobuf.MapEntry<
+        java.lang.String, java.lang.String> defaultEntry =
+            com.google.protobuf.MapEntry
+            .<java.lang.String, java.lang.String>newDefaultInstance(
+                org.aware.model.Model.internal_static_org_aware_model_HttpPayload_QueryParamMapEntry_descriptor, 
+                com.google.protobuf.WireFormat.FieldType.STRING,
+                "",
+                com.google.protobuf.WireFormat.FieldType.STRING,
+                "");
+  }
+  private com.google.protobuf.MapField<
+      java.lang.String, java.lang.String> queryParamMap_;
+  private com.google.protobuf.MapField<java.lang.String, java.lang.String>
+  internalGetQueryParamMap() {
+    if (queryParamMap_ == null) {
+      return com.google.protobuf.MapField.emptyMapField(
+          QueryParamMapDefaultEntryHolder.defaultEntry);
+    }
+    return queryParamMap_;
+  }
+
+  public int getQueryParamMapCount() {
+    return internalGetQueryParamMap().getMap().size();
+  }
+  /**
+   * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+   */
+
+  @java.lang.Override
+  public boolean containsQueryParamMap(
+      java.lang.String key) {
+    if (key == null) { throw new NullPointerException("map key"); }
+    return internalGetQueryParamMap().getMap().containsKey(key);
+  }
+  /**
+   * Use {@link #getQueryParamMapMap()} instead.
+   */
+  @java.lang.Override
+  @java.lang.Deprecated
+  public java.util.Map<java.lang.String, java.lang.String> getQueryParamMap() {
+    return getQueryParamMapMap();
+  }
+  /**
+   * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+   */
+  @java.lang.Override
+
+  public java.util.Map<java.lang.String, java.lang.String> getQueryParamMapMap() {
+    return internalGetQueryParamMap().getMap();
+  }
+  /**
+   * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+   */
+  @java.lang.Override
+
+  public java.lang.String getQueryParamMapOrDefault(
+      java.lang.String key,
+      java.lang.String defaultValue) {
+    if (key == null) { throw new NullPointerException("map key"); }
+    java.util.Map<java.lang.String, java.lang.String> map =
+        internalGetQueryParamMap().getMap();
+    return map.containsKey(key) ? map.get(key) : defaultValue;
+  }
+  /**
+   * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+   */
+  @java.lang.Override
+
+  public java.lang.String getQueryParamMapOrThrow(
+      java.lang.String key) {
+    if (key == null) { throw new NullPointerException("map key"); }
+    java.util.Map<java.lang.String, java.lang.String> map =
+        internalGetQueryParamMap().getMap();
     if (!map.containsKey(key)) {
       throw new java.lang.IllegalArgumentException();
     }
@@ -334,29 +417,45 @@ private static final long serialVersionUID = 0L;
 
   public static final int HTTP_GET_BODY_FIELD_NUMBER = 4;
   /**
-   * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+   * <pre>
+   * Populate query param map instead. This is since query params are not limited to GET methods.
+   * </pre>
+   *
+   * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
+   * @deprecated org.aware.model.HttpPayload.http_get_body is deprecated.
+   *     See model.proto;l=19
    * @return Whether the httpGetBody field is set.
    */
   @java.lang.Override
-  public boolean hasHttpGetBody() {
+  @java.lang.Deprecated public boolean hasHttpGetBody() {
     return bodyCase_ == 4;
   }
   /**
-   * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+   * <pre>
+   * Populate query param map instead. This is since query params are not limited to GET methods.
+   * </pre>
+   *
+   * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
+   * @deprecated org.aware.model.HttpPayload.http_get_body is deprecated.
+   *     See model.proto;l=19
    * @return The httpGetBody.
    */
   @java.lang.Override
-  public org.aware.model.HttpGetBody getHttpGetBody() {
+  @java.lang.Deprecated public org.aware.model.HttpGetBody getHttpGetBody() {
     if (bodyCase_ == 4) {
        return (org.aware.model.HttpGetBody) body_;
     }
     return org.aware.model.HttpGetBody.getDefaultInstance();
   }
   /**
-   * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+   * <pre>
+   * Populate query param map instead. This is since query params are not limited to GET methods.
+   * </pre>
+   *
+   * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
    */
   @java.lang.Override
-  public org.aware.model.HttpGetBodyOrBuilder getHttpGetBodyOrBuilder() {
+  @java.lang.Deprecated public org.aware.model.HttpGetBodyOrBuilder getHttpGetBodyOrBuilder() {
     if (bodyCase_ == 4) {
        return (org.aware.model.HttpGetBody) body_;
     }
@@ -662,6 +761,12 @@ private static final long serialVersionUID = 0L;
     if (((bitField0_ & 0x00000002) != 0)) {
       output.writeInt32(12, responseCode_);
     }
+    com.google.protobuf.GeneratedMessageV3
+      .serializeStringMapTo(
+        output,
+        internalGetQueryParamMap(),
+        QueryParamMapDefaultEntryHolder.defaultEntry,
+        13);
     getUnknownFields().writeTo(output);
   }
 
@@ -716,6 +821,16 @@ private static final long serialVersionUID = 0L;
       size += com.google.protobuf.CodedOutputStream
         .computeInt32Size(12, responseCode_);
     }
+    for (java.util.Map.Entry<java.lang.String, java.lang.String> entry
+         : internalGetQueryParamMap().getMap().entrySet()) {
+      com.google.protobuf.MapEntry<java.lang.String, java.lang.String>
+      queryParamMap__ = QueryParamMapDefaultEntryHolder.defaultEntry.newBuilderForType()
+          .setKey(entry.getKey())
+          .setValue(entry.getValue())
+          .build();
+      size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(13, queryParamMap__);
+    }
     size += getUnknownFields().getSerializedSize();
     memoizedSize = size;
     return size;
@@ -733,6 +848,8 @@ private static final long serialVersionUID = 0L;
 
     if (!internalGetHeaderMap().equals(
         other.internalGetHeaderMap())) return false;
+    if (!internalGetQueryParamMap().equals(
+        other.internalGetQueryParamMap())) return false;
     if (hasHttpMethod() != other.hasHttpMethod()) return false;
     if (hasHttpMethod()) {
       if (!getHttpMethod()
@@ -794,6 +911,10 @@ private static final long serialVersionUID = 0L;
     if (!internalGetHeaderMap().getMap().isEmpty()) {
       hash = (37 * hash) + HEADER_MAP_FIELD_NUMBER;
       hash = (53 * hash) + internalGetHeaderMap().hashCode();
+    }
+    if (!internalGetQueryParamMap().getMap().isEmpty()) {
+      hash = (37 * hash) + QUERY_PARAM_MAP_FIELD_NUMBER;
+      hash = (53 * hash) + internalGetQueryParamMap().hashCode();
     }
     if (hasHttpMethod()) {
       hash = (37 * hash) + HTTP_METHOD_FIELD_NUMBER;
@@ -956,6 +1077,8 @@ private static final long serialVersionUID = 0L;
       switch (number) {
         case 1:
           return internalGetHeaderMap();
+        case 13:
+          return internalGetQueryParamMap();
         default:
           throw new RuntimeException(
               "Invalid map field number: " + number);
@@ -967,6 +1090,8 @@ private static final long serialVersionUID = 0L;
       switch (number) {
         case 1:
           return internalGetMutableHeaderMap();
+        case 13:
+          return internalGetMutableQueryParamMap();
         default:
           throw new RuntimeException(
               "Invalid map field number: " + number);
@@ -994,10 +1119,11 @@ private static final long serialVersionUID = 0L;
     public Builder clear() {
       super.clear();
       internalGetMutableHeaderMap().clear();
+      internalGetMutableQueryParamMap().clear();
       httpMethod_ = "";
-      bitField0_ = (bitField0_ & ~0x00000002);
-      responseCode_ = 0;
       bitField0_ = (bitField0_ & ~0x00000004);
+      responseCode_ = 0;
+      bitField0_ = (bitField0_ & ~0x00000008);
       if (httpGetBodyBuilder_ != null) {
         httpGetBodyBuilder_.clear();
       }
@@ -1042,11 +1168,13 @@ private static final long serialVersionUID = 0L;
       int to_bitField0_ = 0;
       result.headerMap_ = internalGetHeaderMap();
       result.headerMap_.makeImmutable();
-      if (((from_bitField0_ & 0x00000002) != 0)) {
+      result.queryParamMap_ = internalGetQueryParamMap();
+      result.queryParamMap_.makeImmutable();
+      if (((from_bitField0_ & 0x00000004) != 0)) {
         to_bitField0_ |= 0x00000001;
       }
       result.httpMethod_ = httpMethod_;
-      if (((from_bitField0_ & 0x00000004) != 0)) {
+      if (((from_bitField0_ & 0x00000008) != 0)) {
         result.responseCode_ = responseCode_;
         to_bitField0_ |= 0x00000002;
       }
@@ -1142,8 +1270,10 @@ private static final long serialVersionUID = 0L;
       if (other == org.aware.model.HttpPayload.getDefaultInstance()) return this;
       internalGetMutableHeaderMap().mergeFrom(
           other.internalGetHeaderMap());
+      internalGetMutableQueryParamMap().mergeFrom(
+          other.internalGetQueryParamMap());
       if (other.hasHttpMethod()) {
-        bitField0_ |= 0x00000002;
+        bitField0_ |= 0x00000004;
         httpMethod_ = other.httpMethod_;
         onChanged();
       }
@@ -1237,7 +1367,7 @@ private static final long serialVersionUID = 0L;
             } // case 18
             case 26: {
               httpMethod_ = input.readStringRequireUtf8();
-              bitField0_ |= 0x00000002;
+              bitField0_ |= 0x00000004;
               break;
             } // case 26
             case 34: {
@@ -1288,9 +1418,17 @@ private static final long serialVersionUID = 0L;
             } // case 90
             case 96: {
               responseCode_ = input.readInt32();
-              bitField0_ |= 0x00000004;
+              bitField0_ |= 0x00000008;
               break;
             } // case 96
+            case 106: {
+              com.google.protobuf.MapEntry<java.lang.String, java.lang.String>
+              queryParamMap__ = input.readMessage(
+                  QueryParamMapDefaultEntryHolder.defaultEntry.getParserForType(), extensionRegistry);
+              internalGetMutableQueryParamMap().getMutableMap().put(
+                  queryParamMap__.getKey(), queryParamMap__.getValue());
+              break;
+            } // case 106
             default: {
               if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                 done = true; // was an endgroup tag
@@ -1454,6 +1592,137 @@ private static final long serialVersionUID = 0L;
       return this;
     }
 
+    private com.google.protobuf.MapField<
+        java.lang.String, java.lang.String> queryParamMap_;
+    private com.google.protobuf.MapField<java.lang.String, java.lang.String>
+    internalGetQueryParamMap() {
+      if (queryParamMap_ == null) {
+        return com.google.protobuf.MapField.emptyMapField(
+            QueryParamMapDefaultEntryHolder.defaultEntry);
+      }
+      return queryParamMap_;
+    }
+    private com.google.protobuf.MapField<java.lang.String, java.lang.String>
+    internalGetMutableQueryParamMap() {
+      onChanged();;
+      if (queryParamMap_ == null) {
+        queryParamMap_ = com.google.protobuf.MapField.newMapField(
+            QueryParamMapDefaultEntryHolder.defaultEntry);
+      }
+      if (!queryParamMap_.isMutable()) {
+        queryParamMap_ = queryParamMap_.copy();
+      }
+      return queryParamMap_;
+    }
+
+    public int getQueryParamMapCount() {
+      return internalGetQueryParamMap().getMap().size();
+    }
+    /**
+     * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+     */
+
+    @java.lang.Override
+    public boolean containsQueryParamMap(
+        java.lang.String key) {
+      if (key == null) { throw new NullPointerException("map key"); }
+      return internalGetQueryParamMap().getMap().containsKey(key);
+    }
+    /**
+     * Use {@link #getQueryParamMapMap()} instead.
+     */
+    @java.lang.Override
+    @java.lang.Deprecated
+    public java.util.Map<java.lang.String, java.lang.String> getQueryParamMap() {
+      return getQueryParamMapMap();
+    }
+    /**
+     * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+     */
+    @java.lang.Override
+
+    public java.util.Map<java.lang.String, java.lang.String> getQueryParamMapMap() {
+      return internalGetQueryParamMap().getMap();
+    }
+    /**
+     * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+     */
+    @java.lang.Override
+
+    public java.lang.String getQueryParamMapOrDefault(
+        java.lang.String key,
+        java.lang.String defaultValue) {
+      if (key == null) { throw new NullPointerException("map key"); }
+      java.util.Map<java.lang.String, java.lang.String> map =
+          internalGetQueryParamMap().getMap();
+      return map.containsKey(key) ? map.get(key) : defaultValue;
+    }
+    /**
+     * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+     */
+    @java.lang.Override
+
+    public java.lang.String getQueryParamMapOrThrow(
+        java.lang.String key) {
+      if (key == null) { throw new NullPointerException("map key"); }
+      java.util.Map<java.lang.String, java.lang.String> map =
+          internalGetQueryParamMap().getMap();
+      if (!map.containsKey(key)) {
+        throw new java.lang.IllegalArgumentException();
+      }
+      return map.get(key);
+    }
+
+    public Builder clearQueryParamMap() {
+      internalGetMutableQueryParamMap().getMutableMap()
+          .clear();
+      return this;
+    }
+    /**
+     * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+     */
+
+    public Builder removeQueryParamMap(
+        java.lang.String key) {
+      if (key == null) { throw new NullPointerException("map key"); }
+      internalGetMutableQueryParamMap().getMutableMap()
+          .remove(key);
+      return this;
+    }
+    /**
+     * Use alternate mutation accessors instead.
+     */
+    @java.lang.Deprecated
+    public java.util.Map<java.lang.String, java.lang.String>
+    getMutableQueryParamMap() {
+      return internalGetMutableQueryParamMap().getMutableMap();
+    }
+    /**
+     * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+     */
+    public Builder putQueryParamMap(
+        java.lang.String key,
+        java.lang.String value) {
+      if (key == null) { throw new NullPointerException("map key"); }
+      if (value == null) {
+  throw new NullPointerException("map value");
+}
+
+      internalGetMutableQueryParamMap().getMutableMap()
+          .put(key, value);
+      return this;
+    }
+    /**
+     * <code>map&lt;string, string&gt; query_param_map = 13;</code>
+     */
+
+    public Builder putAllQueryParamMap(
+        java.util.Map<java.lang.String, java.lang.String> values) {
+      internalGetMutableQueryParamMap().getMutableMap()
+          .putAll(values);
+      return this;
+    }
+
     private java.lang.Object httpMethod_ = "";
     /**
      * <pre>
@@ -1464,7 +1733,7 @@ private static final long serialVersionUID = 0L;
      * @return Whether the httpMethod field is set.
      */
     public boolean hasHttpMethod() {
-      return ((bitField0_ & 0x00000002) != 0);
+      return ((bitField0_ & 0x00000004) != 0);
     }
     /**
      * <pre>
@@ -1521,7 +1790,7 @@ private static final long serialVersionUID = 0L;
       if (value == null) {
     throw new NullPointerException();
   }
-  bitField0_ |= 0x00000002;
+  bitField0_ |= 0x00000004;
       httpMethod_ = value;
       onChanged();
       return this;
@@ -1535,7 +1804,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearHttpMethod() {
-      bitField0_ = (bitField0_ & ~0x00000002);
+      bitField0_ = (bitField0_ & ~0x00000004);
       httpMethod_ = getDefaultInstance().getHttpMethod();
       onChanged();
       return this;
@@ -1555,7 +1824,7 @@ private static final long serialVersionUID = 0L;
     throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
-      bitField0_ |= 0x00000002;
+      bitField0_ |= 0x00000004;
       httpMethod_ = value;
       onChanged();
       return this;
@@ -1572,7 +1841,7 @@ private static final long serialVersionUID = 0L;
      */
     @java.lang.Override
     public boolean hasResponseCode() {
-      return ((bitField0_ & 0x00000004) != 0);
+      return ((bitField0_ & 0x00000008) != 0);
     }
     /**
      * <pre>
@@ -1596,7 +1865,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setResponseCode(int value) {
-      bitField0_ |= 0x00000004;
+      bitField0_ |= 0x00000008;
       responseCode_ = value;
       onChanged();
       return this;
@@ -1610,7 +1879,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearResponseCode() {
-      bitField0_ = (bitField0_ & ~0x00000004);
+      bitField0_ = (bitField0_ & ~0x00000008);
       responseCode_ = 0;
       onChanged();
       return this;
@@ -1716,19 +1985,31 @@ private static final long serialVersionUID = 0L;
     private com.google.protobuf.SingleFieldBuilderV3<
         org.aware.model.HttpGetBody, org.aware.model.HttpGetBody.Builder, org.aware.model.HttpGetBodyOrBuilder> httpGetBodyBuilder_;
     /**
-     * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+     * <pre>
+     * Populate query param map instead. This is since query params are not limited to GET methods.
+     * </pre>
+     *
+     * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
+     * @deprecated org.aware.model.HttpPayload.http_get_body is deprecated.
+     *     See model.proto;l=19
      * @return Whether the httpGetBody field is set.
      */
     @java.lang.Override
-    public boolean hasHttpGetBody() {
+    @java.lang.Deprecated public boolean hasHttpGetBody() {
       return bodyCase_ == 4;
     }
     /**
-     * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+     * <pre>
+     * Populate query param map instead. This is since query params are not limited to GET methods.
+     * </pre>
+     *
+     * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
+     * @deprecated org.aware.model.HttpPayload.http_get_body is deprecated.
+     *     See model.proto;l=19
      * @return The httpGetBody.
      */
     @java.lang.Override
-    public org.aware.model.HttpGetBody getHttpGetBody() {
+    @java.lang.Deprecated public org.aware.model.HttpGetBody getHttpGetBody() {
       if (httpGetBodyBuilder_ == null) {
         if (bodyCase_ == 4) {
           return (org.aware.model.HttpGetBody) body_;
@@ -1742,9 +2023,13 @@ private static final long serialVersionUID = 0L;
       }
     }
     /**
-     * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+     * <pre>
+     * Populate query param map instead. This is since query params are not limited to GET methods.
+     * </pre>
+     *
+     * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
      */
-    public Builder setHttpGetBody(org.aware.model.HttpGetBody value) {
+    @java.lang.Deprecated public Builder setHttpGetBody(org.aware.model.HttpGetBody value) {
       if (httpGetBodyBuilder_ == null) {
         if (value == null) {
           throw new NullPointerException();
@@ -1758,9 +2043,13 @@ private static final long serialVersionUID = 0L;
       return this;
     }
     /**
-     * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+     * <pre>
+     * Populate query param map instead. This is since query params are not limited to GET methods.
+     * </pre>
+     *
+     * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
      */
-    public Builder setHttpGetBody(
+    @java.lang.Deprecated public Builder setHttpGetBody(
         org.aware.model.HttpGetBody.Builder builderForValue) {
       if (httpGetBodyBuilder_ == null) {
         body_ = builderForValue.build();
@@ -1772,9 +2061,13 @@ private static final long serialVersionUID = 0L;
       return this;
     }
     /**
-     * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+     * <pre>
+     * Populate query param map instead. This is since query params are not limited to GET methods.
+     * </pre>
+     *
+     * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
      */
-    public Builder mergeHttpGetBody(org.aware.model.HttpGetBody value) {
+    @java.lang.Deprecated public Builder mergeHttpGetBody(org.aware.model.HttpGetBody value) {
       if (httpGetBodyBuilder_ == null) {
         if (bodyCase_ == 4 &&
             body_ != org.aware.model.HttpGetBody.getDefaultInstance()) {
@@ -1795,9 +2088,13 @@ private static final long serialVersionUID = 0L;
       return this;
     }
     /**
-     * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+     * <pre>
+     * Populate query param map instead. This is since query params are not limited to GET methods.
+     * </pre>
+     *
+     * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
      */
-    public Builder clearHttpGetBody() {
+    @java.lang.Deprecated public Builder clearHttpGetBody() {
       if (httpGetBodyBuilder_ == null) {
         if (bodyCase_ == 4) {
           bodyCase_ = 0;
@@ -1814,16 +2111,24 @@ private static final long serialVersionUID = 0L;
       return this;
     }
     /**
-     * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+     * <pre>
+     * Populate query param map instead. This is since query params are not limited to GET methods.
+     * </pre>
+     *
+     * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
      */
-    public org.aware.model.HttpGetBody.Builder getHttpGetBodyBuilder() {
+    @java.lang.Deprecated public org.aware.model.HttpGetBody.Builder getHttpGetBodyBuilder() {
       return getHttpGetBodyFieldBuilder().getBuilder();
     }
     /**
-     * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+     * <pre>
+     * Populate query param map instead. This is since query params are not limited to GET methods.
+     * </pre>
+     *
+     * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
      */
     @java.lang.Override
-    public org.aware.model.HttpGetBodyOrBuilder getHttpGetBodyOrBuilder() {
+    @java.lang.Deprecated public org.aware.model.HttpGetBodyOrBuilder getHttpGetBodyOrBuilder() {
       if ((bodyCase_ == 4) && (httpGetBodyBuilder_ != null)) {
         return httpGetBodyBuilder_.getMessageOrBuilder();
       } else {
@@ -1834,7 +2139,11 @@ private static final long serialVersionUID = 0L;
       }
     }
     /**
-     * <code>.org.aware.model.HttpGetBody http_get_body = 4;</code>
+     * <pre>
+     * Populate query param map instead. This is since query params are not limited to GET methods.
+     * </pre>
+     *
+     * <code>.org.aware.model.HttpGetBody http_get_body = 4 [deprecated = true];</code>
      */
     private com.google.protobuf.SingleFieldBuilderV3<
         org.aware.model.HttpGetBody, org.aware.model.HttpGetBody.Builder, org.aware.model.HttpGetBodyOrBuilder> 
