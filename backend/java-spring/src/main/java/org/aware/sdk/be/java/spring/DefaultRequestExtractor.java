@@ -31,6 +31,7 @@ public class DefaultRequestExtractor implements IExtractor {
     private static final Logger logger = Logger.getLogger(DefaultRequestExtractor.class.getName());
     private static final String GLOBAL_CONFIG_YML_FIELD = "global_config";
     private static final String URL_CONFIGS_YML_FIELD = "url_configs";
+    private static final String ENABLE_OPTIONS_CALL_TRACKING_FIELD = "enable_options_call_tracking";
 
     private static final String IGNORE_URLS_YML_FIELD = "ignored_urls";
     private static final String IGNORE_HEADERS_YML_FIELD = "ignored_headers";
@@ -71,6 +72,7 @@ public class DefaultRequestExtractor implements IExtractor {
     private Map<String, List<String>> responseIgnoredHeadersMap = new HashMap<>();
 
     private List<String> uris = new ArrayList<>();
+    private boolean enableOptionsCallTracking;
 
     @PostConstruct
     public void init() {
@@ -135,6 +137,12 @@ public class DefaultRequestExtractor implements IExtractor {
             if (globalConfigNode.has(USER_ID_HEADER_YML_FIELD)) {
                 userIdHeader = globalConfigNode.get(USER_ID_HEADER_YML_FIELD).asText().toLowerCase();
             }
+            // Read the enableOptionsCallTracking field
+            enableOptionsCallTracking = false;
+            if (globalConfigNode.has(ENABLE_OPTIONS_CALL_TRACKING_FIELD)) {
+                enableOptionsCallTracking = globalConfigNode.get(ENABLE_OPTIONS_CALL_TRACKING_FIELD).asBoolean();
+                logger.info("Configuration: enableOptionsCallTracking set to " + enableOptionsCallTracking);
+            }
         }
     }
 
@@ -197,6 +205,10 @@ public class DefaultRequestExtractor implements IExtractor {
     @Override
     public ExtractResult extractFromRequest(CachedRequestHttpServletRequest request) {
         String originalUri = request.getRequestURI();
+
+        if (!enableOptionsCallTracking && request.getMethod().equals("OPTIONS")) {
+            return new ExtractResult();
+        }
 
         List<String> headerAttribsToExtract = new ArrayList<>();
         List<String> ignoredHeaders = new ArrayList<>();

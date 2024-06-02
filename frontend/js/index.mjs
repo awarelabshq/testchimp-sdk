@@ -247,6 +247,8 @@ async function populateHttpPayload(config,rawPayload) {
 async function enableRequestIntercept(config) {
   let urlRegex = config.tracedUriRegexListToTrack;
   let untracedUrisToTrackRegex = config.untracedUriRegexListToTrack;
+  let excludedUriRegexList=config.excludedUriRegexList;
+  let enableOptionsCallTracking=config.enableOptionsCallTracking;
 
   if (typeof urlRegex === 'string') {
     urlRegex = [urlRegex];
@@ -254,6 +256,10 @@ async function enableRequestIntercept(config) {
 
   if (typeof untracedUrisToTrackRegex === 'string') {
     untracedUrisToTrackRegex = [untracedUrisToTrackRegex];
+  }
+
+  if (typeof excludedUriRegexList === 'string') {
+    excludedUriRegexList = [excludedUriRegexList];
   }
 
   // Get sessionId from the storage
@@ -278,86 +284,92 @@ async function enableRequestIntercept(config) {
 
   // Add listeners for the 'request' event on the BatchInterceptor
   interceptor.on('request', async ({ request, requestId }) => {
+    if (!enableOptionsCallTracking && request.method === 'OPTIONS') {
+        return;
+    }
     let matchedTracedUri = urlRegex.some(regex => request.url.match(regex));
     let matchedUntracedUri = untracedUrisToTrackRegex.some(regex => request.url.match(regex));
+    let matchedExcludedUri=excludedUriRegexList.some(regex=>request.url.match(regex));
+    if(!matchedExcludedUri){
+        if (matchedTracedUri) {
+          log(config, "request matches regex for interception " + request.url);
+          // Add the 'aware-session-record-tracking-id' header
+          request.headers.set('aware-session-record-tracking-id', sessionId);
+        } else if (matchedUntracedUri) {
+          log(config, "request matches regex for untraced uris to track " + request.url);
+          // Store the request URL in the map
+          const parsedUrl = new URL(request.url);
+          const urlWithoutQueryParams = `${parsedUrl.origin}${parsedUrl.pathname}`;
+          // Store the request URL without query parameters in the map
+          requestUrls.set(requestId, urlWithoutQueryParams);
 
-    if (matchedTracedUri) {
-      log(config, "request matches regex for interception " + request.url);
-      // Add the 'aware-session-record-tracking-id' header
-      request.headers.set('aware-session-record-tracking-id', sessionId);
-    } else if (matchedUntracedUri) {
-      log(config, "request matches regex for untraced uris to track " + request.url);
-      // Store the request URL in the map
-      const parsedUrl = new URL(request.url);
-      const urlWithoutQueryParams = `${parsedUrl.origin}${parsedUrl.pathname}`;
-      // Store the request URL without query parameters in the map
-      requestUrls.set(requestId, urlWithoutQueryParams);
+          let traceparent = request.headers.get('traceparent');
+          if (!traceparent) {
+            traceparent = generateTraceparent(generateSpanId());
+            log(config, "Generating new traceparent " + traceparent);
+          }
+          const parts = traceparent.split('-');
+          let spanId = parts[2];
+          requestIdToSpanIdMap.set(requestId, spanId);
 
-       let traceparent = request.headers.get('traceparent');
-      if (!traceparent) {
-        traceparent = generateTraceparent(generateSpanId());
-        log(config, "Generating new traceparent " + traceparent);
-        request.headers.set('traceparent', traceparent);
-      }
-      const parts = traceparent.split('-');
-      let spanId = parts[2];
-      requestIdToSpanIdMap.set(requestId, spanId);
-
-      // Capture request body and headers
-      try {
-        const requestPayload = await populateHttpPayload(config,request);
-        requestPayloads[requestId] = requestPayload;
-      } catch (error) {
-        console.error('Error populating request payload:', error);
-      }
+          // Capture request body and headers
+          try {
+            const requestPayload = await populateHttpPayload(config,request);
+            requestPayloads[requestId] = requestPayload;
+          } catch (error) {
+            console.error('Error populating request payload:', error);
+          }
+        }
     }
   });
 
   // Add listeners for the 'response' event on the BatchInterceptor
   interceptor.on('response', async ({ response, requestId }) => {
     let matchedUntracedUri = untracedUrisToTrackRegex.some(regex => response.url.match(regex));
+    let matchedExcludedUri=excludedUriRegexList.some(regex=>request.url.match(regex));
+    if(!matchedExcludedUri){
+        if (matchedUntracedUri || requestUrls.has(requestId)) {
+          // Capture response body and headers
+          try {
+            const responsePayload = await populateHttpPayload(config,response);
+            const requestPayload = requestPayloads[requestId];
+            const requestUrl = requestUrls.get(requestId);
+            const spanId = requestIdToSpanIdMap.get(requestId);
 
-    if (matchedUntracedUri || requestUrls.has(requestId)) {
-      // Capture response body and headers
-      try {
-        const responsePayload = await populateHttpPayload(config,response);
-        const requestPayload = requestPayloads[requestId];
-        const requestUrl = requestUrls.get(requestId);
-        const spanId = requestIdToSpanIdMap.get(requestId);
+            if (requestPayload && requestUrl && spanId) {
+              const payload = {
+                requestPayload: {
+                  spanId: spanId,
+                  httpPayload: requestPayload
+                },
+                responsePayload: {
+                  spanId: spanId,
+                  httpPayload: responsePayload
+                }
+              };
+              const insertPayloadRequest = {
+                aware_project_id: config.projectId,
+                aware_session_tracking_api_key: config.sessionRecordingApiKey,
+                request_payload: JSON.stringify(payload.requestPayload),
+                response_payload: JSON.stringify(payload.responsePayload),
+                current_user_id: getCurrentUserId(), // Include the current_user_id
+                url: requestUrl, // Use the stored request.url
+                tracking_id: sessionId,
+                environment: config.environment,
+                request_timestamp: new Date().getTime(),
+                response_timestamp: new Date().getTime()
+              };
+              sendPayloadToEndpoint(insertPayloadRequest, config.endpoint + '/insert_client_recorded_payloads');
 
-        if (requestPayload && requestUrl && spanId) {
-          const payload = {
-            requestPayload: {
-              spanId: spanId,
-              httpPayload: requestPayload
-            },
-            responsePayload: {
-              spanId: spanId,
-              httpPayload: responsePayload
+              // Remove the requestId from the maps after processing
+              requestUrls.delete(requestId);
+              requestIdToSpanIdMap.delete(requestId);
+              delete requestPayloads[requestId];
             }
-          };
-          const insertPayloadRequest = {
-            aware_project_id: config.projectId,
-            aware_session_tracking_api_key: config.sessionRecordingApiKey,
-            request_payload: JSON.stringify(payload.requestPayload),
-            response_payload: JSON.stringify(payload.responsePayload),
-            current_user_id: getCurrentUserId(), // Include the current_user_id
-            url: requestUrl, // Use the stored request.url
-            tracking_id: sessionId,
-            environment: config.environment,
-            request_timestamp: new Date().getTime(),
-            response_timestamp: new Date().getTime()
-          };
-          sendPayloadToEndpoint(insertPayloadRequest, config.endpoint + '/insert_client_recorded_payloads');
-
-          // Remove the requestId from the maps after processing
-          requestUrls.delete(requestId);
-          requestIdToSpanIdMap.delete(requestId);
-          delete requestPayloads[requestId];
+          } catch (error) {
+            console.error('Error populating response payload:', error);
+          }
         }
-      } catch (error) {
-        console.error('Error populating response payload:', error);
-      }
     }
   });
 
@@ -511,8 +523,10 @@ async function startRecording(config) {
     eventWindowToSaveOnError: config.eventWindowToSaveOnError || defaultEventWindowToSaveOnError,
     tracedUriRegexListToTrack: config.tracedUriRegexListToTrack || defaultUrlRegexToAddTracking,
     untracedUriRegexListToTrack: config.untracedUriRegexListToTrack || defaultUntracedUrisToTrackRegex,
+    excludedUriRegexList:config.excludedUriRegexList || [],
     environment: config.environment || defaultEnvironment,
-    enableLogging: config.enableLogging || true
+    enableLogging: config.enableLogging || true,
+    enableOptionsCallTracking:config.enableOptionsCallTracking || false
   };
 
   config = window.AwareSDKConfig;

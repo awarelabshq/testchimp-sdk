@@ -9,6 +9,7 @@ global_config:
   # the given user so that sessions for a given test user can be queried later from Aware Studio. This is only expected
   # to be extracted in test environments and not prod for PII preservation.
   user_id_header: "x-user-id"
+  enable_options_call_tracking: true
 url_configs:
   # Each section is formatted as "url_pattern" under which:
   # request - section will describe how requests are captured for uris matching the url_pattern (if request block not present, request won't be captured)
