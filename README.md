@@ -48,11 +48,15 @@ window.onload = function () {
 
 The SDK behaviour can be configured with the following config params:
 
-``` enableRecording```: (Optional) This flag helps selectively disable recording (for instance, based on environment). Default: ```true```
-
 ```projectId```: (Required) This is the project id for your project in Aware Platform (Access via Project Settings -> General -> Project ID)
 
 ```sessionRecordingApiKey```: (Required) This is the session recording api key for your project (Access via Project Settings -> General -> Session Recording API key) - Note: Not Api Key (which is used for data api access for integration with your CI / CD pipelines etc.)
+
+```tracedUriRegexListToTrack```: If you have enabled full stack recording with backend Aware SDKs, add regex of your backend entrypoints called by the client for this attribute. Eg:  ".*://your-domain.*$" Default: ```"/^$/"``` (No matched urls)
+
+```untracedUriRegexListToTrack```: If you have NOT enabled full stack recording with backend Aware SDKs, add regex of your backend entrypoints called by the client for this attribute. Eg:  ".*://your-domain.*$" This will capture the API layer interactions, allowing you to create tests covering the API layer from recorded sessions. If you have enabled backend tracing, no need to specify this. Default: ```"/^$/"``` (No matched urls)
+
+``` enableRecording```: (Optional) This flag helps selectively disable recording (for instance, based on environment). Default: ```true```
 
 ```samplingProbability```: (Optional) This is the probability an arbitrary session will be recorded. Set this to 1.0 to capture all sessions (recommended setting for test environments). Default: ```1.0```
 
@@ -62,9 +66,9 @@ The SDK behaviour can be configured with the following config params:
 
 ```eventWindowToSaveOnError```: (Optional) number of events to be recoded preceding an error. Default: ```200```
 
-```tracedUriRegexListToTrack```: If you have enabled full stack recording with backend Aware SDKs, add regex of your backend entrypoints called by the client for this attribute. Eg:  ".*://your-domain.*$" Default: ```"/^$/"``` (No matched urls)
+```excludedUriRegexList```: (Optional) URIs matching regexes in this list will not be captured. Default: ```[]``` (No uris excluded).
 
-```untracedUriRegexListToTrack```: If you have NOT enabled full stack recording with backend Aware SDKs, add regex of your backend entrypoints called by the client for this attribute. Eg:  ".*://your-domain.*$" This will capture the API layer interactions, allowing you to create tests covering the API layer from recorded sessions. If you have enabled backend tracing, no need to specify this. Default: ```"/^$/"``` (No matched urls)
+```enableOptionsCallTracking```: (Optional) Enables tracking OPTIONS http calls. Default: ```false```
 
 ## Backend
 
@@ -123,6 +127,8 @@ global_config:
   # the given user so that sessions for a given test user can be queried later from Aware Studio. This is only expected
   # to be extracted in test environments and not prod for PII preservation.
   user_id_header: "x-user-id"
+  # Enable tracking http calls with OPTIONS method. Defaults to false.
+  enable_options_call_tracking: true | false
 url_configs:
   # Each section is formatted as "url_pattern" under which:
   # request - section will describe how requests are captured for uris matching the url_pattern (if request block not present, request won't be captured)
