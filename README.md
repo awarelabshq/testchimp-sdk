@@ -9,14 +9,13 @@ Aware SDK consists of frontend and backend libraries for different technologies 
 
 Prerequisite: Your system should be instrumented with OpenTelemetry. Refer to guide [here](https://awarelabs.io/blog/getting-started) for more details.
 
-If your preferred tech stack is not supported, feel free to raise a [feature request](https://github.com/awarelabshq/aware-sdk/issues/new).
-
 The sdk is organized as follows:
 
 - frontend/ : This includes SDKs for enabling frontend recording
   - [js](https://github.com/awarelabshq/aware-sdk?tab=readme-ov-file#javascript)    
 - backend/ : This includes SDKs for enabling backend service recording
-  - [Java (Spring)](https://github.com/awarelabshq/aware-sdk?tab=readme-ov-file#java-spring)
+  - [Java (Spring)](https://github.com/awarelabshq/aware-sdk/tree/main/backend/java-spring#java-spring)
+  - [NodeJS](https://github.com/awarelabshq/aware-sdk/tree/main/backend/java-spring#java-spring)    
 - protos/ : Defines proto structure for communicating payloads (this is used by different backend SDKs to communicate payloads consistently in a tech-stack agnostic manner).
 
 ## Frontend
@@ -36,11 +35,7 @@ window.onload = function () {
  AwareSDK.startRecording({
    projectId: "<YOUR AWARE PROJECT ID>",
    apiKey: "<YOUR SESSION RECORDING API  KEY FOR AWARE PROJECT>",
-   samplingProbabilityOnError: 0.1,
-   samplingProbability: 1.0,
-   maxSessionDurationSecs: 500,
-   eventWindowToSaveOnError: 200,
-   urlRegexToAddTracking:".*\.awarelabs\.io.*$"
+   untracedUriRegexListToTrack:".*\.your-domain\.com.*$"
  });
 ```
 
@@ -72,3 +67,14 @@ The SDK behaviour can be configured with the following config params:
 
 ## Backend
 
+If you are only interested in recording the UI layer along with API interactions initiated by the UI (and creating tests covering only the API layer), installing just the frontend SDK is sufficient. To enable recording of the complete stack (and creation of tests covering the entire stack):
+1. Enable OpenTelemetry in your backend services.
+2. Install and configure Aware SDK for each backend service.
+
+Currently, Aware SDK is supported for the following tech stacks:
+1. Java Spring - [Documentation](https://github.com/awarelabshq/aware-sdk/tree/main/backend/java-spring#java-spring)
+2. NodeJS - [Documentation](https://github.com/awarelabshq/aware-sdk/tree/main/backend/java-spring#java-spring)
+
+## Support
+
+If your preferred tech stack is not supported, feel free to raise a [feature request](https://github.com/awarelabshq/aware-sdk/issues/new).
