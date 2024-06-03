@@ -73,7 +73,7 @@ If you are only interested in recording the UI layer along with API interactions
 
 Currently, Aware SDK is supported for the following tech stacks:
 1. Java Spring - [Documentation](https://github.com/awarelabshq/aware-sdk/tree/main/backend/java-spring#java-spring)
-2. NodeJS - [Documentation](https://github.com/awarelabshq/aware-sdk/tree/main/backend/java-spring#java-spring)
+2. NodeJS - [Documentation](https://github.com/awarelabshq/aware-sdk/tree/main/backend/nodejs#nodejs)
 
 ## Support
 
