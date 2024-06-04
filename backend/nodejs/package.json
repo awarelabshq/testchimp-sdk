@@ -1,12 +1,12 @@
 {
-  "name": "tracked-tests-nodejs",
-  "version": "0.0.5",
-  "description": "Tracked Tests support for Node Js Backends",
+  "name": "aware-sdk-nodejs",
+  "version": "0.0.1",
+  "description": "Aware SDK for NodeJS backends",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["Tracked Tests","Automation","Test Automation"],
+  "keywords": ["Test Automation"],
   "author": "nuwansam@awarelabs.io",
   "license": "LGPL-3.0-or-later",
   "dependencies": {

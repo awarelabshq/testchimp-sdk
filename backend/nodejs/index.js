@@ -1,37 +1,23 @@
-const express = require('express');
-const { context, trace } = require('@opentelemetry/api');
+const api = require('opentelemetry-api');
 
-function enableTrackedTests() {
-  const app = express();
+function interceptRequest(req, res, next) {
+  const span = api.trace.getSpan(api.context.active());
 
-  // Middleware to intercept incoming requests
-  app.use((req, res, next) => {
-    const testName = req.headers['trackedtest.name'];
-    const testSuite = req.headers['trackedtest.suite'];
-    const invocationId = req.headers['trackedtest.invocation_id'];
-    const testType = req.headers['test.type'];
+  if (span) {
+    span.setAttribute('http.request.payload', JSON.stringify(req.body));
+    span.setAttribute('http.request.method', req.method);
+    span.setAttribute('http.request.url', req.url);
+  }
 
-    if(trace.getSpan(context.active())){
-          // If there's an active span, add the header values to the current span
-        if (testName) {
-            trace.getSpan(context.active()).setAttribute('trackedtest.name', testName);
-        }
-        if (testSuite) {
-            trace.getSpan(context.active()).setAttribute('trackedtest.suite', testSuite);
-        }
-        if (invocationId) {
-            trace.getSpan(context.active()).setAttribute('trackedtest.invocation_id', invocationId);
-        }
-        if (testType) {
-            trace.getSpan(context.active()).setAttribute('test.type', testType);
-        }
+  const originalEnd = res.end;
+  res.end = function(...args) {
+    if (span) {
+      span.setAttribute('http.response.payload', JSON.stringify(args[0]));
     }
-    next(); // Continue processing the request
-  });
+    originalEnd.apply(res, args);
+  };
 
-  return app;
+  next(); // Call next() before intercepting the response
 }
 
-enableTrackedTests();
-
-module.exports = enableTrackedTests;
+module.exports = interceptRequest;
