@@ -22,4 +22,4 @@ app.use(awareSdk(<config_file_path>));
 
 ## Configuration Guide
 
-Aware SDK behaviour can be configured via a yml file passed in to awareSdk() function. [Read here]([https://mock.url](https://github.com/awarelabshq/aware-sdk/tree/main/backend#backend-sdk-configuration-file)) for more details on how to configure various aspects of the SDK behaviour such as request field masking, ignoring specific headers etc. via the configuration file.
+Aware SDK behaviour can be configured via a yml file passed in to awareSdk() function. [Read here](https://github.com/awarelabshq/aware-sdk/tree/main/backend#backend-sdk-configuration-file) for more details on how to configure various aspects of the SDK behaviour such as request field masking, ignoring specific headers etc. via the configuration file.
