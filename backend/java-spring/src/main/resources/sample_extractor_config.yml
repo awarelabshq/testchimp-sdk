@@ -1,4 +1,6 @@
 global_config:
+  # log level for SDK.
+  log_level: "info"
   # payload of urls that match this set will not be captured
   ignored_urls:
     - ".*/admin/get_detailed_user_info"
