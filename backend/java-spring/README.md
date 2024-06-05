@@ -39,6 +39,6 @@ This enables response body capture on the service. The exact responses captured,
 
 ```aware.sdk.config.file.path```: (default: ```classpath:aware_sdk_config.yml```)
 
-This yml file details how the requests / responses should be captured (field masking, header ignoring etc.) Refer to Aware Request Capture Config section for more details.
+This yml file details how the requests / responses should be captured (field masking, header ignoring etc.) [Read here](https://github.com/awarelabshq/aware-sdk/tree/main/backend#backend-sdk-configuration-file) for how to configure SDK behaviour via the config yml file.
 
 
