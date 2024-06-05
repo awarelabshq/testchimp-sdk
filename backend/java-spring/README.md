@@ -42,3 +42,6 @@ This enables response body capture on the service. The exact responses captured,
 This yml file details how the requests / responses should be captured (field masking, header ignoring etc.) [Read here](https://github.com/awarelabshq/aware-sdk/tree/main/backend#backend-sdk-configuration-file) for how to configure SDK behaviour via the config yml file.
 
 
+## Example
+
+An example of a Java Spring web service integrating OTel and Aware SDK can be found under the demo project at: https://github.com/awarelabshq/shoplify/tree/main/frontendservice.
