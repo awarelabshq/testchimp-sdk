@@ -47,7 +47,7 @@ public class DefaultRequestExtractor implements IExtractor {
     public static final String IGNORED_HEADERS_YML_FIELD = "ignored_headers";
     private static final String IGNORE_PAYLOAD_YML_FIELD = "ignore_payload";
 
-    @Value("${aware.request_body_capture.config.file.path:classpath:aware_request_body_capture_config.yml}")
+    @Value("${aware.sdk.config.file.path:classpath:aware_sdk_config.yml}")
     private String configFilePath;
 
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
