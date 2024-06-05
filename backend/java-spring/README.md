@@ -15,7 +15,7 @@ repositories {
 
 ...
 
-implementation("com.github.awarelabshq:aware-sdk:0.0.1")
+implementation("com.github.awarelabshq:aware-sdk:<latest_version>")
 
 ```
 
