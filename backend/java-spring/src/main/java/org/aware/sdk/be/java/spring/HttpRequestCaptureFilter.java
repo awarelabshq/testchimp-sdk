@@ -182,6 +182,7 @@ public class HttpRequestCaptureFilter implements Filter {
         String trackedTestSuite = httpServletRequest.getHeader(Constants.TRACKED_TEST_SUITE_HEADER_KEY);
         String trackedTestCase = httpServletRequest.getHeader(Constants.TRACKED_TEST_NAME_HEADER_KEY);
         String trackedTestType = httpServletRequest.getHeader(Constants.TRACKED_TEST_TYPE_HEADER_KEY);
+        String testStep = httpServletRequest.getHeader(Constants.TRACKED_TEST_STEP_HEADER_KEY);
         String headerExtractedSessionRecordingTrackingId = httpServletRequest.getHeader(Constants.AWARE_SESSION_RECORDING_TRACKING_ID_HEADER_KEY);
         Cookie[] cookies = httpServletRequest.getCookies();
         if (cookies != null) {
@@ -197,6 +198,9 @@ public class HttpRequestCaptureFilter implements Filter {
         }
         if (trackedTestSuite != null && !trackedTestSuite.isEmpty()) {
             span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_SUITE_HEADER_KEY, trackedTestSuite);
+        }
+        if (testStep != null && !testStep.isEmpty()) {
+            span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_STEP_HEADER_KEY, testStep);
         }
         if (trackedTestCase != null && !trackedTestCase.isEmpty()) {
             span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_NAME_HEADER_KEY, trackedTestCase);
