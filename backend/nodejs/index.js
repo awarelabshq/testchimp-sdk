@@ -146,7 +146,7 @@ function processJsonBody(body, span, config, type) {
         }
     }
 
-    return body;
+    return JSON.stringify(body);
 }
 
 function processOtherBodyTypes(body, span, config, type) {
@@ -319,7 +319,7 @@ function awareSdk(configFilePath) {
                         });
 
                         const responsePayload = {
-                            body: responseBodyPayload,
+                            [responseBodyType]: responseBody,
                             header_map: responseHeaders,
                             response_code: res.statusCode
                         };

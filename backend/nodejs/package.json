@@ -1,6 +1,6 @@
 {
   "name": "aware-sdk-node",
-  "version": "0.0.121",
+  "version": "0.0.124",
   "description": "Aware SDK for Node JS backends",
   "main": "./index.js",
   "scripts": {
