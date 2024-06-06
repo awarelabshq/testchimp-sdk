@@ -23,3 +23,7 @@ app.use(awareSdk(<config_file_path>));
 ## Configuration Guide
 
 Aware SDK behaviour can be configured via a yml file passed in to awareSdk() function. [Read here](https://github.com/awarelabshq/aware-sdk/tree/main/backend#backend-sdk-configuration-file) for more details on how to configure various aspects of the SDK behaviour such as request field masking, ignoring specific headers etc. via the configuration file.
+
+## Example
+
+An example of NodeJS based webservice integrating with OTel and Aware SDK can be found at the demo project at: https://github.com/awarelabshq/shoplify/tree/main/riskservice

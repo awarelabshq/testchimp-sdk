@@ -15,7 +15,7 @@ The sdk is organized as follows:
   - [js](https://github.com/awarelabshq/aware-sdk?tab=readme-ov-file#javascript)    
 - backend/ : This includes SDKs for enabling backend service recording
   - [Java (Spring)](https://github.com/awarelabshq/aware-sdk/tree/main/backend/java-spring#java-spring)
-  - [NodeJS](https://github.com/awarelabshq/aware-sdk/tree/main/backend/java-spring#java-spring)    
+  - [NodeJS](https://github.com/awarelabshq/aware-sdk/blob/main/backend/nodejs/README.md#aware-sdk-for-nodejs)    
 - protos/ : Defines proto structure for communicating payloads (this is used by different backend SDKs to communicate payloads consistently in a tech-stack agnostic manner).
 
 ## Frontend
