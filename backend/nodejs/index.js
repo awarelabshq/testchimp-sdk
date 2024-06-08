@@ -18,6 +18,15 @@ const urlencodedParser = bodyParser.urlencoded({
 let log_level="none";
 let enable_options_call_tracking=false;
 
+const Constants = {
+    TRACKED_TEST_NAME_HEADER_KEY: 'trackedtest.name',
+    TRACKED_TEST_SUITE_HEADER_KEY: 'trackedtest.suite',
+    TRACKED_TEST_STEP_HEADER_KEY: 'trackedtest.step',
+    TRACKED_TEST_TYPE_HEADER_KEY: 'trackedtest.type',
+    AWARE_SESSION_RECORD_TRACKING_ID_HEADER_KEY: 'aware.session-record-tracking-id',
+    HEADER_EXTRACTED_PREFIX: 'header.extracted.'
+};
+
 function log(stmt,level){
     if(level=="fine" && log_level!="none"){
         console.log(stmt);
@@ -171,12 +180,39 @@ function processOtherBodyTypes(body, span, config, type) {
     return body;
 }
 
+function extractTrackingHeaders(req, span) {
+    const headers = req.headers;
+
+    const trackedTestSuite = headers[Constants.TRACKED_TEST_SUITE_HEADER_KEY];
+    const trackedTestCase = headers[Constants.TRACKED_TEST_NAME_HEADER_KEY];
+    const trackedTestType = headers[Constants.TRACKED_TEST_TYPE_HEADER_KEY];
+    const trackedTestStep = headers[Constants.TRACKED_TEST_STEP_HEADER_KEY];
+    const headerExtractedSessionRecordingTrackingId = headers[Constants.AWARE_SESSION_RECORD_TRACKING_ID_HEADER_KEY];
+
+    if (headerExtractedSessionRecordingTrackingId) {
+        span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.AWARE_SESSION_RECORD_TRACKING_ID_HEADER_KEY, headerExtractedSessionRecordingTrackingId);
+    }
+    if (trackedTestSuite) {
+        span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_SUITE_HEADER_KEY, trackedTestSuite);
+    }
+    if (trackedTestStep) {
+        span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_STEP_HEADER_KEY, trackedTestStep);
+    }
+    if (trackedTestCase) {
+        span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_NAME_HEADER_KEY, trackedTestCase);
+    }
+    if (trackedTestType) {
+        span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_TYPE_HEADER_KEY, trackedTestType);
+    }
+}
+
 function awareSdk(configFilePath) {
     const config = parseConfig(configFilePath);
     const mappings = createMappings(config);
 
     return (req, res, next) => {
         const span = api.trace.getSpan(api.context.active());
+        extractTrackingHeaders(req,span);
 
         // Check if the URL matches any ignored URL pattern
         const parsedUrl = url.parse(req.url, true);

@@ -28,10 +28,10 @@ public class HttpRequestCaptureFilter implements Filter {
     private static final Logger logger = Logger.getLogger(HttpRequestCaptureFilter.class.getName());
     public static final String SESSION_ID_SPAN_ATTRIBUTE = "aware.derived.session_id";
 
-    @Value("${aware.request_body_capture.enabled:false}")
+    @Value("${aware.request_body_capture.enabled:true}")
     private Boolean enableRequestCapture;
 
-    @Value("${aware.response_body_capture.enabled:false}")
+    @Value("${aware.response_body_capture.enabled:true}")
     private Boolean enableResponseCapture;
 
     @Value("${aware.sdk.enabled:true}")
@@ -182,7 +182,7 @@ public class HttpRequestCaptureFilter implements Filter {
         String trackedTestSuite = httpServletRequest.getHeader(Constants.TRACKED_TEST_SUITE_HEADER_KEY);
         String trackedTestCase = httpServletRequest.getHeader(Constants.TRACKED_TEST_NAME_HEADER_KEY);
         String trackedTestType = httpServletRequest.getHeader(Constants.TRACKED_TEST_TYPE_HEADER_KEY);
-        String testStep = httpServletRequest.getHeader(Constants.TRACKED_TEST_STEP_HEADER_KEY);
+        String trackedTestStep = httpServletRequest.getHeader(Constants.TRACKED_TEST_STEP_HEADER_KEY);
         String headerExtractedSessionRecordingTrackingId = httpServletRequest.getHeader(Constants.AWARE_SESSION_RECORDING_TRACKING_ID_HEADER_KEY);
         Cookie[] cookies = httpServletRequest.getCookies();
         if (cookies != null) {
@@ -199,8 +199,8 @@ public class HttpRequestCaptureFilter implements Filter {
         if (trackedTestSuite != null && !trackedTestSuite.isEmpty()) {
             span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_SUITE_HEADER_KEY, trackedTestSuite);
         }
-        if (testStep != null && !testStep.isEmpty()) {
-            span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_STEP_HEADER_KEY, testStep);
+        if (trackedTestStep != null && !trackedTestStep.isEmpty()) {
+            span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_STEP_HEADER_KEY, trackedTestStep);
         }
         if (trackedTestCase != null && !trackedTestCase.isEmpty()) {
             span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_NAME_HEADER_KEY, trackedTestCase);
@@ -244,20 +244,5 @@ public class HttpRequestCaptureFilter implements Filter {
         // If no session ID cookie is found, return null
         return null;
     }
-
-    private Map<String, String> getRequestHeaders(HttpServletRequest request) {
-        Map<String, String> headersMap = new HashMap<>();
-        Enumeration<String> headerEnumeration = request.getHeaderNames();
-        while (headerEnumeration.hasMoreElements()) {
-            String header = headerEnumeration.nextElement();
-            if (config.getIgnoredHeaders().stream()
-                    .noneMatch(h -> h.toLowerCase().contains(header.toLowerCase()) || header.toLowerCase()
-                            .contains(h.toLowerCase()))) {
-                headersMap.put(header.toLowerCase(), request.getHeader(header));
-            }
-        }
-        return headersMap;
-    }
-
 
 }
