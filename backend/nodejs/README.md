@@ -1,29 +1,29 @@
-# Aware SDK For NodeJS
+# TestChimp SDK For NodeJS
 
-This module enables Aware full stack recording capability for NodeJS based web services.
+This module enables TestChimp full stack recording capability for NodeJS based web services.
 
 ## Installation Guide
 
-Prerequisite: Enable OpenTelemetry in your Node web service and configure to export tracing data to Aware servers. Follow steps [here](https://awarelabs.io/blog/getting-started-nodejs).
+Prerequisite: Enable OpenTelemetry in your Node web service and configure to export tracing data to TestChimp servers. Follow steps [here](https://awarelabs.io/blog/getting-started-nodejs).
 
 1) Run the following to install the SDK:
 
-``` npm install aware-sdk-node@latest```
+``` npm install testchimp-node@latest```
 
-2) Use Aware SDK in your code as follows:
+2) Use TestChimp SDK in your code as follows:
 
 ```
-const awareSdk=require('aware-sdk-node');
+const testChimpSdk=require('testchimp-node');
 ...
 const app = express();
 ...
-app.use(awareSdk(<config_file_path>));
+app.use(testChimpSdk(<config_file_path>));
 ```
 
 ## Configuration Guide
 
-Aware SDK behaviour can be configured via a yml file passed in to awareSdk() function. [Read here](https://github.com/awarelabshq/aware-sdk/tree/main/backend#backend-sdk-configuration-file) for more details on how to configure various aspects of the SDK behaviour such as request field masking, ignoring specific headers etc. via the configuration file.
+TestChimp SDK behaviour can be configured via a yml file passed in to testChimpSdk() function. [Read here](https://github.com/awarelabshq/aware-sdk/tree/main/backend#backend-sdk-configuration-file) for more details on how to configure various aspects of the SDK behaviour such as request field masking, ignoring specific headers etc. via the configuration file.
 
 ## Example
 
-An example of NodeJS based webservice integrating with OTel and Aware SDK can be found at the demo project at: https://github.com/awarelabshq/shoplify/tree/main/riskservice
+An example of NodeJS based webservice integrating with OTel and TestChimp SDK can be found at the demo project at: https://github.com/awarelabshq/shoplify/tree/main/riskservice

@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-package org.aware.model;
+package org.testchimp.model;
 
 option java_multiple_files = true;
-option java_package = "org.aware.model";
+option java_package = "org.testchimp.model";
 option java_outer_classname = "Model";
 
 // Represents an arbitrary http(s) payload of requests / responses.
