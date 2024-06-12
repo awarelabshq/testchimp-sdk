@@ -48,12 +48,12 @@ function generateTraceparent(parentSpanId) {
   }
 
 function setCurrentUserId(userId) {
-  document.cookie = "aware.current_user_id=" + userId + ";path=/";
+  document.cookie = "testchimp.current_user_id=" + userId + ";path=/";
 }
 
 // Function to get the current_user_id from the cookie
 function getCurrentUserId() {
-  return getCookie("aware.current_user_id");
+  return getCookie("testchimp.current_user_id");
 }
 
 // Function to generate a unique session ID
@@ -101,14 +101,14 @@ function getSessionIdFromCookie(cookieKey) {
 }
 
 function setTrackingIdCookie(sessionId) {
-  var existingCookie = getCookie("aware.session-record-tracking-id");
+  var existingCookie = getCookie("testchimp.session-record-tracking-id");
   if (existingCookie === "") {
-    document.cookie = "aware.session-record-tracking-id" + "=" + sessionId + ";path=/";
+    document.cookie = "testchimp.session-record-tracking-id" + "=" + sessionId + ";path=/";
   }
 }
 
 function getTrackingIdCookie(){
-    return getCookie("aware.session-record-tracking-id");
+    return getCookie("testchimp.session-record-tracking-id");
 }
 
 function getCookie(name) {
@@ -293,8 +293,8 @@ async function enableRequestIntercept(config) {
     if(!matchedExcludedUri){
         if (matchedTracedUri) {
           log(config, "request matches regex for interception " + request.url);
-          // Add the 'aware-session-record-tracking-id' header
-          request.headers.set('aware-session-record-tracking-id', sessionId);
+          // Add the 'testchimp-session-record-tracking-id' header
+          request.headers.set('testchimp-session-record-tracking-id', sessionId);
         } else if (matchedUntracedUri) {
           log(config, "request matches regex for untraced uris to track " + request.url);
           // Store the request URL in the map
@@ -467,7 +467,7 @@ function initRecording(endpoint,config,sessionId){
 };
 
 function clearTrackingIdCookie(){
-    document.cookie = "aware.session-record-tracking-id=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;max-age=0;";
+    document.cookie = "testchimp.session-record-tracking-id=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;max-age=0;";
 }
 
 function endTrackedSession(){
@@ -477,9 +477,9 @@ function endTrackedSession(){
 
 // Function to start recording user sessions
 async function startRecording(config) {
-  console.log("Initializing recording for Aware Project: " + config.projectId);
+  console.log("Initializing recording for TestChimp Project: " + config.projectId);
   // Default endpoint if not provided
-  var endpoint = (config.endpoint || 'https://ingress.awarelabs.io');
+  var endpoint = (config.endpoint || 'https://ingress.testchimp.io');
 
   // Retrieve session ID from cookie
   var sessionId = getSessionIdFromCookie(config.sessionIdCookieKey);
@@ -511,8 +511,7 @@ async function startRecording(config) {
     return;
   }
 
-  // Store endpoint, projectId, sessionRecordingApiKey, samplingProbability, maxSessionDurationSecs, samplingProbabilityOnError, and maxDurationToSaveOnError in window.AwareSDKConfig
-  window.AwareSDKConfig = {
+  window.TestChimpSDKConfig = {
     enableRecording:config.enableRecording || true,
     endpoint: endpoint,
     projectId: config.projectId,
@@ -529,7 +528,7 @@ async function startRecording(config) {
     enableOptionsCallTracking:config.enableOptionsCallTracking || false
   };
 
-  config = window.AwareSDKConfig;
+  config = window.TestChimpSDKConfig;
   console.log("config used for session recording: ", config);
 
   // Determine whether to record the session based on samplingProbability
@@ -559,12 +558,12 @@ async function startRecording(config) {
 
 
 // Expose the startRecording function along with other recording-related methods to consumers
-var AwareSDK = {
+var TestChimpSDK = {
   startRecording: startRecording,
   endTrackedSession:endTrackedSession,
   stopRecording: stopSendingEvents, // Expose the stopRecording function
   setCurrentUserId: setCurrentUserId // Expose the setCurrentUserId function
 };
 
-// Export AwareSDK
-export { AwareSDK };
+// Export TestChimpSDK
+export { TestChimpSDK };

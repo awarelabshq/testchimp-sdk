@@ -23,7 +23,7 @@ const Constants = {
     TRACKED_TEST_SUITE_HEADER_KEY: 'trackedtest.suite',
     TRACKED_TEST_STEP_HEADER_KEY: 'trackedtest.step',
     TRACKED_TEST_TYPE_HEADER_KEY: 'trackedtest.type',
-    AWARE_SESSION_RECORD_TRACKING_ID_HEADER_KEY: 'aware.session-record-tracking-id',
+    TESTCHIMP_SESSION_RECORD_TRACKING_ID_HEADER_KEY: 'testchimp.session-record-tracking-id',
     HEADER_EXTRACTED_PREFIX: 'header.extracted.'
 };
 
@@ -141,8 +141,8 @@ function processJsonBody(body, span, config, type) {
         if(matches.length > 0) {
             const firstMatch = matches[0];
             const fieldName = query.match(/[^.[\]]+$/)[0];
-            log("Setting " + `aware.extracted.${fieldName}` + " in " + type + " " + firstMatch,"fine");
-            span.setAttribute(`aware.extracted.${fieldName}`, firstMatch);
+            log("Setting " + `testchimp.extracted.${fieldName}` + " in " + type + " " + firstMatch,"fine");
+            span.setAttribute(`testchimp.extracted.${fieldName}`, firstMatch);
         }
     });
 
@@ -151,7 +151,7 @@ function processJsonBody(body, span, config, type) {
         const userIdMatches = jsonpath.query(body, userIdField);
         if(userIdMatches.length > 0) {
            log("Setting derived user id for session " + userIdMatches[0],"fine");
-           span.setAttribute('aware.derived.user.id', userIdMatches[0]);
+           span.setAttribute('testchimp.derived.user.id', userIdMatches[0]);
         }
     }
 
@@ -172,8 +172,8 @@ function processOtherBodyTypes(body, span, config, type) {
     // Extract fields to span attributes
     extractToSpanAttributes.forEach(field => {
         if(field === '$' && body) {
-          log("Setting attribute: aware.extracted.body to " + body + " for " + type,"fine");
-          span.setAttribute('aware.extracted.body', body);
+          log("Setting attribute: testchimp.extracted.body to " + body + " for " + type,"fine");
+          span.setAttribute('testchimp.extracted.body', body);
         }
     });
 
@@ -187,10 +187,10 @@ function extractTrackingHeaders(req, span) {
     const trackedTestCase = headers[Constants.TRACKED_TEST_NAME_HEADER_KEY];
     const trackedTestType = headers[Constants.TRACKED_TEST_TYPE_HEADER_KEY];
     const trackedTestStep = headers[Constants.TRACKED_TEST_STEP_HEADER_KEY];
-    const headerExtractedSessionRecordingTrackingId = headers[Constants.AWARE_SESSION_RECORD_TRACKING_ID_HEADER_KEY];
+    const headerExtractedSessionRecordingTrackingId = headers[Constants.TESTCHIMP_SESSION_RECORD_TRACKING_ID_HEADER_KEY];
 
     if (headerExtractedSessionRecordingTrackingId) {
-        span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.AWARE_SESSION_RECORD_TRACKING_ID_HEADER_KEY, headerExtractedSessionRecordingTrackingId);
+        span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TESTCHIMP_SESSION_RECORD_TRACKING_ID_HEADER_KEY, headerExtractedSessionRecordingTrackingId);
     }
     if (trackedTestSuite) {
         span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_SUITE_HEADER_KEY, trackedTestSuite);
@@ -206,7 +206,7 @@ function extractTrackingHeaders(req, span) {
     }
 }
 
-function awareSdk(configFilePath) {
+function testchimpSdk(configFilePath) {
     const config = parseConfig(configFilePath);
     const mappings = createMappings(config);
 
@@ -282,8 +282,8 @@ function awareSdk(configFilePath) {
                 urlConfigEntry.config.request.extractHeadersToSpanAttributes.forEach(header => {
                     const headerValue = headers[header];
                     if(headerValue) {
-                        log("Setting attribute: " + `aware.extracted.${header}` + " to " + headerValue + " in request","fine");
-                        span.setAttribute(`aware.extracted.${header}`, headerValue);
+                        log("Setting attribute: " + `testchimp.extracted.${header}` + " to " + headerValue + " in request","fine");
+                        span.setAttribute(`testchimp.extracted.${header}`, headerValue);
                     }
                 });
 
@@ -302,8 +302,8 @@ function awareSdk(configFilePath) {
                 const payloadString = JSON.stringify(payload);
                 log("request payload: " + payloadString,"info");
                 if(method!="OPTIONS" || (enable_options_call_tracking && method==="OPTIONS")){
-                    span.setAttribute('aware.derived.request.payload', payloadString);
-                    span.setAttribute('aware.derived.url.path.self', urlPath);
+                    span.setAttribute('testchimp.derived.request.payload', payloadString);
+                    span.setAttribute('testchimp.derived.url.path.self', urlPath);
                 }
             }
 
@@ -349,8 +349,8 @@ function awareSdk(configFilePath) {
                         urlConfigEntry.config.response.extractHeadersToSpanAttributes.forEach(header => {
                             const headerValue = responseHeaders[header];
                             if(headerValue) {
-                               log("Setting attribute: " + `aware.extracted.${header}` + " to " + headerValue + " in response","fine");
-                               span.setAttribute(`aware.extracted.${header}`, headerValue);
+                               log("Setting attribute: " + `testchimp.extracted.${header}` + " to " + headerValue + " in response","fine");
+                               span.setAttribute(`testchimp.extracted.${header}`, headerValue);
                             }
                         });
 
@@ -367,7 +367,7 @@ function awareSdk(configFilePath) {
 
                         const responsePayloadString = JSON.stringify(responsePayloadMessage);
                         log("response payload: " + responsePayloadString,"info");
-                        span.setAttribute('aware.derived.response.payload', responsePayloadString);
+                        span.setAttribute('testchimp.derived.response.payload', responsePayloadString);
                     }
                 }
                 originalEnd.apply(res, args);
@@ -378,4 +378,4 @@ function awareSdk(configFilePath) {
     };
 }
 
-module.exports = awareSdk;
+module.exports = testchimpSdk;
