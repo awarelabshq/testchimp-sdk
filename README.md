@@ -14,7 +14,7 @@ The sdk is organized as follows:
 - frontend/ : This includes SDKs for enabling frontend recording
   - [js](https://github.com/awarelabshq/testchimp-sdk?tab=readme-ov-file#javascript)    
 - backend/ : This includes SDKs for enabling backend service recording
-  - [Java (Spring)](https://github.com/awarelabshq/aware-sdk/tree/main/backend/java-spring#java-spring)
+  - [Java (Spring)](https://github.com/awarelabshq/testchimp-sdk/tree/main/backend/java-spring#java-spring)
   - [NodeJS](https://github.com/awarelabshq/testchimp-sdk/blob/main/backend/nodejs/README.md#aware-sdk-for-nodejs)    
 - protos/ : Defines proto structure for communicating payloads (this is used by different backend SDKs to communicate payloads consistently in a tech-stack agnostic manner).
 
@@ -24,17 +24,17 @@ The sdk is organized as follows:
 
 #### Installation Guide
 
-1) Run: ```npm install aware-sdk-js@latest```
+1) Run: ```npm install @testchimp/js```
 2) Include the following code snippet (with updated configuration as detailed below) in your initial loading js file (index.js or equivalent) to configure the sdk.
 
 ```
-import {AwareSDK} from "aware-sdk-js"
+import {AwareSDK} from "@testchimp/js"
 
 
 window.onload = function () {
  AwareSDK.startRecording({
-   projectId: "<YOUR AWARE PROJECT ID>",
-   apiKey: "<YOUR SESSION RECORDING API  KEY FOR AWARE PROJECT>",
+   projectId: "<YOUR TESTCHIMP PROJECT ID>",
+   apiKey: "<YOUR SESSION RECORDING API  KEY FOR TESTCHIMP PROJECT>",
    untracedUriRegexListToTrack:".*\.your-domain\.com.*$"
  });
 ```
