@@ -1,21 +1,21 @@
-# Aware SDK - Enabling Full Stack Recording for Test Creation
-[![](https://jitpack.io/v/awarelabshq/aware-sdk.svg)](https://jitpack.io/#awarelabshq/aware-sdk)
+# TestChimp SDK - Enabling Full Stack Recording for Test Creation
+[![](https://jitpack.io/v/awarelabshq/aware-sdk.svg)](https://jitpack.io/#awarelabshq/testchimp-sdk)
 
 ## Introduction
 
-[Aware Labs](https://awarelabs.io) empowers teams to capture what happens in their entire stack during manual testing / prod sessions, and create repeatable full-stack automation tests that cover the entire stack.
+[TestChimp](https://testchimp.io) empowers teams to capture what happens in their entire stack during manual testing / prod sessions, and create repeatable full-stack automation tests that cover the entire stack.
 
-Aware SDK consists of frontend and backend libraries for different technologies enabling Aware’s full stack capturing capabilities. Teams simply need to install the relevant SDKs (and configure) in their tech stack. After that, via Aware platform, they can then create automated full stack tests from the captured sessions.
+TestChimp SDK consists of frontend and backend libraries for different technologies enabling Aware’s full stack capturing capabilities. Teams simply need to install the relevant SDKs (and configure) in their tech stack. After that, via Aware platform, they can then create automated full stack tests from the captured sessions.
 
 Prerequisite: Your system should be instrumented with OpenTelemetry. Refer to guide [here](https://awarelabs.io/blog/getting-started) for more details.
 
 The sdk is organized as follows:
 
 - frontend/ : This includes SDKs for enabling frontend recording
-  - [js](https://github.com/awarelabshq/aware-sdk?tab=readme-ov-file#javascript)    
+  - [js](https://github.com/awarelabshq/testchimp-sdk?tab=readme-ov-file#javascript)    
 - backend/ : This includes SDKs for enabling backend service recording
   - [Java (Spring)](https://github.com/awarelabshq/aware-sdk/tree/main/backend/java-spring#java-spring)
-  - [NodeJS](https://github.com/awarelabshq/aware-sdk/blob/main/backend/nodejs/README.md#aware-sdk-for-nodejs)    
+  - [NodeJS](https://github.com/awarelabshq/testchimp-sdk/blob/main/backend/nodejs/README.md#aware-sdk-for-nodejs)    
 - protos/ : Defines proto structure for communicating payloads (this is used by different backend SDKs to communicate payloads consistently in a tech-stack agnostic manner).
 
 ## Frontend
@@ -72,9 +72,9 @@ If you are only interested in recording the UI layer along with API interactions
 2. Install and configure Aware SDK for each backend service.
 
 Currently, Aware SDK is supported for the following tech stacks:
-1. Java Spring - [Documentation](https://github.com/awarelabshq/aware-sdk/tree/main/backend/java-spring#java-spring)
-2. NodeJS - [Documentation](https://github.com/awarelabshq/aware-sdk/tree/main/backend/nodejs#nodejs)
+1. Java Spring - [Documentation](https://github.com/awarelabshq/testchimp-sdk/tree/main/backend/java-spring#java-spring)
+2. NodeJS - [Documentation](https://github.com/awarelabshq/testchimp-sdk/tree/main/backend/nodejs#nodejs)
 
 ## Support
 
-If your preferred tech stack is not supported, feel free to raise a [feature request](https://github.com/awarelabshq/aware-sdk/issues/new).
+If your preferred tech stack is not supported, feel free to raise a [feature request](https://github.com/awarelabshq/testchimp-sdk/issues/new).
