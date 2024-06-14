@@ -5,9 +5,9 @@ module.exports = {
   entry: './index.mjs',
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'aware-sdk.js',
+    filename: 'testchimp-sdk.js',
     library: {
-      name: 'AwareSDK',
+      name: 'TestChimpSDK',
       type: 'umd',
     },
     globalObject: 'this',
