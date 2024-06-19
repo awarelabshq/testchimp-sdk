@@ -1,4 +1,5 @@
 const path = require('path');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   mode: 'production',
@@ -29,4 +30,11 @@ module.exports = {
   resolve: {
     extensions: ['.js', '.json'],
   },
+  plugins: [
+    new CopyWebpackPlugin({
+      patterns: [
+        { from: 'testchimp-js.d.ts', to: 'testchimp-js.d.ts' },
+      ],
+    }),
+  ],
 };
