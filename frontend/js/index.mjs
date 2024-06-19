@@ -295,6 +295,10 @@ async function enableRequestIntercept(config) {
           log(config, "request matches regex for interception " + request.url);
           // Add the 'testchimp-session-record-tracking-id' header
           request.headers.set('testchimp-session-record-tracking-id', sessionId);
+          let currentUserId=getCurrentUserId();
+          if(currentUserId){
+            request.headers.set('testchimp-current-user-id', currentUserId);
+          }
         } else if (matchedUntracedUri) {
           log(config, "request matches regex for untraced uris to track " + request.url);
           // Store the request URL in the map
