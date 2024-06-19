@@ -39,6 +39,14 @@ window.onload = function () {
  });
 ```
 
+3) Call ```TestChimpSDK.setCurrentUserId()``` (Recommended)
+
+   Call ```TestChimpSDK.setCurrentUserId(<USER_ID)``` to register a human readable user id (such as email) at any point during the session (for instance, after login step). This will enable querying by the test user id to fetch related sessions for easier session filtering.
+
+4) Call ```TestChimpSDK.endTrackedSession()``` to end the current session recording (Recommended)
+
+  By default, the session id is reset only after the browser window is closed. If you want it to be cleared upon the user signing out from your application, you can call ```TestChimpSDK.endTrackedSession()``` when the user logs out.
+  
 #### Configuration Guide
 
 The SDK behaviour can be configured with the following config params:
