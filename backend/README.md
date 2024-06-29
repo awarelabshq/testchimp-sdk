@@ -1,9 +1,9 @@
 # Aware Backend SDK Module
 
-This module includes different backend SDKs for tech stacks supported by Aware. After installing the frontend SDK in your client, you can install the corresponding backend SDKs to leverage full stack recording capabilities of Aware.
+This module includes different backend SDKs for tech stacks supported by TestChimp. After installing the frontend SDK in your client, you can install the corresponding backend SDKs to leverage full stack recording capabilities of Aware.
 
-Note: Enable OpenTelemetry in your backend services prior to installing Aware SDKs as Aware relies on OTel for connecting the full journey of requests.
-Refer [here](https://awarelabs.io/blog/getting-started) for details on how to setup OTel and export tracing data to Aware servers.
+Note: Enable OpenTelemetry in your backend services prior to installing TestChimp SDKs as it relies on OTel for connecting the full journey of requests.
+Refer [here](https://www.testchimp.io/blog/getting-started-with-testchimp) for details on how to setup OTel and export tracing data to TestChimp servers.
 
 Currently, support is available for following:
 1. Java (Spring)
@@ -11,7 +11,7 @@ Currently, support is available for following:
 
 ## Backend SDK Configuration File
 
-All backend SDKs can be configured via an ```aware_sdk_config.yml``` file, whose format is as follows:
+All backend SDKs can be configured via an ```testchimp_sdk_config.yml``` file, whose format is as follows:
 
 ```
 global_config:
@@ -27,9 +27,15 @@ global_config:
     - "Authorization"
   
   # If there is a user id field passed as a header, it can be specified here. This will be used to tag the session to
-  # the given user so that sessions for a given test user can be queried later from Aware Studio. This is only expected
+  # the given user so that sessions for a given test user can be queried later from TestChimp Studio. This is only expected
   # to be extracted in test environments and not prod for PII preservation.
   user_id_header: "x-user-id"
+
+  # By default, TestChimp uses the testchimp-session-record-tracking-id header for grouping traces belonging to a single
+  # session (which is injected by testchimp frontend SDKs). If however, a custom application specific session tracking
+  # id is used, that can be specified here. This is useful for mobile apps which already has some application specific
+  # session tracking mechanism and they want to reuse the same for grouping the traces by the session.
+  session_record_tracking_id_header: "testchimp-session-record-tracking-id"
   
   # Enables tracking HTTP Options calls (defaults to false)
   enable_options_call_tracking: true
@@ -52,17 +58,17 @@ url_configs:
       ignored_fields:
         - "$.results[*].items[*].bar"
       
-      # fields matching the following json queries will be captured as span attributes (the name of the span attribute will be the name of the field prefixed with "aware.extracted"). If there are multiple matches, the values will be concat using ","
+      # fields matching the following json queries will be captured as span attributes (the name of the span attribute will be the name of the field). If there are multiple matches, the values will be concat using ","
       extract_to_span_attributes:
         - "$.results[*].item_type"
       
-      # Headers listed below will be captured as separate span attributes. The name of the attribute will be the name of the header field prefixed with "aware.extracted".
+      # Headers listed below will be captured as separate span attributes. The name of the attribute will be the name of the header field".
       extract_headers_to_span_attributes:
         - "project_id"
       
       # If the unique user id is part of the body (either response or request) rather than a header, the json path to
       # the body element can be specified here. This will be used to extract and tag each session to the corresponding
-      # test user so that sessions for a given user can be queried via Aware Studio. This is only recommended in test
+      # test user so that sessions for a given user can be queried via TestChimp Platform. This is only recommended in test
       # envs to preserve PII in prod.
       user_id_field: "$.user_info.user_id"
 ```
