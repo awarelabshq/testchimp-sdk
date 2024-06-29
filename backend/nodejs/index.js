@@ -15,19 +15,21 @@ const jsonParser = bodyParser.json();
 const urlencodedParser = bodyParser.urlencoded({
     extended: true
 });
-let log_level="none";
-let enable_options_call_tracking=false;
 
 const Constants = {
     TRACKED_TEST_NAME_HEADER_KEY: 'trackedtest.name',
     TRACKED_TEST_SUITE_HEADER_KEY: 'trackedtest.suite',
     TRACKED_TEST_STEP_HEADER_KEY: 'trackedtest.step',
     TRACKED_TEST_TYPE_HEADER_KEY: 'trackedtest.type',
-    TESTCHIMP_SESSION_RECORD_TRACKING_ID_HEADER_KEY: 'testchimp.session-record-tracking-id',
+    TESTCHIMP_SESSION_RECORD_TRACKING_ID_HEADER_KEY: 'testchimp-session-record-tracking-id',
     TESTCHIMP_USER_ID_HEADER_KEY:'testchimp-current-user-id',
     USER_ID_SPAN_ATTRIBUTE:'testchimp.derived.user.id',
     HEADER_EXTRACTED_PREFIX: 'header.extracted.'
 };
+
+let log_level="none";
+let session_record_tracking_id_header=Constants.TESTCHIMP_SESSION_RECORD_TRACKING_ID_HEADER_KEY;
+let enable_options_call_tracking=false;
 
 function log(stmt,level){
     if(level=="fine" && log_level!="none"){
@@ -78,6 +80,9 @@ function createMappings(config) {
         }
         if(config.global_config.log_level){
             log_level=config.global_config.log_level;
+        }
+        if(config.global_config.session_record_tracking_id_header){
+            session_record_tracking_id_header=config.global_config.session_record_tracking_id_header;
         }
         if(config.global_config.enable_options_call_tracking){
             enable_options_call_tracking=config.global_config.enable_options_call_tracking;
@@ -189,7 +194,7 @@ function extractTrackingHeaders(req, span) {
     const trackedTestCase = headers[Constants.TRACKED_TEST_NAME_HEADER_KEY];
     const trackedTestType = headers[Constants.TRACKED_TEST_TYPE_HEADER_KEY];
     const trackedTestStep = headers[Constants.TRACKED_TEST_STEP_HEADER_KEY];
-    const headerExtractedSessionRecordingTrackingId = headers[Constants.TESTCHIMP_SESSION_RECORD_TRACKING_ID_HEADER_KEY];
+    const headerExtractedSessionRecordingTrackingId = headers[session_record_tracking_id_header];
     const headerExtractedCurrentUserId = headers[Constants.TESTCHIMP_USER_ID_HEADER_KEY];
 
     if (headerExtractedSessionRecordingTrackingId) {

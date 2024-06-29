@@ -11,6 +11,11 @@ global_config:
   # the given user so that sessions for a given test user can be queried later from Aware Studio. This is only expected
   # to be extracted in test environments and not prod for PII preservation.
   user_id_header: "x-user-id"
+  # By default, TestChimp uses the testchimp-session-record-tracking-id header for grouping traces belonging to a single
+  # session (which is injected by testchimp frontend SDKs). If however, a custom application specific session tracking
+  # id is used, that can be specified here. This is useful for mobile apps which already has some application specific
+  # session tracking mechanism and they want to reuse the same for grouping the traces by the session.
+  session_record_tracking_id_header: "testchimp-session-record-tracking-id"
   enable_options_call_tracking: true
 url_configs:
   # Each section is formatted as "url_pattern" under which:

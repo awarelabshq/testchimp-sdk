@@ -36,6 +36,7 @@ public class DefaultRequestExtractor implements IExtractor {
     private static final String IGNORE_URLS_YML_FIELD = "ignored_urls";
     private static final String IGNORE_HEADERS_YML_FIELD = "ignored_headers";
     private static final String USER_ID_HEADER_YML_FIELD = "user_id_header";
+    private static final String SESSION_RECORD_TRACKING_ID_YML_FIELD = "session_record_tracking_id_header";
     private static final String USER_ID_BODY_FIELD_YML_FIELD = "user_id_field";
 
     public static final String REQUEST_YML_FIELD = "request";
@@ -58,6 +59,7 @@ public class DefaultRequestExtractor implements IExtractor {
     private Set<String> responseIgnoreUris = new HashSet<>();
 
     private String userIdHeader;
+    private String sessionRecordTrackingIdHeader;
     private Map<String, List<String>> requestExtractToSpanAttributesMap = new HashMap<>();
     private Map<String, String> requestExtractToUserIdMap = new HashMap<>();
     private Map<String, List<String>> requestHeaderExtractToSpanAttributesMap = new HashMap<>();
@@ -136,6 +138,10 @@ public class DefaultRequestExtractor implements IExtractor {
             }
             if (globalConfigNode.has(USER_ID_HEADER_YML_FIELD)) {
                 userIdHeader = globalConfigNode.get(USER_ID_HEADER_YML_FIELD).asText().toLowerCase();
+            }
+            if (globalConfigNode.has(SESSION_RECORD_TRACKING_ID_YML_FIELD)) {
+                sessionRecordTrackingIdHeader = globalConfigNode.get(SESSION_RECORD_TRACKING_ID_YML_FIELD).asText()
+                        .toLowerCase();
             }
             // Read the enableOptionsCallTracking field
             enableOptionsCallTracking = false;
@@ -360,8 +366,11 @@ public class DefaultRequestExtractor implements IExtractor {
             return new ExtractResult();
         }
         Map<String, String> spanAttributes = new HashMap<>();
-        if (originalHeaderMap.containsKey(userIdHeader)) {
+        if (userIdHeader != null && !userIdHeader.isEmpty() && originalHeaderMap.containsKey(userIdHeader)) {
             spanAttributes.put(Constants.USER_ID_SPAN_ATTRIBUTE, originalHeaderMap.get(userIdHeader));
+        }
+        if (sessionRecordTrackingIdHeader != null && !sessionRecordTrackingIdHeader.isEmpty() && originalHeaderMap.containsKey(sessionRecordTrackingIdHeader)) {
+            spanAttributes.put(Constants.HEADER_EXTRACTED_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, originalHeaderMap.get(sessionRecordTrackingIdHeader));
         }
         for (String headerAttrib : headerAttribsToExtract) {
             if (originalHeaderMap.containsKey(headerAttrib)) {
