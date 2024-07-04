@@ -140,12 +140,12 @@ function sendPayloadToEndpoint(payload, endpoint) {
   });
 }
 
-async function populateHttpPayload(config,rawPayload) {
-    const method=rawPayload.method;
+async function populateHttpPayload(config, rawPayload) {
+    const method = rawPayload.method;
     const httpPayload = {
         headerMap: {},
-        queryParamMap:{},
-        httpMethod: method??""
+        queryParamMap: {},
+        httpMethod: method ?? ""
     };
 
     // Convert headers to a plain object
@@ -153,9 +153,9 @@ async function populateHttpPayload(config,rawPayload) {
         httpPayload.headerMap[key] = value;
     });
 
-     if (rawPayload.status) {
+    if (rawPayload.status) {
         httpPayload.responseCode = rawPayload.status;
-      }
+    }
 
     const urlParams = new URLSearchParams(rawPayload.url.split('?')[1] || '');
     urlParams.forEach((value, key) => {
@@ -164,79 +164,68 @@ async function populateHttpPayload(config,rawPayload) {
 
     const contentType = rawPayload.headers.get('content-type') || '';
 
-    if (method === 'GET') {
-        // Nothing to do since the query params are captured already in queryParamMap.
-    } else {
+    if (method !== 'GET') {
         if (contentType.includes('application/json')) {
-            // Parse JSON body safely
-            const body = await rawPayload.json().catch(() => ({}));
-            httpPayload.jsonBody = JSON.stringify(body);
+            try {
+                const body = await rawPayload.json();
+                httpPayload.jsonBody = JSON.stringify(body);
+            } catch {
+                httpPayload.jsonBody = "{}";
+            }
         } else if (contentType.includes('multipart/form-data')) {
-            rawPayload.formData().then(formData => {
+            try {
+                const formData = await rawPayload.formData();
                 const keyValueMap = {};
                 let formDataSize = 0;
+
                 for (const [key, value] of formData.entries()) {
-                    // Calculate the size of each part
                     formDataSize += value.size;
-                    // If total size exceeds 10MB, drop the data
                     if (formDataSize > 10 * 1024 * 1024) {
-                        log(config,"Binary data exceeds 10MB. Dropping data.");
-                        callback(httpPayload);
-                        return;
+                        log(config, "Binary data exceeds 10MB. Dropping data.");
+                        break;
                     }
                     keyValueMap[key] = value;
                 }
-                httpPayload.httpFormDataBody = {
-                    keyValueMap
-                };
-                callback(httpPayload);
-            }).catch(() => {
-                callback(httpPayload);
-            });
+                httpPayload.httpFormDataBody = { keyValueMap };
+            } catch {
+                // Handle error
+            }
         } else if (contentType.includes('application/octet-stream')) {
-            // Check the size of the binary data
-            rawPayload.arrayBuffer().then(buffer => {
-                if (buffer.byteLength > 10 * 1024 * 1024) {
-                    log(config,"Binary data exceeds 10MB. Dropping data.");
-                    callback(httpPayload);
-                    return;
-                } else {
-                    // Process the binary data
-                    httpPayload.binaryDataBody = {
-                        data: buffer
-                    };
-                    callback(httpPayload);
-                }
-            }).catch(() => {
-                callback(httpPayload);
-            });
-        } else if (contentType.includes('application/x-www-form-urlencoded')) {
-               const body = new URLSearchParams(await rawPayload.text());
-               const keyValueMap = {};
-               body.forEach((value, key) => {
-                 keyValueMap[key] = value;
-               });
-               httpPayload.httpFormUrlencodedBody = {
-                 keyValueMap
-               };
-
-        } else {
-            // Handle other content types safely
-            let body = '';
             try {
-                body = await rawPayload.text();
+                const buffer = await rawPayload.arrayBuffer();
+                if (buffer.byteLength <= 10 * 1024 * 1024) {
+                    httpPayload.binaryDataBody = { data: buffer };
+                } else {
+                    log(config, "Binary data exceeds 10MB. Dropping data.");
+                }
+            } catch {
+                // Handle error
+            }
+        } else if (contentType.includes('application/x-www-form-urlencoded')) {
+            try {
+                const body = new URLSearchParams(await rawPayload.text());
+                const keyValueMap = {};
+                body.forEach((value, key) => {
+                    keyValueMap[key] = value;
+                });
+                httpPayload.httpFormUrlencodedBody = { keyValueMap };
+            } catch {
+                // Handle error
+            }
+        } else {
+            try {
+                const body = await rawPayload.text();
+                if (contentType.includes('text/plain')) {
+                    httpPayload.textBody = body;
+                } else if (contentType.includes('text/html')) {
+                    httpPayload.htmlBody = body;
+                } else if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
+                    httpPayload.xmlBody = body;
+                } else {
+                    httpPayload.textBody = body;
+                }
             } catch (error) {
                 console.error('Error reading payload:', error);
-            }
-
-            if (contentType.includes('text/plain')) {
-                httpPayload.textBody = body;
-            } else if (contentType.includes('text/html')) {
-                httpPayload.htmlBody = body;
-            } else if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
-                httpPayload.xmlBody = body;
-            } else {
-                httpPayload.textBody = body;
             }
         }
     }

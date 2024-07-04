@@ -21,6 +21,7 @@ const Constants = {
     TRACKED_TEST_SUITE_HEADER_KEY: 'trackedtest.suite',
     TRACKED_TEST_STEP_HEADER_KEY: 'trackedtest.step',
     TRACKED_TEST_TYPE_HEADER_KEY: 'trackedtest.type',
+    TRACKED_TEST_INVOCATION_ID_HEADER_KEY: 'trackedtest.invocation_id',
     TESTCHIMP_SESSION_RECORD_TRACKING_ID_HEADER_KEY: 'testchimp-session-record-tracking-id',
     TESTCHIMP_USER_ID_HEADER_KEY:'testchimp-current-user-id',
     USER_ID_SPAN_ATTRIBUTE:'testchimp.derived.user.id',
@@ -193,6 +194,7 @@ function extractTrackingHeaders(req, span) {
     const trackedTestSuite = headers[Constants.TRACKED_TEST_SUITE_HEADER_KEY];
     const trackedTestCase = headers[Constants.TRACKED_TEST_NAME_HEADER_KEY];
     const trackedTestType = headers[Constants.TRACKED_TEST_TYPE_HEADER_KEY];
+    const trackedTestInvocationId = headers[Constants.TRACKED_TEST_INVOCATION_ID_HEADER_KEY];
     const trackedTestStep = headers[Constants.TRACKED_TEST_STEP_HEADER_KEY];
     const headerExtractedSessionRecordingTrackingId = headers[session_record_tracking_id_header];
     const headerExtractedCurrentUserId = headers[Constants.TESTCHIMP_USER_ID_HEADER_KEY];
@@ -214,6 +216,9 @@ function extractTrackingHeaders(req, span) {
     }
     if (trackedTestType) {
         span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_TYPE_HEADER_KEY, trackedTestType);
+    }
+    if (trackedTestInvocationId) {
+        span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_INVOCATION_ID_HEADER_KEY, trackedTestInvocationId);
     }
 }
 
