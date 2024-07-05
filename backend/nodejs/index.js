@@ -21,7 +21,7 @@ const Constants = {
     TRACKED_TEST_SUITE_HEADER_KEY: 'trackedtest.suite',
     TRACKED_TEST_STEP_HEADER_KEY: 'trackedtest.step',
     TRACKED_TEST_TYPE_HEADER_KEY: 'trackedtest.type',
-    TRACKED_TEST_INVOCATION_ID_HEADER_KEY: 'trackedtest.invocation_id',
+    TRACKED_TEST_INVOCATION_ID_HEADER_KEY: 'trackedtest.invocation-id',
     TESTCHIMP_SESSION_RECORD_TRACKING_ID_HEADER_KEY: 'testchimp-session-record-tracking-id',
     TESTCHIMP_USER_ID_HEADER_KEY:'testchimp-current-user-id',
     USER_ID_SPAN_ATTRIBUTE:'testchimp.derived.user.id',

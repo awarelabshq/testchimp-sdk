@@ -6,7 +6,7 @@ public class Constants {
     public static final String TRACKED_TEST_SUITE_HEADER_KEY = "trackedtest.suite";
     public static final String TRACKED_TEST_STEP_HEADER_KEY = "trackedtest.step";
     public static final String TRACKED_TEST_TYPE_HEADER_KEY = "trackedtest.type";
-    public static final String TRACKED_TEST_INVOCATION_ID_HEADER_KEY = "trackedtest.invocation_id";
+    public static final String TRACKED_TEST_INVOCATION_ID_HEADER_KEY = "trackedtest.invocation-id";
     public static final String TC_SESSION_RECORD_TRACKING_ID_COOKIE_NAME = "testchimp.session-record-tracking-id";
     public static final String TC_SESSION_RECORDING_TRACKING_ID_HEADER_KEY = "testchimp-session-record-tracking-id";
     public static final String TC_CURRENT_USER_ID_HEADER_KEY = "testchimp-current-user-id";
