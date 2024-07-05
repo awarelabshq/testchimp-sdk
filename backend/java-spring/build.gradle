@@ -2,10 +2,10 @@ apply plugin: 'java'
 apply plugin: 'maven-publish'
 
 group = 'org.testchimp-sdk'
-version = '0.1.1238'
+version = '0.1.1239'
 
 repositories {
-    mavenCentral()r
+    mavenCentral()
 }
 
 dependencies {
