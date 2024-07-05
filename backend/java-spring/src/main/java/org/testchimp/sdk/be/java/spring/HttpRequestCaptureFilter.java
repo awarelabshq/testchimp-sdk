@@ -183,6 +183,10 @@ public class HttpRequestCaptureFilter implements Filter {
         String trackedTestCase = httpServletRequest.getHeader(Constants.TRACKED_TEST_NAME_HEADER_KEY);
         String trackedTestType = httpServletRequest.getHeader(Constants.TRACKED_TEST_TYPE_HEADER_KEY);
         String trackedTestInvocationId = httpServletRequest.getHeader(Constants.TRACKED_TEST_INVOCATION_ID_HEADER_KEY);
+        Enumeration<String> e = httpServletRequest.getHeaderNames();
+        while (e.hasMoreElements()) {
+            logger.info(e.nextElement());
+        }
         logger.info("INVOCATIONID HEADER: " + trackedTestInvocationId);
         logger.info("TESTCASE HEADER: " + trackedTestCase);
         String trackedTestStep = httpServletRequest.getHeader(Constants.TRACKED_TEST_STEP_HEADER_KEY);
