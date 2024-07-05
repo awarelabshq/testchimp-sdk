@@ -61,11 +61,12 @@ public class HttpRequestCaptureFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain chain) throws IOException, ServletException {
+        logger.info("Enter filter on request capture TESTCHIMP: ");
         if (!enableSdk) {
             chain.doFilter(servletRequest, servletResponse);
             return;
         }
-
+        logger.info("Filter invoked on request capture TESTCHIMP: ");
         Span span = Span.current();
         String spanId = span.getSpanContext().getSpanId();
         HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
@@ -183,6 +184,7 @@ public class HttpRequestCaptureFilter implements Filter {
         String trackedTestCase = httpServletRequest.getHeader(Constants.TRACKED_TEST_NAME_HEADER_KEY);
         String trackedTestType = httpServletRequest.getHeader(Constants.TRACKED_TEST_TYPE_HEADER_KEY);
         String trackedTestInvocationId = httpServletRequest.getHeader(Constants.TRACKED_TEST_INVOCATION_ID_HEADER_KEY);
+        String trackedTestInvocationNsId = httpServletRequest.getHeader(Constants.TRACKED_TEST_INVOCATION_ID__NS_HEADER_KEY);
         Enumeration<String> e = httpServletRequest.getHeaderNames();
         while (e.hasMoreElements()) {
             logger.info(e.nextElement());
@@ -222,6 +224,10 @@ public class HttpRequestCaptureFilter implements Filter {
         if (trackedTestInvocationId != null && !trackedTestInvocationId.isEmpty()) {
             logger.info("Setting invocation id header");
             span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_INVOCATION_ID_HEADER_KEY, trackedTestInvocationId);
+        }
+        if (trackedTestInvocationNsId != null && !trackedTestInvocationNsId.isEmpty()) {
+            logger.info("Setting NOSPACE invocation id header");
+            span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TRACKED_TEST_INVOCATION_ID_HEADER_KEY, trackedTestInvocationNsId);
         }
         String sessionId = extractSessionId(httpServletRequest.getHeader("cookie"));
         if (sessionId != null && !sessionId.isEmpty()) {
