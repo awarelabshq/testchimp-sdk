@@ -1,6 +1,6 @@
 {
   "name": "testchimp-node",
-  "version": "1.0.12",
+  "version": "1.0.121",
   "description": "TestChimp SDK for Node JS backends",
   "main": "./index.js",
   "scripts": {
