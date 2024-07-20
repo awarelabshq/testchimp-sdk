@@ -26,3 +26,4 @@ replay_pid*
 /sdk/record/js/node_modules/
 /backend/nodejs/node_modules/
 /frontend/js/node_modules/
+/frontend/chrome-ext/node_modules/
