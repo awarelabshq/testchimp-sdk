@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TestChimp Injector Options</title>
+    <style>
+        label { display: block; margin-top: 8px; }
+    </style>
+</head>
+<body>
+<h1>TestChimp Configuration</h1>
+<form id="configForm">
+    <label for="projectId">Project ID:</label>
+    <input type="text" id="projectId" name="projectId"><br>
+
+    <label for="sessionRecordingApiKey">Session Recording API Key:</label>
+    <input type="text" id="sessionRecordingApiKey" name="sessionRecordingApiKey"><br>
+
+    <label for="pluginEnabledUrls">Plugin Enabled URLs (Regex):</label>
+    <input type="text" id="pluginEnabledUrls" name="pluginEnabledUrls"><br>
+
+    <label for="uriRegexToIntercept">URI regex to request intercept:</label>
+    <input type="text" id="uriRegexToIntercept" name="uriRegexToIntercept"><br>
+
+    <label for="endpoint">Endpoint:</label>
+    <input type="text" id="endpoint" name="endpoint" placeholder="https://ingress.testchimp.io"><br>
+
+    <label for="maxSessionDurationSecs">Max Session Duration (Seconds):</label>
+    <input type="number" id="maxSessionDurationSecs" name="maxSessionDurationSecs"><br>
+
+    <label for="currentUserId">Tester Email</label>
+    <input type="number" id="currentUserId" name="currentUserId"><br>
+
+    <button type="button" id="saveButton">Save</button>
+</form>
+
+<script src="options.js"></script>
+</body>
+</html>
