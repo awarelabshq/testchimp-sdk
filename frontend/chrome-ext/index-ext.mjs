@@ -102,8 +102,9 @@ function setTrackingIdCookie(sessionId) {
   var existingCookie = getCookie("testchimp.session-record-tracking-id");
   if (existingCookie === "") {
     document.cookie = "testchimp.session-record-tracking-id" + "=" + sessionId + ";path=/";
-  console.log("Setting in local storage session id");
-  chrome.storage.local.set({ 'testchimpSessionId': sessionId }, function() {
+    console.log("Setting in local storage session id");
+    chrome.storage.local.set({ 'currentSessionStartTime': Date.now() });
+    chrome.storage.local.set({ 'testchimpSessionId': sessionId }, function() {
     console.log("Session ID stored in chrome.storage.local");
   });
   }

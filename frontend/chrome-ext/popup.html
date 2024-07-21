@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TestChimp Popup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            width: 300px;
+            padding: 20px;
+            margin: 0;
+        }
+        .message {
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        #endSessionButton {
+            background-color: #f44336; /* Red color */
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #endSessionButton:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+<div id="message" class="message">
+    <span id="sessionStartTime">Loading...</span>
+</div>
+<button id="endSessionButton" style="display: none;">End Current Session</button>
+
+<script src="popup.js"></script>
+</body>
+</html>

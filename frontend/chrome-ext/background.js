@@ -192,7 +192,12 @@ async function populateHttpPayload(config, details) {
         });
     }
 
-    const contentType = (headers && headers.find(header => header.name.toLowerCase() === 'content-type'))?.value || '';
+    let contentType="";
+    try{
+        contentType = (headers && headers.find(header => header.name.toLowerCase() === 'content-type'))?.value || '';
+    }catch(error){
+        console.error("error reading headers. isRequest: " + isRequest,headers);
+    }
 
     // Handling body if present
     const bodyText = isRequest ? requestBody : responseBody;

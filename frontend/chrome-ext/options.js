@@ -1,6 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
   const form = document.getElementById('configForm');
   const saveButton = document.getElementById('saveButton');
+  const tabButtons = document.querySelectorAll('.tab-button');
+  const tabContents = document.querySelectorAll('.tab-content');
 
   // Load saved settings and populate the form
   chrome.storage.sync.get([
@@ -33,9 +35,22 @@ document.addEventListener('DOMContentLoaded', function() {
       eventWindowToSaveOnError: 200,
       uriRegexToIntercept: form.uriRegexToIntercept.value,
       pluginEnabledUrls: form.pluginEnabledUrls.value,
-      currentUserId:form.currentUserId.value
+      currentUserId: form.currentUserId.value
     }, function() {
       alert('Settings saved');
+    });
+  });
+
+  // Tab handling
+  tabButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const targetTab = this.getAttribute('data-target');
+
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      tabContents.forEach(tab => tab.classList.remove('active'));
+
+      this.classList.add('active');
+      document.getElementById(targetTab).classList.add('active');
     });
   });
 });

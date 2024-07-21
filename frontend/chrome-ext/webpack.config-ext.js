@@ -31,10 +31,5 @@ module.exports = {
     extensions: ['.js', '.json'],
   },
   plugins: [
-    new CopyWebpackPlugin({
-      patterns: [
-        { from: 'testchimp-js.d.ts', to: 'testchimp-js.d.ts' },
-      ],
-    }),
   ],
 };

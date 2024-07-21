@@ -3,36 +3,183 @@
 <head>
     <title>TestChimp Injector Options</title>
     <style>
-        label { display: block; margin-top: 8px; }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+        }
+        .container {
+            text-align: center;
+        }
+        .title {
+            margin-left: 10px;
+        }
+        .title-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            width: 800px;
+        }
+        .title-bar img {
+            height: 50px;
+            margin-right: 10px;
+        }
+        #configForm{
+          min-height: 350px; /* Set a minimum height to prevent shrinking */
+          }
+        .form-panel {
+            width: 800px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            flex: 1;
+            margin-right: 20px;
+            text-align: left;
+            font-size: 1.2em;
+        }
+        .form-group input {
+            flex: 3;
+            padding: 10px;
+            font-size: 1.2em;
+        }
+        .control-buttons {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .form-links {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-bottom: 20px;
+            width: 100%;
+            font-size: 1.1em;
+        }
+        .form-links a {
+            margin-left: 10px;
+            text-decoration: none;
+            color: #007BFF;
+        }
+        .form-links a:hover {
+            text-decoration: underline;
+        }
+        .tab-buttons {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 0; /* Remove margin-bottom to eliminate gap */
+        }
+        .tab-buttons button {
+            padding: 10px 20px;
+            margin: 0;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            background-color: #f1f1f1;
+            cursor: pointer;
+            outline: none;
+        }
+        .tab-buttons button:last-child {
+            border-right: 1px solid #ccc;
+        }
+        .tab-buttons button.active {
+            background-color: #fff;
+            border-bottom: 1px solid #fff;
+            color: black;
+            cursor: default;
+        }
+        .tab-content {
+            display: none;
+            border: 1px solid #ccc;
+            border-top: none; /* Match the tab button border */
+            padding: 20px;
+            flex-grow: 0; /* Allow the content to grow and maintain the panel height */
+        }
+        .tab-content.active {
+            display: block;
+        }
+        #saveButton {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #saveButton:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
-<h1>TestChimp Configuration</h1>
-<form id="configForm">
-    <label for="projectId">Project ID:</label>
-    <input type="text" id="projectId" name="projectId"><br>
-
-    <label for="sessionRecordingApiKey">Session Recording API Key:</label>
-    <input type="text" id="sessionRecordingApiKey" name="sessionRecordingApiKey"><br>
-
-    <label for="pluginEnabledUrls">Plugin Enabled URLs (Regex):</label>
-    <input type="text" id="pluginEnabledUrls" name="pluginEnabledUrls"><br>
-
-    <label for="uriRegexToIntercept">URI regex to request intercept:</label>
-    <input type="text" id="uriRegexToIntercept" name="uriRegexToIntercept"><br>
-
-    <label for="endpoint">Endpoint:</label>
-    <input type="text" id="endpoint" name="endpoint" placeholder="https://ingress.testchimp.io"><br>
-
-    <label for="maxSessionDurationSecs">Max Session Duration (Seconds):</label>
-    <input type="number" id="maxSessionDurationSecs" name="maxSessionDurationSecs"><br>
-
-    <label for="currentUserId">Tester Email</label>
-    <input type="number" id="currentUserId" name="currentUserId"><br>
-
-    <button type="button" id="saveButton">Save</button>
-</form>
-
+<div class="container">
+    <div class="title-bar">
+        <img src="images/icon-16.png" alt="TestChimp Logo">
+        <h1 class="title">TestChimp Chrome Extension v0.1</h1>
+    </div>
+    <div class="form-panel">
+        <div class="form-links">
+            <span><a href="https://prod.testchimp.io/signup" target="_blank">Sign Up with TestChimp</a>. Already have an account? <a href="https://prod.testchimp.io/signin" target="_blank">Sign In</a></span>
+        </div>
+        <div class="tab-buttons">
+            <button type="button" class="tab-button active" data-target="projectConfig">Project Config</button>
+            <button type="button" class="tab-button" data-target="advanced">Advanced</button>
+        </div>
+        <form id="configForm">
+            <div id="projectConfig" class="tab-content active">
+                <div class="form-group">
+                    <label for="projectId">TestChimp Project ID:</label>
+                    <input type="text" id="projectId" name="projectId" placeholder="Login to TestChimp -> Project Settings">
+                </div>
+                <div class="form-group">
+                    <label for="sessionRecordingApiKey">Session Recording API Key:</label>
+                    <input type="text" id="sessionRecordingApiKey" name="sessionRecordingApiKey"  placeholder="Login to TestChimp -> Project Settings">
+                </div>
+                <div class="form-group">
+                    <label for="pluginEnabledUrls">URL (regex) to enable extension for</label>
+                    <input type="text" id="pluginEnabledUrls" name="pluginEnabledUrls" placeholder=".*your-domain\.com.*">
+                </div>
+                <div class="form-group">
+                    <label for="uriRegexToIntercept">URL (regex) to intercept HTTP requests</label>
+                    <input type="text" id="uriRegexToIntercept" name="uriRegexToIntercept" placeholder=".*your-backend-endpoint\.com.*">
+                </div>
+                <div class="form-group">
+                    <label for="currentUserId">Tester Email</label>
+                    <input type="text" id="currentUserId" name="currentUserId" placeholder="Your email">
+                </div>
+            </div>
+            <div id="advanced" class="tab-content">
+                <div class="form-group">
+                    <label for="endpoint">TestChimp export endpoint</label>
+                    <input type="text" id="endpoint" name="endpoint" value="https://ingress.testchimp.io" placeholder="https://ingress.testchimp.io">
+                </div>
+                <div class="form-group">
+                    <label for="maxSessionDurationSecs">Max Session Duration (Seconds)</label>
+                    <input type="number" id="maxSessionDurationSecs" name="maxSessionDurationSecs" value="500">
+                </div>
+            </div>
+        </form>
+        <div class="control-buttons">
+            <button type="button" id="saveButton">Save</button>
+        </div>
+    </div>
+</div>
 <script src="options.js"></script>
 </body>
 </html>
