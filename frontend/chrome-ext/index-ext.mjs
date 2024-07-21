@@ -12,7 +12,6 @@ if (!window.__scriptInjected) {
 
 window.addEventListener('interceptedResponse', (event) => {
   const { responseHeaders, responseBody, statusCode, url, requestId } = event.detail;
-  console.log("received interceptedResponse",event.detail);
   chrome.runtime.sendMessage({
     type: 'capturedResponse',
     requestId: requestId,
@@ -102,11 +101,8 @@ function setTrackingIdCookie(sessionId) {
   var existingCookie = getCookie("testchimp.session-record-tracking-id");
   if (existingCookie === "") {
     document.cookie = "testchimp.session-record-tracking-id" + "=" + sessionId + ";path=/";
-    console.log("Setting in local storage session id");
-    chrome.storage.local.set({ 'currentSessionStartTime': Date.now() });
-    chrome.storage.local.set({ 'testchimpSessionId': sessionId }, function() {
-    console.log("Session ID stored in chrome.storage.local");
-  });
+    chrome.storage.local.set({ 'currentSessionStartTime': Date.now() }, function() {console.log("Set current session start")});
+    chrome.storage.local.set({ 'testchimpSessionId': sessionId }, function() {});
   }
 }
 
@@ -249,11 +245,11 @@ async function startRecording(config) {
   const defaultEnvironment = "QA";
 
   if (!config.projectId) {
-    console.log("No project id specified for session capture");
+    console.error("No project id specified for session capture");
     return;
   }
   if (!config.sessionRecordingApiKey) {
-    console.log("No session recording api key specified for session capture");
+    console.error("No session recording api key specified for session capture");
     return;
   }
 

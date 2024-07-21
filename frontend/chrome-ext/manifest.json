@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "TestChimp Chrome Extension",
+  "name": "TestChimp - Create API Automation Tests Easily From Manual Test Sessions",
   "version": "0.1",
-  "description": "Enables Screen and API capture which can then be used to build automation tests from the recordings in TestChimp Platform",
+  "description": "Capture UI + API activity during testing sessions. Easily convert them to automation tests with no code.",
   "permissions": [
     "cookies",
     "activeTab",

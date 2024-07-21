@@ -10,6 +10,53 @@ const requestDetailsMap = new Map();
 const urlToRequestIdMap=new Map();
 const urlToResponsePayloadMap=new Map();
 
+async function checkCurrentTabUrl() {
+    try {
+        const tabs = await new Promise((resolve, reject) => {
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (chrome.runtime.lastError) {
+                    return reject(chrome.runtime.lastError);
+                }
+                resolve(tabs);
+            });
+        });
+
+        if (tabs.length === 0) return false;
+
+        const currentUrl = tabs[0].url;
+        const items = await new Promise((resolve, reject) => {
+            chrome.storage.sync.get('pluginEnabledUrls', (items) => {
+                if (chrome.runtime.lastError) {
+                    return reject(chrome.runtime.lastError);
+                }
+                resolve(items);
+            });
+        });
+
+        const pluginEnabledUrls = items.pluginEnabledUrls;
+        if (!pluginEnabledUrls) return false;
+
+        const patterns = pluginEnabledUrls.split(/\s*,\s*/); // Assume patterns are comma-separated
+        let isMatching = false;
+
+        patterns.forEach((pattern) => {
+            try {
+                const regex = new RegExp(pattern);
+                if (regex.test(currentUrl)) {
+                    isMatching = true;
+                }
+            } catch (e) {
+                console.error('Invalid regex pattern:', pattern, e);
+            }
+        });
+
+        return isMatching;
+    } catch (error) {
+        return false;
+    }
+}
+
+
 function generateSpanId() {
     let spanId = '';
     for(let i = 0; i < 8; i++) {
@@ -186,22 +233,25 @@ async function populateHttpPayload(config, details) {
 
     // Extract query parameters from the URL
     if(url) {
-        const urlParams = new URLSearchParams(new URL(url).search);
-        urlParams.forEach((value, key) => {
-            httpPayload.queryParamMap[key] = value;
-        });
+        try{
+            const urlParams = new URLSearchParams(new URL(url).search);
+            urlParams.forEach((value, key) => {
+                httpPayload.queryParamMap[key] = value;
+            });
+        }catch(error){
+            console.error("Error parsing url ",url);
+        }
     }
 
     let contentType="";
     try{
-        contentType = (headers && headers.find(header => header.name.toLowerCase() === 'content-type'))?.value || '';
+        contentType = (headers && headers.find && headers.find(header => header.name.toLowerCase() === 'content-type'))?.value || '';
     }catch(error){
-        console.error("error reading headers. isRequest: " + isRequest,headers);
+        console.error("error reading headers. isRequest: " + isRequest,error);
     }
 
     // Handling body if present
     const bodyText = isRequest ? requestBody : responseBody;
-    console.log("body for " + url + " " + isRequest, bodyText);
     if(bodyText) {
         try {
             if(contentType.includes('application/json')) {
@@ -261,6 +311,10 @@ chrome.webRequest.onBeforeRequest.addListener(
                 url,
                 requestBody
             } = details;
+            const isMatchingUrl= await checkCurrentTabUrl();
+            if(!isMatchingUrl){
+                return;
+            }
 
             const config = await getConfig();
             const sessionId = await getTrackingIdCookie();
@@ -274,7 +328,6 @@ chrome.webRequest.onBeforeRequest.addListener(
             const matchedExcludedUri = config.excludedUriRegexList.some(regex => url.match(regex));
 
             if(!matchedExcludedUri) {
-                console.log("request body for " + url, requestBody)
                 if(matchedTracedUri || matchedUntracedUri) {
                     // Store the request body details in the map
                     requestDetailsMap.set(requestId, {
@@ -296,10 +349,13 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                 method,
                 url
             } = details;
+            const isMatchingUrl= await checkCurrentTabUrl();
+            if(!isMatchingUrl){
+                return requestHeaders;
+            }
 
             const config = await getConfig();
             const sessionId = await getTrackingIdCookie();
-
             if(!config.enableOptionsCallTracking && method === 'OPTIONS') {
                 return {
                     requestHeaders
@@ -334,7 +390,6 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                     const parts = traceparent.split('-');
                     const spanId = parts[2];
                     requestIdToSpanIdMap.set(requestId, spanId);
-                    console.log("req at response capture for url " + url, requestBodyDetails);
                     // Process the request payload if body details are available
                     try {
                         const body=requestBodyDetails.requestBody;
@@ -366,12 +421,14 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
 
 chrome.webRequest.onCompleted.addListener(
   async (details) =>{
+    const isMatchingUrl= await checkCurrentTabUrl();
+    if(!isMatchingUrl){
+        return;
+    }
     const contentLength = details.responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
     const key = `${details.url}|${contentLength}`;
-    console.log("Setting for key " + key + " request id : " + details.requestId);
     urlToRequestIdMap.set(key, details.requestId);
     if(urlToResponsePayloadMap.has(key)){
-        console.log("Key " + key + " found in urlToResponsePayloadMap " + urlToResponsePayloadMap.get(key))
         responsePayloads[details.requestId]=urlToResponsePayloadMap.get(key);
         await sendPayloadForRequestId(requestId);
    }
@@ -390,7 +447,10 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             statusCode,
             url
         } = message;
-
+    const isValidUrl=await checkCurrentTabUrl();
+    if(!isValidUrl){
+        return;
+    }
     const config = await getConfig();
 
     const responsePayload=await populateHttpPayload(config, {
@@ -399,20 +459,17 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         responseBody: responseBody,
         statusCode: statusCode
     });
-
-    const contentLength = responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
+    const contentLength = responseHeaders && responseHeaders.find && responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
     const key = `${url}|${contentLength}`;
     if(requestId){
         responsePayloads[requestId]=responsePayload;
         await sendPayloadForRequestId(requestId);
     }else{
         if(urlToRequestIdMap.has(key)){
-            console.log("urlToRequestIdMap contains key " + key,urlToRequestIdMap.get(key));
             const requestId=urlToRequestIdMap.get(key)
             responsePayloads[requestId]=responsePayload;
             await sendPayloadForRequestId(requestId);
         }else{
-            console.log("urlToRequestIdMap doesnt contain key " + key);
             urlToResponsePayloadMap.set(key,responsePayload);
         }
     }

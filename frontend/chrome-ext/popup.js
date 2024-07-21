@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load the current session start time
     chrome.storage.local.get('currentSessionStartTime', function(items) {
         const startTime = items.currentSessionStartTime;
-
+        console.log("Current session start time ",startTime);
         // Retrieve pluginEnabledUrls to check against the current tab URL
         chrome.storage.sync.get(['pluginEnabledUrls'], function(items) {
             const pluginEnabledUrls = items.pluginEnabledUrls;
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Show the End Current Session button
                         endSessionButton.style.display = 'block';
                     } else {
-                        sessionStartTimeElement.textContent = 'No current active session.';
+                        sessionStartTimeElement.textContent = 'No current active session.' + startTime;
                         endSessionButton.style.display = 'none'; // Hide the button
                     }
                 }
