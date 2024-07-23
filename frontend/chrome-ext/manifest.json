@@ -6,7 +6,6 @@
   "permissions": [
     "cookies",
     "activeTab",
-    "scripting",
     "storage",
     "webRequest"
   ],
