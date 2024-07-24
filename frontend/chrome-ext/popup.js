@@ -1,6 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     const sessionStartTimeElement = document.getElementById('sessionStartTime');
     const endSessionButton = document.getElementById('endSessionButton');
+    const lastSessionElement = document.createElement('div');
+    sessionStartTimeElement.after(lastSessionElement); // Add the new element after sessionStartTimeElement
 
     // Load the current session start time
     chrome.storage.local.get('currentSessionStartTime', function(items) {
@@ -35,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Show the End Current Session button
                         endSessionButton.style.display = 'block';
                     } else {
-                        sessionStartTimeElement.textContent = 'No current active session.' + startTime;
+                        sessionStartTimeElement.textContent = 'No current active session.';
                         endSessionButton.style.display = 'none'; // Hide the button
                     }
                 }
@@ -45,28 +47,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle the End Current Session button click
     endSessionButton.addEventListener('click', function() {
-        // Clear the session cookie from the current active tab
+        // Get the current session cookie value
         chrome.tabs.query({
             active: true,
             currentWindow: true
         }, function(tabs) {
-            const tabId = tabs[0].id;
             const url = new URL(tabs[0].url);
 
-            chrome.cookies.remove({
+            chrome.cookies.get({
                 url: `${url.protocol}//${url.host}`,
                 name: 'testchimp.session-record-tracking-id'
-            }, function() {
-                console.log('Session cookie removed');
-            });
+            }, function(cookie) {
+                if (cookie) {
+                    const sessionId = cookie.value;
+                    const sessionLink = `https://prod.testchimp.io/replay?session_id=${sessionId}`;
+                    lastSessionElement.innerHTML = `<br></br>Last session capture: <a href="${sessionLink}" target="_blank">link</a>`;
+                }
 
-            // Clear the session start time
-            chrome.storage.local.remove('currentSessionStartTime', function() {
-                console.log('Session start time cleared');
-            });
+                // Clear the session cookie from the current active tab
+                const tabId = tabs[0].id;
 
-            // Optionally, you can also reload the tab
-            chrome.tabs.reload(tabId);
+                chrome.cookies.remove({
+                    url: `${url.protocol}//${url.host}`,
+                    name: 'testchimp.session-record-tracking-id'
+                }, function() {
+                    console.log('Session cookie removed');
+                });
+
+                // Clear the session start time
+                chrome.storage.local.remove('currentSessionStartTime', function() {
+                    console.log('Session start time cleared');
+                });
+
+                // Optionally, you can also reload the tab
+                chrome.tabs.reload(tabId);
+            });
         });
     });
 });
