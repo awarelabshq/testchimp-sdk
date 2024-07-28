@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', function() {
     'endpoint',
     'maxSessionDurationSecs',
     'uriRegexToIntercept',
-    'pluginEnabledUrls',
     'currentUserId'
   ], function(items) {
     form.projectId.value = items.projectId || '';
@@ -19,7 +18,6 @@ document.addEventListener('DOMContentLoaded', function() {
     form.endpoint.value = items.endpoint || '';
     form.maxSessionDurationSecs.value = items.maxSessionDurationSecs || '';
     form.uriRegexToIntercept.value = items.uriRegexToIntercept || '';
-    form.pluginEnabledUrls.value = items.pluginEnabledUrls || '';
     form.currentUserId.value = items.currentUserId || '';
   });
 
@@ -34,7 +32,6 @@ document.addEventListener('DOMContentLoaded', function() {
       maxSessionDurationSecs: form.maxSessionDurationSecs.value,
       eventWindowToSaveOnError: 200,
       uriRegexToIntercept: form.uriRegexToIntercept.value,
-      pluginEnabledUrls: form.pluginEnabledUrls.value,
       currentUserId: form.currentUserId.value
     }, function() {
       alert('Settings saved');

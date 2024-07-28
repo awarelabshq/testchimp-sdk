@@ -10,9 +10,9 @@ const requestDetailsMap = new Map();
 const urlToRequestIdMap=new Map();
 const urlToResponsePayloadMap=new Map();
 
-async function checkCurrentTabUrl() {
+async function getTrackingIdCookie() {
     try {
-        const tabs = await new Promise((resolve, reject) => {
+       const tabs = await new Promise((resolve, reject) => {
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 if (chrome.runtime.lastError) {
                     return reject(chrome.runtime.lastError);
@@ -21,37 +21,31 @@ async function checkCurrentTabUrl() {
             });
         });
 
-        if (tabs.length === 0) return false;
+        if (tabs.length === 0) return '';
+        console.log("Checking url " + tabs[0].url);
+        const currentUrl = new URL(tabs[0].url);
 
-        const currentUrl = tabs[0].url;
-        const items = await new Promise((resolve, reject) => {
-            chrome.storage.sync.get('pluginEnabledUrls', (items) => {
+        return new Promise((resolve, reject) => {
+            chrome.cookies.get({ url: `${currentUrl.protocol}//${currentUrl.host}`, name: 'testchimp.ext-session-record-tracking-id' }, (cookie) => {
                 if (chrome.runtime.lastError) {
-                    return reject(chrome.runtime.lastError);
+                    reject(chrome.runtime.lastError);
+                } else {
+                    resolve(cookie?.value);
                 }
-                resolve(items);
             });
         });
-
-        const pluginEnabledUrls = items.pluginEnabledUrls;
-        if (!pluginEnabledUrls) return false;
-
-        const patterns = pluginEnabledUrls.split(/\s*,\s*/); // Assume patterns are comma-separated
-        let isMatching = false;
-
-        patterns.forEach((pattern) => {
-            try {
-                const regex = new RegExp(pattern);
-                if (regex.test(currentUrl)) {
-                    isMatching = true;
-                }
-            } catch (e) {
-                console.error('Invalid regex pattern:', pattern, e);
-            }
-        });
-
-        return isMatching;
     } catch (error) {
+            console.error('Error checking current tab cookie:', error);
+            return '';
+    }
+}
+
+async function checkCurrentTabUrl() {
+    try {
+        const cookie = await getTrackingIdCookie();
+        return cookie && cookie.trim() !== '';
+    } catch (error) {
+        console.error('Error checking current tab cookie:', error);
         return false;
     }
 }
@@ -122,19 +116,6 @@ function log(config, log) {
     }
 }
 
-async function getTrackingIdCookie() {
-    return new Promise((resolve, reject) => {
-        chrome.storage.local.get(['testchimpSessionId'], (result) => {
-            const sessionId = result.testchimpSessionId || null;
-            if(sessionId) {
-                console.log("Session tracking id found " + sessionId);
-                resolve(sessionId);
-            } else {
-                reject("Session ID not found.");
-            }
-        });
-    });
-}
 
 function sendPayloadToEndpoint(payload, endpoint) {
     const body = JSON.stringify(payload);
@@ -161,7 +142,9 @@ function deleteEntriesByRequestId(map, requestIdToDelete) {
 async function sendPayloadForRequestId(requestId){
     const config = await getConfig();
     const sessionId = await getTrackingIdCookie();
-
+    if(!sessionId){
+        return;
+    }
     const spanId = requestIdToSpanIdMap.get(requestId);
     const requestPayload = requestPayloads[requestId];
     const requestUrl = requestUrls.get(requestId);
@@ -319,6 +302,9 @@ chrome.webRequest.onBeforeRequest.addListener(
             const config = await getConfig();
             const sessionId = await getTrackingIdCookie();
 
+            if(!sessionId){
+                return;
+            }
             if(!config.enableOptionsCallTracking && method === 'OPTIONS') {
                 return;
             }
@@ -356,6 +342,9 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
 
             const config = await getConfig();
             const sessionId = await getTrackingIdCookie();
+            if(!sessionId){
+                return ;
+            }
             if(!config.enableOptionsCallTracking && method === 'OPTIONS') {
                 return {
                     requestHeaders

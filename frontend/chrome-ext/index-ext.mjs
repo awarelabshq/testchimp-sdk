@@ -98,16 +98,14 @@ function getSessionIdFromCookie(cookieKey) {
 }
 
 function setTrackingIdCookie(sessionId) {
-  var existingCookie = getCookie("testchimp.session-record-tracking-id");
+  var existingCookie = getCookie("testchimp.ext-session-record-tracking-id");
   if (existingCookie === "") {
-    document.cookie = "testchimp.session-record-tracking-id" + "=" + sessionId + ";path=/";
-    chrome.storage.local.set({ 'currentSessionStartTime': Date.now() }, function() {console.log("Set current session start")});
-    chrome.storage.local.set({ 'testchimpSessionId': sessionId }, function() {});
+    document.cookie = "testchimp.ext-session-record-tracking-id" + "=" + sessionId + ";path=/";
   }
 }
 
 function getTrackingIdCookie(){
-    return getCookie("testchimp.session-record-tracking-id");
+    return getCookie("testchimp.ext-session-record-tracking-id");
 }
 
 function getCookie(name) {
@@ -209,10 +207,11 @@ function initRecording(endpoint,config,sessionId){
 };
 
 function clearTrackingIdCookie(){
-    document.cookie = "testchimp.session-record-tracking-id=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;max-age=0;";
+    document.cookie = "testchimp.ext-session-record-tracking-id=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;max-age=0;";
 }
 
 function endTrackedSession(){
+    console.log("Ending current tracking session");
     stopSendingEvents()
     clearTrackingIdCookie();
 }
@@ -281,34 +280,44 @@ async function startRecording(config) {
   initRecording(endpoint, config, sessionId);
 }
 
-chrome.storage.sync.get([
-'projectId',
-'sessionRecordingApiKey',
-'endpoint',
-'maxSessionDurationSecs',
-'eventWindowToSaveOnError',
-'uriRegexToIntercept',
-'pluginEnabledUrls'
-], function(items) {
-if (chrome.runtime.lastError) {
-  console.error('Error retrieving settings from storage:', chrome.runtime.lastError);
-  return;
-}
-const currentUrl = window.location.href;
-const regex = new RegExp(items.pluginEnabledUrls);
-
-if (regex.test(currentUrl)) {
-    startRecording({
-      projectId: items.projectId,
-      sessionRecordingApiKey: items.sessionRecordingApiKey,
-      endpoint: items.endpoint,
-      samplingProbabilityOnError: 0.0,
-      samplingProbability: 1.0,
-      maxSessionDurationSecs: items.maxSessionDurationSecs || 500,
-      eventWindowToSaveOnError: 200,
-      untracedUriRegexListToTrack: items.uriRegexToIntercept || '.*'
-    });
-
-}
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'startTCRecording') {
+    startRecording(message.data);
+  }if(message.action==='endTCRecording'){
+    endTrackedSession();
+  }
 });
 
+async function checkAndStartRecording() {
+    const cookie = await getTrackingIdCookie();
+    if (cookie && cookie.trim() !== '') {
+      // Cookie is set, retrieve settings and start recording
+      chrome.storage.sync.get([
+        'projectId',
+        'sessionRecordingApiKey',
+        'endpoint',
+        'maxSessionDurationSecs',
+        'eventWindowToSaveOnError',
+        'uriRegexToIntercept'
+      ], function(items) {
+        if (chrome.runtime.lastError) {
+          console.error('Error retrieving settings from storage:', chrome.runtime.lastError);
+          return;
+        }
+
+        startRecording({
+          projectId: items.projectId,
+          sessionRecordingApiKey: items.sessionRecordingApiKey,
+          endpoint: items.endpoint,
+          samplingProbabilityOnError: 0.0,
+          samplingProbability: 1.0,
+          maxSessionDurationSecs: items.maxSessionDurationSecs || 500,
+          eventWindowToSaveOnError: 200,
+          untracedUriRegexListToTrack: items.uriRegexToIntercept || '.*'
+        });
+      });
+    }
+}
+
+// Check for the cookie when the page is loaded
+document.addEventListener('DOMContentLoaded', checkAndStartRecording);

@@ -13,7 +13,10 @@
             margin-bottom: 20px;
             font-size: 16px;
         }
-        #endSessionButton {
+        #controlButtonContainer {
+            text-align: center;
+        }
+        #controlButton {
             background-color: #f44336; /* Red color */
             color: white;
             border: none;
@@ -21,17 +24,23 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
+            display: inline-block;
         }
-        #endSessionButton:hover {
-            background-color: #d32f2f;
+        #controlButton:hover {
+            opacity: 0.8;
         }
     </style>
 </head>
 <body>
-<div id="message" class="message">
-    <span id="sessionStartTime">Loading...</span>
+<div class="message">
+    <span id="tooltip"></span>
 </div>
-<button id="endSessionButton" style="display: none;">End Current Session</button>
+<div id="message" class="message">
+    <span id="lastSessionLink"></span>
+</div>
+<div id="controlButtonContainer">
+    <button id="controlButton" style="display: none;">End Current Session</button>
+</div>
 
 <script src="popup.js"></script>
 </body>

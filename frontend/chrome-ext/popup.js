@@ -1,87 +1,102 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const sessionStartTimeElement = document.getElementById('sessionStartTime');
-    const endSessionButton = document.getElementById('endSessionButton');
-    const lastSessionElement = document.createElement('div');
-    sessionStartTimeElement.after(lastSessionElement); // Add the new element after sessionStartTimeElement
+    const controlButton = document.getElementById('controlButton');
+    const lastSessionElement = document.getElementById('lastSessionLink');
+    const tooltipElement = document.getElementById('tooltip');
 
-    // Load the current session start time
-    chrome.storage.local.get('currentSessionStartTime', function(items) {
-        const startTime = items.currentSessionStartTime;
-        console.log("Current session start time ",startTime);
-        // Retrieve pluginEnabledUrls to check against the current tab URL
-        chrome.storage.sync.get(['pluginEnabledUrls'], function(items) {
-            const pluginEnabledUrls = items.pluginEnabledUrls;
-
-            // Check if pluginEnabledUrls is configured
-            if (!pluginEnabledUrls) {
-                sessionStartTimeElement.textContent = 'No URLs configured for capture. Go to extension settings -> URL (regex) to enable extension for this site.';
-                endSessionButton.style.display = 'none'; // Hide the button
-                return;
-            }
-
-            // Get the current active tab URL
-            chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-                const tabUrl = tabs[0].url;
-                const urlRegex = new RegExp(pluginEnabledUrls);
-
-                // Check if the current tab URL matches the regex
-                if (!urlRegex.test(tabUrl)) {
-                    sessionStartTimeElement.textContent = 'No active session. URL does not match regex for capturing in extension options.';
-                    endSessionButton.style.display = 'none'; // Hide the button
-                } else {
-                    if (startTime) {
-                        // Format and display the start time
-                        const formattedStartTime = new Date(parseInt(startTime)).toLocaleString();
-                        sessionStartTimeElement.textContent = "Current session active since: " + formattedStartTime;
-
-                        // Show the End Current Session button
-                        endSessionButton.style.display = 'block';
-                    } else {
-                        sessionStartTimeElement.textContent = 'No current active session.';
-                        endSessionButton.style.display = 'none'; // Hide the button
-                    }
-                }
-            });
-        });
-    });
-
-    // Handle the End Current Session button click
-    endSessionButton.addEventListener('click', function() {
-        // Get the current session cookie value
-        chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        }, function(tabs) {
+    // Function to handle session capture
+    function handleSessionCapture() {
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
             const url = new URL(tabs[0].url);
 
+            // Check for the session cookie
             chrome.cookies.get({
                 url: `${url.protocol}//${url.host}`,
-                name: 'testchimp.session-record-tracking-id'
+                name: 'testchimp.ext-session-record-tracking-id'
             }, function(cookie) {
                 if (cookie) {
+                    // There is an active session
                     const sessionId = cookie.value;
-                    const sessionLink = `https://prod.testchimp.io/replay?session_id=${sessionId}`;
-                    lastSessionElement.innerHTML = `<br></br>Last session capture: <a href="${sessionLink}" target="_blank">link</a>`;
+                    controlButton.textContent = 'End capture';
+                    controlButton.style.backgroundColor = '#f44336'; // Red color
+                    controlButton.style.display = 'block';
+
+                    controlButton.addEventListener('click', function endCapture() {
+                        chrome.storage.sync.get([
+                            'projectId'
+                        ], function(items) {
+                          const sessionLink = `https://prod.testchimp.io/replay?session_id=${sessionId}&project_id=${items.projectId}`;
+                          lastSessionElement.innerHTML = `<br></br>session capture <a href="${sessionLink}" target="_blank">link</a>`;
+
+                          chrome.tabs.sendMessage(tabs[0].id, {
+                              action: 'endTCRecording',
+                              data: {}
+                          });
+
+                          controlButton.textContent = 'Start capture';
+                          controlButton.style.backgroundColor = '#4CAF50'; // Green color
+
+                          // Remove this event listener
+                          controlButton.removeEventListener('click', endCapture);
+                       });
+                    });
+                } else {
+                    // No active session
+                    lastSessionElement.innerHTML = '';
+                    controlButton.textContent = 'Start capture';
+                    controlButton.style.backgroundColor = '#4CAF50'; // Green color
+                    controlButton.style.display = 'block';
+
+                    controlButton.addEventListener('click', function startCapture() {
+                        // Retrieve settings from storage
+                        chrome.storage.sync.get([
+                            'projectId',
+                            'sessionRecordingApiKey',
+                            'endpoint',
+                            'maxSessionDurationSecs',
+                            'eventWindowToSaveOnError',
+                            'uriRegexToIntercept'
+                        ], function(items) {
+                            if (chrome.runtime.lastError) {
+                                console.error('Error retrieving settings from storage:', chrome.runtime.lastError);
+                                return;
+                            }
+
+                            // Send message to content script to start recording
+                            chrome.tabs.sendMessage(tabs[0].id, {
+                                action: 'startTCRecording',
+                                data: {
+                                    projectId: items.projectId,
+                                    sessionRecordingApiKey: items.sessionRecordingApiKey,
+                                    endpoint: items.endpoint,
+                                    samplingProbabilityOnError: 0.0,
+                                    samplingProbability: 1.0,
+                                    maxSessionDurationSecs: items.maxSessionDurationSecs || 500,
+                                    eventWindowToSaveOnError: 200,
+                                    untracedUriRegexListToTrack: items.uriRegexToIntercept || '.*'
+                                }
+                            });
+
+                            // Update the UI to reflect an active session
+                            controlButton.textContent = 'End capture';
+                            controlButton.style.backgroundColor = '#f44336'; // Red color
+
+                            // Remove this event listener
+                            controlButton.removeEventListener('click', startCapture);
+                        });
+                    });
                 }
-
-                // Clear the session cookie from the current active tab
-                const tabId = tabs[0].id;
-
-                chrome.cookies.remove({
-                    url: `${url.protocol}//${url.host}`,
-                    name: 'testchimp.session-record-tracking-id'
-                }, function() {
-                    console.log('Session cookie removed');
-                });
-
-                // Clear the session start time
-                chrome.storage.local.remove('currentSessionStartTime', function() {
-                    console.log('Session start time cleared');
-                });
-
-                // Optionally, you can also reload the tab
-                chrome.tabs.reload(tabId);
             });
         });
+    }
+
+    // Check for projectId and display appropriate message or control button
+    chrome.storage.sync.get(['projectId'], function(items) {
+        if (!items.projectId) {
+            tooltipElement.textContent = 'Configure project Id & API key at extension options first.';
+            controlButton.style.display = 'none';
+        } else {
+            // Load the current session state
+            handleSessionCapture();
+        }
     });
 });
