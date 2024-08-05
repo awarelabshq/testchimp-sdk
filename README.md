@@ -5,9 +5,9 @@
 
 [TestChimp](https://testchimp.io) empowers teams to capture what happens in their entire stack during manual testing / prod sessions, and create repeatable full-stack automation tests that cover the entire stack.
 
-TestChimp SDK consists of frontend and backend libraries for different technologies enabling TestChimp’s full stack capturing capabilities. Teams simply need to install the relevant SDKs (and configure) in their tech stack. After that, via Aware platform, they can then create automated full stack tests from the captured sessions.
+TestChimp SDK consists of frontend and backend libraries for different technologies enabling TestChimp’s full stack capturing capabilities. Teams simply need to install the relevant SDKs (and configure) in the tech stack. After that, via TestChimp platform, you can then create automated full stack tests from the captured sessions.
 
-Prerequisite: Your system should be instrumented with OpenTelemetry. Refer to guide [here](https://testchimp.io/blog/getting-started) for more details.
+While Frontend SDK is sufficient for capturing UI + API interactions, to enable Full Stack capture, TestChimp relies on OpenTelemetry instrumentation in your backend stack. Refer to guide [here]([https://testchimp.io/blog/getting-started](https://testchimp.io/blog/configuring-opentelemetry-data-export-to-testchimp)) for more details on setting up OTel and configuring an exporter for TestChimp.
 
 The sdk is organized as follows:
 
