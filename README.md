@@ -5,9 +5,9 @@
 
 [TestChimp](https://testchimp.io) empowers teams to capture what happens in their entire stack during manual testing / prod sessions, and create repeatable full-stack automation tests that cover the entire stack.
 
-TestChimp SDK consists of frontend and backend libraries for different technologies enabling Aware’s full stack capturing capabilities. Teams simply need to install the relevant SDKs (and configure) in their tech stack. After that, via Aware platform, they can then create automated full stack tests from the captured sessions.
+TestChimp SDK consists of frontend and backend libraries for different technologies enabling TestChimp’s full stack capturing capabilities. Teams simply need to install the relevant SDKs (and configure) in their tech stack. After that, via Aware platform, they can then create automated full stack tests from the captured sessions.
 
-Prerequisite: Your system should be instrumented with OpenTelemetry. Refer to guide [here](https://awarelabs.io/blog/getting-started) for more details.
+Prerequisite: Your system should be instrumented with OpenTelemetry. Refer to guide [here](https://testchimp.io/blog/getting-started) for more details.
 
 The sdk is organized as follows:
 
@@ -28,15 +28,16 @@ The sdk is organized as follows:
 2) Include the following code snippet (with updated configuration as detailed below) in your initial loading js file (index.js or equivalent) to configure the sdk.
 
 ```
-import {AwareSDK} from "@testchimp/js"
+import { TestChimpSDK } from "testchimp-js";
 
-
-window.onload = function () {
- AwareSDK.startRecording({
-   projectId: "<YOUR TESTCHIMP PROJECT ID>",
-   apiKey: "<YOUR SESSION RECORDING API  KEY FOR TESTCHIMP PROJECT>",
-   untracedUriRegexListToTrack:".*\.your-domain\.com.*$"
- });
+document.addEventListener('DOMContentLoaded', function() {
+    TestChimpSDK.startRecording({
+        projectId: "[PROJECT ID]",
+        sessionRecordingApiKey: "[SESSION RECORDING API KEY]",
+        untracedUriRegexListToTrack: ".*\\.your-domain\\.com.*$",
+        environment:"QA"
+    });
+});
 ```
 
 3) Call ```TestChimpSDK.setCurrentUserId()``` (Recommended)
@@ -51,13 +52,13 @@ window.onload = function () {
 
 The SDK behaviour can be configured with the following config params:
 
-```projectId```: (Required) This is the project id for your project in Aware Platform (Access via Project Settings -> General -> Project ID)
+```projectId```: (Required) This is the project id for your project in TestChimp Platform (Access via Project Settings -> General -> Project ID)
 
 ```sessionRecordingApiKey```: (Required) This is the session recording api key for your project (Access via Project Settings -> General -> Session Recording API key) - Note: Not Api Key (which is used for data api access for integration with your CI / CD pipelines etc.)
 
-```tracedUriRegexListToTrack```: If you have enabled full stack recording with backend Aware SDKs, add regex of your backend entrypoints called by the client for this attribute. Eg:  ".*://your-domain.*$" Default: ```"/^$/"``` (No matched urls)
+```tracedUriRegexListToTrack```: If you have enabled full stack recording with backend TestChimp SDKs, add regex of your backend entrypoints called by the client for this attribute. Eg:  ".*://your-domain.*$" Default: ```"/^$/"``` (No matched urls)
 
-```untracedUriRegexListToTrack```: If you have NOT enabled full stack recording with backend Aware SDKs, add regex of your backend entrypoints called by the client for this attribute. Eg:  ".*://your-domain.*$" This will capture the API layer interactions, allowing you to create tests covering the API layer from recorded sessions. If you have enabled backend tracing, no need to specify this. Default: ```"/^$/"``` (No matched urls)
+```untracedUriRegexListToTrack```: If you have NOT enabled full stack recording with backend TestChimp SDKs, add regex of your backend entrypoints called by the client for this attribute. Eg:  ".*://your-domain.*$" This will capture the API layer interactions, allowing you to create tests covering the API layer from recorded sessions. If you have enabled backend tracing, no need to specify this. Default: ```"/^$/"``` (No matched urls)
 
 ``` enableRecording```: (Optional) This flag helps selectively disable recording (for instance, based on environment). Default: ```true```
 
@@ -77,9 +78,9 @@ The SDK behaviour can be configured with the following config params:
 
 If you are only interested in recording the UI layer along with API interactions initiated by the UI (and creating tests covering only the API layer), installing just the frontend SDK is sufficient. To enable recording of the complete stack (and creation of tests covering the entire stack):
 1. Enable OpenTelemetry in your backend services.
-2. Install and configure Aware SDK for each backend service.
+2. Install and configure TestChimp SDK for each backend service.
 
-Currently, Aware SDK is supported for the following tech stacks:
+Currently, TestChimp SDK is supported for the following tech stacks:
 1. Java Spring - [Documentation](https://github.com/awarelabshq/testchimp-sdk/tree/main/backend/java-spring#java-spring)
 2. NodeJS - [Documentation](https://github.com/awarelabshq/testchimp-sdk/tree/main/backend/nodejs#nodejs)
 
