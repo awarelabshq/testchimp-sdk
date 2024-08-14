@@ -1,4 +1,4 @@
-# Aware Backend SDK Module
+# TestChimp Backend SDK Module
 
 This module includes different backend SDKs for tech stacks supported by TestChimp. After installing the frontend SDK in your client, you can install the corresponding backend SDKs to leverage full stack recording capabilities of Aware.
 
