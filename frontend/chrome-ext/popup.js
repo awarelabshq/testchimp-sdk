@@ -89,14 +89,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Check for projectId and display appropriate message or control button
-    chrome.storage.sync.get(['projectId'], function(items) {
-        if (!items.projectId) {
-            tooltipElement.textContent = 'Configure project Id & API key at extension options first.';
+      chrome.storage.sync.get([
+        'projectId',
+        'sessionRecordingApiKey',
+        'uriRegexToIntercept'
+      ], function(items) {
+        if (!items.projectId || !items.sessionRecordingApiKey || !items.uriRegexToIntercept) {
+            tooltipElement.textContent = 'Configure project Id, API key & URI regex to intercept at extension options first.';
             controlButton.style.display = 'none';
         } else {
             // Load the current session state
             handleSessionCapture();
         }
-    });
+      });
+
 });

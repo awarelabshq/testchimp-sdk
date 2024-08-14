@@ -21,18 +21,28 @@ document.addEventListener('DOMContentLoaded', function() {
     form.currentUserId.value = items.currentUserId || '';
   });
 
-  // Save settings
+  // Save settings with validation
   saveButton.addEventListener('click', function() {
+    const projectId = form.projectId.value.trim();
+    const sessionRecordingApiKey = form.sessionRecordingApiKey.value.trim();
+    const uriRegexToIntercept = form.uriRegexToIntercept.value.trim();
+
+    // Validate required fields
+    if (!projectId || !sessionRecordingApiKey || !uriRegexToIntercept) {
+      alert('Error: Please fill in all required fields: Project ID, Session Recording API Key, and URI Regex to Intercept.');
+      return;
+    }
+
     chrome.storage.sync.set({
-      projectId: form.projectId.value,
-      sessionRecordingApiKey: form.sessionRecordingApiKey.value,
-      endpoint: form.endpoint.value,
+      projectId: projectId,
+      sessionRecordingApiKey: sessionRecordingApiKey,
+      endpoint: form.endpoint.value.trim(),
       samplingProbabilityOnError: 0.0,
       samplingProbability: 1.0,
-      maxSessionDurationSecs: form.maxSessionDurationSecs.value,
+      maxSessionDurationSecs: form.maxSessionDurationSecs.value.trim(),
       eventWindowToSaveOnError: 200,
-      uriRegexToIntercept: form.uriRegexToIntercept.value,
-      currentUserId: form.currentUserId.value
+      uriRegexToIntercept: uriRegexToIntercept,
+      currentUserId: form.currentUserId.value.trim()
     }, function() {
       alert('Settings saved');
     });
