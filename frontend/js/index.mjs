@@ -319,7 +319,7 @@ async function enableRequestIntercept(config) {
   // Add listeners for the 'response' event on the BatchInterceptor
   interceptor.on('response', async ({ response, requestId }) => {
     let matchedUntracedUri = untracedUrisToTrackRegex.some(regex => response.url.match(regex));
-    let matchedExcludedUri=excludedUriRegexList.some(regex=>request.url.match(regex));
+    let matchedExcludedUri=excludedUriRegexList.some(regex=>response.url.match(regex));
     if(!matchedExcludedUri){
         if (matchedUntracedUri || requestUrls.has(requestId)) {
           // Capture response body and headers

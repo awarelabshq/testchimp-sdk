@@ -327,6 +327,44 @@ chrome.webRequest.onBeforeRequest.addListener(
         ["requestBody"]
 );
 
+const cleanKey = (key) => {
+    // Remove any boundary artifacts or extra characters
+    return key
+        .replace(/--.*$/g, '')  // Remove any content after a boundary
+        .replace(/Content-Disposition: form-data; name="(.+?)"/, '$1')  // Extract key from header
+        .trim();  // Trim any leading or trailing whitespace
+};
+
+const parseMultipartBody = (bodyText, boundary) => {
+    const keyValueMap = {};
+    const boundaryDelimiter = `--${boundary}`;
+    const boundaryEnd = `${boundaryDelimiter}--`;
+
+    // Split the body text into parts by the boundary delimiter
+    const parts = bodyText.split(boundaryDelimiter).filter(part => part.trim() !== '');
+
+    parts.forEach(part => {
+        // Skip the final boundary end part
+        if (part.endsWith(boundaryEnd)) {
+            part = part.slice(0, -boundaryEnd.length);
+        }
+
+        // Extract the content disposition and body content
+        const [header, ...bodyArray] = part.split('\r\n\r\n');
+        const body = bodyArray.join('\r\n\r\n').trim();
+
+        const match = header.match(/Content-Disposition: form-data; name="(.+?)"/);
+        if (match) {
+            const key = cleanKey(match[1]);
+            // Extract the value, if present
+            const value = body;
+            keyValueMap[key] = value;
+        }
+    });
+
+    return keyValueMap;
+};
+
 chrome.webRequest.onBeforeSendHeaders.addListener(
     async (details) => {
             const {
@@ -381,8 +419,39 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                     requestIdToSpanIdMap.set(requestId, spanId);
                     // Process the request payload if body details are available
                     try {
-                        const body=requestBodyDetails.requestBody;
-                        const bodyText = body?.raw ? body.raw.map(part => new TextDecoder().decode(part.bytes)).join('') : '';
+                        const body = requestBodyDetails.requestBody;
+                        // Extract the formData from requestBody if it exists
+                        const formData = body?.formData;
+
+                        // Prepare the body text based on formData or fallback to raw if formData is not available
+                        let bodyText = '';
+                        if (formData) {
+                            // Convert formData object to a query string format
+                            const keyValueMap = {};
+                            Object.keys(formData).forEach(key => {
+                                // Since the value is an array, extract the first element
+                                const valueArray = formData[key];
+                                const value = (Array.isArray(valueArray) && valueArray.length > 0) ? valueArray[0] : '';
+                                keyValueMap[key] = value;
+                            });
+                            bodyText = new URLSearchParams(keyValueMap).toString();
+                        } else {
+                            // Fallback to raw body if formData is not available
+                            bodyText = body?.raw ?
+                                body.raw.map(part => new TextDecoder().decode(part.bytes)).join('') : '';
+                            const contentTypeHeader = requestHeaders.find(header => header.name.toLowerCase() === 'content-type');
+                            const contentType = contentTypeHeader ? contentTypeHeader.value : '';
+                            const boundaryMatch = contentType.match(/boundary=([^;]+)/);
+                            if (boundaryMatch) {
+                                const boundary = boundaryMatch[1];
+                                if (bodyText.includes(`--${boundary}`)) {
+                                    const keyValueMap = parseMultipartBody(bodyText, boundary);
+                                    bodyText = new URLSearchParams(keyValueMap).toString();
+                                }
+                            }
+                        }
+
+                        // Create the requestPayload object
                         const requestPayload = await populateHttpPayload(config, {
                             method: details.method,
                             url:url,
