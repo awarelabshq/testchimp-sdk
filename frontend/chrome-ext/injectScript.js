@@ -38,36 +38,45 @@
     return response;
   };
 
-  const originalXhrOpen = XMLHttpRequest.prototype.open;
-  XMLHttpRequest.prototype.open = function(...args) {
-    this.addEventListener('load', function() {
+const originalXhrOpen = XMLHttpRequest.prototype.open;
+XMLHttpRequest.prototype.open = function(...args) {
+  const method = args[0];
+  let url = args[1];
 
-      const rawHeaders = this.getAllResponseHeaders().trim().split(/[\r\n]+/);
-      const responseHeaders = rawHeaders.map(header => {
-        const [name, value] = header.split(': ');
-        return { name, value };
-      });
+  // Check if the URL is relative
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    // Prepend the document location origin to make it a full URL
+    url = `${window.location.origin}${url}`;
+  }
 
-      const contentLength = responseHeaders?.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
-      const key = `${args[1]}|${contentLength}`;
-      const requestId = requestIdMap.get(key);
+  this.addEventListener('load', function() {
+    const rawHeaders = this.getAllResponseHeaders().trim().split(/[\r\n]+/);
+    const responseHeaders = rawHeaders.map(header => {
+      const [name, value] = header.split(': ');
+      return { name, value };
+    });
 
-      const event = new CustomEvent('interceptedResponse', {
-        detail: {
-          responseHeaders: responseHeaders,
-          responseBody: this.responseText,
-          statusCode: this.status,
-          url:args[1],
-          requestId: requestId
-        }
-      });
-      window.dispatchEvent(event);
-      if (requestId) {
-        requestIdMap.delete(key);
+    const contentLength = responseHeaders?.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
+    const key = `${url}|${contentLength}`;
+    const requestId = requestIdMap.get(key);
+
+    const event = new CustomEvent('interceptedResponse', {
+      detail: {
+        responseHeaders: responseHeaders,
+        responseBody: this.responseText,
+        statusCode: this.status,
+        url: url,
+        requestId: requestId
       }
     });
-    return originalXhrOpen.apply(this, args);
-  };
+    window.dispatchEvent(event);
+    if (requestId) {
+      requestIdMap.delete(key);
+    }
+  });
+
+  return originalXhrOpen.apply(this, [method, url, ...args.slice(2)]);
+};
 
   window.addEventListener('interceptResponseBody', (event) => {
     const { requestId, url, statusCode, responseHeaders } = event.detail;
