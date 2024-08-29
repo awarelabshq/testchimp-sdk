@@ -371,6 +371,8 @@ public class DefaultRequestExtractor implements IExtractor {
         }
         if (sessionRecordTrackingIdHeader != null && !sessionRecordTrackingIdHeader.isEmpty() && originalHeaderMap.containsKey(sessionRecordTrackingIdHeader)) {
             spanAttributes.put(Constants.HEADER_EXTRACTED_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, originalHeaderMap.get(sessionRecordTrackingIdHeader));
+            // The session is managed by client specified header. Therefore, no chunking.
+            spanAttributes.put(Constants.HEADER_EXTRACTED_PARENT_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, originalHeaderMap.get(sessionRecordTrackingIdHeader));
         }
         for (String headerAttrib : headerAttribsToExtract) {
             if (originalHeaderMap.containsKey(headerAttrib)) {

@@ -184,6 +184,7 @@ public class HttpRequestCaptureFilter implements Filter {
         String trackedTestInvocationId = httpServletRequest.getHeader(Constants.TRACKED_TEST_INVOCATION_ID_HEADER_KEY);
         String trackedTestStep = httpServletRequest.getHeader(Constants.TRACKED_TEST_STEP_HEADER_KEY);
         String headerExtractedSessionRecordingTrackingId = httpServletRequest.getHeader(Constants.TC_SESSION_RECORDING_TRACKING_ID_HEADER_KEY);
+        String headerExtractedParentSessionRecordingTrackingId = httpServletRequest.getHeader(Constants.TC_PARENT_SESSION_RECORDING_TRACKING_ID_HEADER_KEY);
         String headerExtractedCurrentUserId = httpServletRequest.getHeader(Constants.TC_CURRENT_USER_ID_HEADER_KEY);
         Cookie[] cookies = httpServletRequest.getCookies();
         if (cookies != null) {
@@ -192,10 +193,17 @@ public class HttpRequestCaptureFilter implements Filter {
                     span.setAttribute(Constants.HEADER_EXTRACTED_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, cookie.getValue());
                     break;
                 }
+                if (cookie.getName().equals(Constants.TC_PARENT_SESSION_RECORD_TRACKING_ID_COOKIE_NAME)) {
+                    span.setAttribute(Constants.HEADER_EXTRACTED_PARENT_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, cookie.getValue());
+                    break;
+                }
             }
         }
         if (headerExtractedSessionRecordingTrackingId != null && !headerExtractedSessionRecordingTrackingId.isEmpty()) {
             span.setAttribute(Constants.HEADER_EXTRACTED_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, headerExtractedSessionRecordingTrackingId);
+        }
+        if (headerExtractedParentSessionRecordingTrackingId != null && !headerExtractedParentSessionRecordingTrackingId.isEmpty()) {
+            span.setAttribute(Constants.HEADER_EXTRACTED_PARENT_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE, headerExtractedParentSessionRecordingTrackingId);
         }
         if (headerExtractedCurrentUserId != null && !headerExtractedCurrentUserId.isEmpty()) {
             span.setAttribute(Constants.USER_ID_SPAN_ATTRIBUTE, headerExtractedCurrentUserId);

@@ -8,9 +8,12 @@ public class Constants {
     public static final String TRACKED_TEST_TYPE_HEADER_KEY = "trackedtest.type";
     public static final String TRACKED_TEST_INVOCATION_ID_HEADER_KEY = "trackedtest.invocation-id";
     public static final String TC_SESSION_RECORD_TRACKING_ID_COOKIE_NAME = "testchimp.session-record-tracking-id";
+    public static final String TC_PARENT_SESSION_RECORD_TRACKING_ID_COOKIE_NAME = "testchimp.parent-session-record-tracking-id";
     public static final String TC_SESSION_RECORDING_TRACKING_ID_HEADER_KEY = "testchimp-session-record-tracking-id";
+    public static final String TC_PARENT_SESSION_RECORDING_TRACKING_ID_HEADER_KEY = "testchimp-parent-session-record-tracking-id";
     public static final String TC_CURRENT_USER_ID_HEADER_KEY = "testchimp-current-user-id";
     public static final String HEADER_EXTRACTED_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE = "http.request.header.testchimp-session-record-tracking-id";
+    public static final String HEADER_EXTRACTED_PARENT_SESSION_RECORDING_TRACKING_ID_SPAN_ATTRIBUTE = "http.request.header.testchimp-parent-session-record-tracking-id";
 
     public static final String HEADER_EXTRACTED_PREFIX = "http.request.header.";
 

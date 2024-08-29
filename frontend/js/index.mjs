@@ -101,14 +101,38 @@ function getSessionIdFromCookie(cookieKey) {
 }
 
 function setTrackingIdCookie(sessionId) {
-  var existingCookie = getCookie("testchimp.session-record-tracking-id");
-  if (existingCookie === "") {
-    document.cookie = "testchimp.session-record-tracking-id" + "=" + sessionId + ";path=/";
-  }
+    var existingCookie = getCookie("testchimp.session-record-tracking-id");
+    if (existingCookie === "") {
+       document.cookie = "testchimp.session-record-tracking-id=" + sessionId + ";path=/;max-age=600;";
+    }
+    var parentSessionCookie=getCookie("testchimp.parent-session-record-tracking-id");
+    if (parentSessionCookie === "") {
+        document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
+    }
 }
 
 function getTrackingIdCookie(){
-    return getCookie("testchimp.session-record-tracking-id");
+  var existingCookie=getCookie("testchimp.session-record-tracking-id");
+  if (existingCookie === "") {
+    sessionId = generateSessionId();
+    document.cookie = "testchimp.session-record-tracking-id=" + sessionId + ";path=/;max-age=600;";
+    var parentSessionCookie=getCookie("testchimp.parent-session-record-tracking-id");
+    if (parentSessionCookie === "") {
+        document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
+    }
+    return sessionId;
+  }
+  return existingCookie;
+}
+
+function getParentTrackingIdCookie(){
+    var parentSessionCookie=getCookie("testchimp.parent-session-record-tracking-id");
+    if (parentSessionCookie === "") {
+        sessionId = generateSessionId();
+        document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
+        return sessionId;
+    }
+    return parentSessionCookie;
 }
 
 function getCookie(name) {
@@ -239,6 +263,7 @@ async function enableRequestIntercept(config) {
   let excludedUriRegexList=config.excludedUriRegexList;
   let enableOptionsCallTracking=config.enableOptionsCallTracking;
 
+  const parentSessionId = getParentTrackingIdCookie();
   if (typeof urlRegex === 'string') {
     urlRegex = [urlRegex];
   }
@@ -252,8 +277,7 @@ async function enableRequestIntercept(config) {
   }
 
   // Get sessionId from the storage
-  const sessionId = getTrackingIdCookie();
-  log(config, "Using interception to add tracking cookie in header value: " + sessionId + " for url regex: " + urlRegex);
+  log(config, "Using interception to add tracking cookie for url regex: " + urlRegex);
 
   // Create instances of the interceptors
   const fetchInterceptor = new FetchInterceptor();
@@ -276,6 +300,7 @@ async function enableRequestIntercept(config) {
     if (!enableOptionsCallTracking && request.method === 'OPTIONS') {
         return;
     }
+    let sessionId = getTrackingIdCookie();
     let matchedTracedUri = urlRegex.some(regex => request.url.match(regex));
     let matchedUntracedUri = untracedUrisToTrackRegex.some(regex => request.url.match(regex));
     let matchedExcludedUri=excludedUriRegexList.some(regex=>request.url.match(regex));
@@ -284,6 +309,7 @@ async function enableRequestIntercept(config) {
           log(config, "request matches regex for interception " + request.url);
           // Add the 'testchimp-session-record-tracking-id' header
           request.headers.set('testchimp-session-record-tracking-id', sessionId);
+          request.headers.set('testchimp-parent-session-record-tracking-id', parentSessionId);
           let currentUserId=getCurrentUserId();
           if(currentUserId){
             request.headers.set('testchimp-current-user-id', currentUserId);
@@ -321,7 +347,8 @@ async function enableRequestIntercept(config) {
     let matchedUntracedUri = untracedUrisToTrackRegex.some(regex => response.url.match(regex));
     let matchedExcludedUri=excludedUriRegexList.some(regex=>response.url.match(regex));
     if(!matchedExcludedUri){
-        if (matchedUntracedUri || requestUrls.has(requestId)) {
+      let sessionId = getTrackingIdCookie();
+      if (matchedUntracedUri || requestUrls.has(requestId)) {
           // Capture response body and headers
           try {
             const responsePayload = await populateHttpPayload(config,response);
@@ -348,6 +375,7 @@ async function enableRequestIntercept(config) {
                 current_user_id: getCurrentUserId(), // Include the current_user_id
                 url: requestUrl, // Use the stored request.url
                 tracking_id: sessionId,
+                parent_tracking_id:parentSessionId,
                 environment: config.environment,
                 request_timestamp: new Date().getTime(),
                 response_timestamp: new Date().getTime()
@@ -371,7 +399,7 @@ async function enableRequestIntercept(config) {
 }
 
 // Function to send events to the backend and reset the events array
-function sendEvents(endpoint, config, sessionId, events) {
+function sendEvents(endpoint, config, events) {
   if (events.length === 0 || !config.projectId || !config.sessionRecordingApiKey) return;
 
   const sessionRecordEvents = events.map(event => {
@@ -383,8 +411,11 @@ function sendEvents(endpoint, config, sessionId, events) {
   // Clear the event buffer. While sendEvents is used in both onError and normal recording, the eventBuffer is utilized only in normal recording.
   eventBuffer = [];
 
+  let sessionId=getTrackingIdCookie();
+  let parentSessionId=getParentTrackingIdCookie();
   const body = {
     tracking_id: sessionId,
+    parent_tracking_id:parentSessionId,
     aware_project_id: config.projectId,
     aware_session_tracking_api_key: config.sessionRecordingApiKey,
     event_list:{
@@ -416,7 +447,7 @@ function startSendingEventsWithCheckout(config) {
 }
 
 // Function to start sending events in batches every 5 seconds
-function startSendingEvents(endpoint, config, sessionId) {
+function startSendingEvents(endpoint, config) {
 
   stopFn =record({
     emit: function (event) {
@@ -429,7 +460,7 @@ function startSendingEvents(endpoint, config, sessionId) {
   var intervalId = setInterval(function () {
     var sessionDuration = (new Date().getTime() - sessionStartTime) / 1000;
     if (!config.maxSessionDurationSecs || (config.maxSessionDurationSecs && sessionDuration < config.maxSessionDurationSecs)) {
-      sendEvents(endpoint, config, sessionId, eventBuffer);
+      sendEvents(endpoint, config, eventBuffer);
     } else {
       clearInterval(intervalId); // Clear the interval
       if (typeof stopFn === 'function') {
@@ -448,10 +479,10 @@ function stopSendingEvents() {
   }
 }
 
-function initRecording(endpoint,config,sessionId){
+function initRecording(endpoint,config){
   // Start sending events
   if (shouldRecordSession) {
-    startSendingEvents(endpoint, config, sessionId);
+    startSendingEvents(endpoint, config);
   } else {
     if (shouldRecordSessionOnError) {
       startSendingEventsWithCheckout(config);
@@ -461,6 +492,7 @@ function initRecording(endpoint,config,sessionId){
 
 function clearTrackingIdCookie(){
     document.cookie = "testchimp.session-record-tracking-id=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;max-age=0;";
+    document.cookie = "testchimp.parent-session-record-tracking-id=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;max-age=0;";
 }
 
 function endTrackedSession(){
@@ -542,11 +574,11 @@ async function startRecording(config) {
     if (shouldRecordSessionOnError && !shouldRecordSession) {
       const len = eventsMatrix.length;
       const events = eventsMatrix[len - 2].concat(eventsMatrix[len - 1]);
-      sendEvents(endpoint, config, sessionId, events);
+      sendEvents(endpoint, config, events);
     }
   };
 
-  initRecording(endpoint, config, sessionId);
+  initRecording(endpoint, config);
 }
 
 

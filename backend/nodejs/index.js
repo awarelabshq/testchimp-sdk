@@ -23,6 +23,7 @@ const Constants = {
     TRACKED_TEST_TYPE_HEADER_KEY: 'trackedtest.type',
     TRACKED_TEST_INVOCATION_ID_HEADER_KEY: 'trackedtest.invocation-id',
     TESTCHIMP_SESSION_RECORD_TRACKING_ID_HEADER_KEY: 'testchimp-session-record-tracking-id',
+    TESTCHIMP_PARENT_SESSION_RECORD_TRACKING_ID_HEADER_KEY: 'testchimp-parent-session-record-tracking-id',
     TESTCHIMP_USER_ID_HEADER_KEY:'testchimp-current-user-id',
     USER_ID_SPAN_ATTRIBUTE:'testchimp.derived.user.id',
     HEADER_EXTRACTED_PREFIX: 'header.extracted.'
@@ -30,6 +31,7 @@ const Constants = {
 
 let log_level="none";
 let session_record_tracking_id_header=Constants.TESTCHIMP_SESSION_RECORD_TRACKING_ID_HEADER_KEY;
+let parent_session_record_tracking_id_header=Constants.TESTCHIMP_PARENT_SESSION_RECORD_TRACKING_ID_HEADER_KEY;
 let enable_options_call_tracking=false;
 
 function log(stmt,level){
@@ -84,6 +86,8 @@ function createMappings(config) {
         }
         if(config.global_config.session_record_tracking_id_header){
             session_record_tracking_id_header=config.global_config.session_record_tracking_id_header;
+            // Session is managed by client specified cookie. So, no chunking.
+            parent_session_record_tracking_id_header=config.global_config.session_record_tracking_id_header;
         }
         if(config.global_config.enable_options_call_tracking){
             enable_options_call_tracking=config.global_config.enable_options_call_tracking;
@@ -197,10 +201,14 @@ function extractTrackingHeaders(req, span) {
     const trackedTestInvocationId = headers[Constants.TRACKED_TEST_INVOCATION_ID_HEADER_KEY];
     const trackedTestStep = headers[Constants.TRACKED_TEST_STEP_HEADER_KEY];
     const headerExtractedSessionRecordingTrackingId = headers[session_record_tracking_id_header];
+    const headerExtractedParentSessionRecordingTrackingId = headers[parent_session_record_tracking_id_header];
     const headerExtractedCurrentUserId = headers[Constants.TESTCHIMP_USER_ID_HEADER_KEY];
 
     if (headerExtractedSessionRecordingTrackingId) {
         span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TESTCHIMP_SESSION_RECORD_TRACKING_ID_HEADER_KEY, headerExtractedSessionRecordingTrackingId);
+    }
+    if (headerExtractedParentSessionRecordingTrackingId) {
+        span.setAttribute(Constants.HEADER_EXTRACTED_PREFIX + Constants.TESTCHIMP_PARENT_SESSION_RECORD_TRACKING_ID_HEADER_KEY, headerExtractedParentSessionRecordingTrackingId);
     }
     if (headerExtractedCurrentUserId) {
         span.setAttribute(Constants.USER_ID_SPAN_ATTRIBUTE, headerExtractedCurrentUserId);
