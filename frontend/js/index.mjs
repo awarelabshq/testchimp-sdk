@@ -114,7 +114,7 @@ function setTrackingIdCookie(sessionId) {
 function getTrackingIdCookie(){
   var existingCookie=getCookie("testchimp.session-record-tracking-id");
   if (existingCookie === "") {
-    sessionId = generateSessionId();
+    var sessionId = generateSessionId();
     document.cookie = "testchimp.session-record-tracking-id=" + sessionId + ";path=/;max-age=600;";
     var parentSessionCookie=getCookie("testchimp.parent-session-record-tracking-id");
     if (parentSessionCookie === "") {
@@ -128,7 +128,7 @@ function getTrackingIdCookie(){
 function getParentTrackingIdCookie(){
     var parentSessionCookie=getCookie("testchimp.parent-session-record-tracking-id");
     if (parentSessionCookie === "") {
-        sessionId = generateSessionId();
+        var sessionId = generateSessionId();
         document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
         return sessionId;
     }
