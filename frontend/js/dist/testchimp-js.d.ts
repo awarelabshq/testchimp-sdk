@@ -3,7 +3,7 @@
 declare module 'testchimp-js' {
   export interface TestChimpSDKConfig {
     enableRecording?: boolean;
-    endpoint: string;
+    endpoint?: string;
     projectId: string;
     sessionRecordingApiKey: string;
     samplingProbability?: number;

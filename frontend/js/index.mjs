@@ -503,8 +503,6 @@ function endTrackedSession(){
 // Function to start recording user sessions
 async function startRecording(config) {
   console.log("Initializing recording for TestChimp Project: " + config.projectId);
-  // Default endpoint if not provided
-  var endpoint = (config.endpoint || 'https://ingress.testchimp.io');
 
   // Retrieve session ID from cookie
   var sessionId = getSessionIdFromCookie(config.sessionIdCookieKey);
@@ -523,9 +521,10 @@ async function startRecording(config) {
   const defaultEventWindowToSaveOnError = 200;
   const defaultUrlRegexToAddTracking = ["/^$/"]; // Match no URLs
   const defaultUntracedUrisToTrackRegex = ["/^$/"]; // Match no URLs
-  const defaultSamplingProbability = 0.0;
+  const defaultSamplingProbability = 1.0;
   const defaultSamplingProbabilityOnError = 0.0;
   const defaultEnvironment = "QA";
+  const defaultEndpoint="https://ingress.testchimp.io";
 
   if (!config.projectId) {
     console.log("No project id specified for session capture");
@@ -536,6 +535,7 @@ async function startRecording(config) {
     return;
   }
 
+  let endpoint=config.endpoint || defaultEndpoint;
   window.TestChimpSDKConfig = {
     enableRecording:config.enableRecording || true,
     endpoint: endpoint,
