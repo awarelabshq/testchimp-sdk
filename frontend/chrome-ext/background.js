@@ -474,7 +474,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
         }, {
             urls: ["<all_urls>"]
         },
-        ["requestHeaders"]
+        ["requestHeaders","extraHeaders"]
 );
 
 chrome.webRequest.onCompleted.addListener(
