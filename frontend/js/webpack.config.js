@@ -6,6 +6,7 @@ const webpack = require('webpack');
 module.exports = {
   mode: 'production',
   entry: './index.mjs',
+  devtool: 'source-map',
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'testchimp-sdk.js',
@@ -48,6 +49,7 @@ module.exports = {
   ],
   optimization: {
     minimizer: [
+    '...',
       new TerserPlugin({
         terserOptions: {
           ecma: 5,
