@@ -278,7 +278,6 @@ async function enableRequestIntercept(config) {
 
   // Get sessionId from the storage
   log(config, "Using interception to add tracking cookie for url regex: " + urlRegex);
-
   // Create instances of the interceptors
   const fetchInterceptor = new FetchInterceptor();
   const xhrInterceptor = new XMLHttpRequestInterceptor();

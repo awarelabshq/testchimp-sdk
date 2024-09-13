@@ -1,16 +1,17 @@
 {
   "name": "testchimp-js",
-  "version": "1.0.126",
-  "description": "TestChimp SDK for js",
-  "main": "dist/testchimp-sdk.js",
+  "version": "1.0.127",
+  "description": "TestChimp SDK for JS",
+  "main": "dist/testchimp-sdk.cjs.js",
+  "module": "dist/testchimp-sdk.esm.js",
+  "browser": "dist/testchimp-sdk.umd.js",
   "types": "dist/testchimp-js.d.ts",
-  "module": "dist/testchimp-sdk.js",
-  "sourcemap": "dist/testchimp-sdk.js.map",
+  "sourcemap": "dist/testchimp-sdk.umd.js.map",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "webpack",
+    "build": "webpack --config webpack.config.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
