@@ -164,7 +164,8 @@ function sendPayloadToEndpoint(payload, endpoint) {
   });
 }
 
-async function populateHttpPayload(config, rawPayload) {
+async function populateHttpPayload(config, rawPayloadIn) {
+    var rawPayload=rawPayloadIn.clone();
     const method = rawPayload.method;
     const httpPayload = {
         headerMap: {},
