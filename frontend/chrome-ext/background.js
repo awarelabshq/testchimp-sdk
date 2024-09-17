@@ -23,6 +23,9 @@ async function getTrackingIdCookie() {
 
         if (tabs.length === 0) return '';
         console.log("Checking url " + tabs[0].url);
+        if(!tabs[0].url){
+            return '';
+        }
         const currentUrl = new URL(tabs[0].url);
 
         return new Promise((resolve, reject) => {
@@ -37,16 +40,6 @@ async function getTrackingIdCookie() {
     } catch (error) {
             console.error('Error checking current tab cookie:', error);
             return '';
-    }
-}
-
-async function checkCurrentTabUrl() {
-    try {
-        const cookie = await getTrackingIdCookie();
-        return cookie && cookie.trim() !== '';
-    } catch (error) {
-        console.error('Error checking current tab cookie:', error);
-        return false;
     }
 }
 
@@ -285,16 +278,29 @@ async function populateHttpPayload(config, details) {
     return httpPayload;
 }
 
+async function checkUrl(url){
+      const config = await getConfig();
+      const matchedTracedUri = config.tracedUriRegexListToTrack.some(regex => url.match(regex));
+      const matchedUntracedUri = config.untracedUriRegexListToTrack.some(regex => url.match(regex));
+      const matchedExcludedUri = config.excludedUriRegexList.some(regex => url.match(regex));
+      if(!matchedExcludedUri) {
+        if(matchedTracedUri || matchedUntracedUri) {
+            return true;
+        }
+      }
+      return false;
+}
 
 chrome.webRequest.onBeforeRequest.addListener(
     async (details) => {
+        console.log("Details before request",details);
             const {
                 requestId,
                 method,
                 url,
                 requestBody
             } = details;
-            const isMatchingUrl= await checkCurrentTabUrl();
+            const isMatchingUrl= await checkUrl(url);
             if(!isMatchingUrl){
                 return;
             }
@@ -309,18 +315,10 @@ chrome.webRequest.onBeforeRequest.addListener(
                 return;
             }
 
-            const matchedTracedUri = config.tracedUriRegexListToTrack.some(regex => url.match(regex));
-            const matchedUntracedUri = config.untracedUriRegexListToTrack.some(regex => url.match(regex));
-            const matchedExcludedUri = config.excludedUriRegexList.some(regex => url.match(regex));
+            requestDetailsMap.set(requestId, {
+                requestBody: requestBody.clone()
+            });
 
-            if(!matchedExcludedUri) {
-                if(matchedTracedUri || matchedUntracedUri) {
-                    // Store the request body details in the map
-                    requestDetailsMap.set(requestId, {
-                        requestBody: requestBody
-                    });
-                }
-            }
         }, {
             urls: ["<all_urls>"]
         },
@@ -373,7 +371,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                 method,
                 url
             } = details;
-            const isMatchingUrl= await checkCurrentTabUrl();
+            const isMatchingUrl= await checkUrl(url);
             if(!isMatchingUrl){
                 return requestHeaders;
             }
@@ -479,7 +477,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
 
 chrome.webRequest.onCompleted.addListener(
   async (details) =>{
-    const isMatchingUrl= await checkCurrentTabUrl();
+    const isMatchingUrl= await checkUrl(details.url);
     if(!isMatchingUrl){
         return;
     }
@@ -505,8 +503,8 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             statusCode,
             url
         } = message;
-    const isValidUrl=await checkCurrentTabUrl();
-    if(!isValidUrl){
+    const isMatchingUrl= await checkUrl(url);
+    if(!isMatchingUrl){
         return;
     }
     const config = await getConfig();

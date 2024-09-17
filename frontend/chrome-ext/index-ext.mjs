@@ -12,7 +12,7 @@ if (!window.__scriptInjected) {
 
 window.addEventListener('interceptedResponse', (event) => {
   const { responseHeaders, responseBody, statusCode, url, requestId } = event.detail;
-  chrome.runtime.sendMessage({
+  chrome.runtime?.sendMessage({
     type: 'capturedResponse',
     requestId: requestId,
     responseHeaders: responseHeaders,

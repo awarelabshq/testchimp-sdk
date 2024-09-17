@@ -563,7 +563,6 @@ async function startRecording(config) {
   shouldRecordSessionOnError = config.samplingProbabilityOnError && Math.random() <= config.samplingProbabilityOnError;
 
   log(config, "Should record session: " + shouldRecordSession + " should record on error: " + shouldRecordSessionOnError);
-
   // Intercept all outgoing requests and add additional HTTP header
   if (shouldRecordSession || shouldRecordSessionOnError) {
     log(config, "Setting tracking id in cookie " + sessionId);

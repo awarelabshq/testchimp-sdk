@@ -43,11 +43,24 @@ XMLHttpRequest.prototype.open = function(...args) {
   const method = args[0];
   let url = args[1];
 
+  const isAsync = args.length > 2 ? args[2] : false;
+
   // Check if the URL is relative
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    // Prepend the document location origin to make it a full URL
-    url = `${window.location.origin}${url}`;
-  }
+      // Construct the full URL by combining origin and current path
+      let baseUrl;
+      if(isAsync){
+       baseUrl = `${window.location.origin}${window.location.pathname}`;
+       const lastSlashIndex = baseUrl.lastIndexOf('/');
+       baseUrl = baseUrl.substring(0, lastSlashIndex + 1);
+      }else{
+       baseUrl = `${window.location.origin}`;
+      }
+      // Remove any trailing file name or query string to avoid incorrect URL concatenation
+
+      // Prepend the base path to the relative URL
+      url = `${baseUrl}${url}`;
+    }
 
   this.addEventListener('load', function() {
     const rawHeaders = this.getAllResponseHeaders().trim().split(/[\r\n]+/);
@@ -75,7 +88,7 @@ XMLHttpRequest.prototype.open = function(...args) {
     }
   });
 
-  return originalXhrOpen.apply(this, [method, url, ...args.slice(2)]);
+  return originalXhrOpen.apply(this, args);
 };
 
   window.addEventListener('interceptResponseBody', (event) => {
