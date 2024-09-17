@@ -7,13 +7,16 @@ const responsePayloads = {};
 const requestIdToSpanIdMap = new Map();
 const requestUrls = new Map();
 const requestDetailsMap = new Map();
-const urlToRequestIdMap=new Map();
-const urlToResponsePayloadMap=new Map();
+const urlToRequestIdMap = new Map();
+const urlToResponsePayloadMap = new Map();
 
 async function getTrackingIdCookie() {
     try {
-       const tabs = await new Promise((resolve, reject) => {
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const tabs = await new Promise((resolve, reject) => {
+            chrome.tabs.query({
+                active: true,
+                currentWindow: true
+            }, (tabs) => {
                 if (chrome.runtime.lastError) {
                     return reject(chrome.runtime.lastError);
                 }
@@ -22,14 +25,16 @@ async function getTrackingIdCookie() {
         });
 
         if (tabs.length === 0) return '';
-        console.log("Checking url " + tabs[0].url);
-        if(!tabs[0].url){
+        if (!tabs[0].url) {
             return '';
         }
         const currentUrl = new URL(tabs[0].url);
 
         return new Promise((resolve, reject) => {
-            chrome.cookies.get({ url: `${currentUrl.protocol}//${currentUrl.host}`, name: 'testchimp.ext-session-record-tracking-id' }, (cookie) => {
+            chrome.cookies.get({
+                url: `${currentUrl.protocol}//${currentUrl.host}`,
+                name: 'testchimp.ext-session-record-tracking-id'
+            }, (cookie) => {
                 if (chrome.runtime.lastError) {
                     reject(chrome.runtime.lastError);
                 } else {
@@ -38,15 +43,15 @@ async function getTrackingIdCookie() {
             });
         });
     } catch (error) {
-            console.error('Error checking current tab cookie:', error);
-            return '';
+        console.error('Error checking current tab cookie:', error);
+        return '';
     }
 }
 
 
 function generateSpanId() {
     let spanId = '';
-    for(let i = 0; i < 8; i++) {
+    for (let i = 0; i < 8; i++) {
         // Generate a random byte and convert it to a 2-character hexadecimal string
         const byte = Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
         spanId += byte;
@@ -104,7 +109,7 @@ function generateTraceparent(parentSpanId) {
 }
 
 function log(config, log) {
-    if(config.enableLogging) {
+    if (config.enableLogging) {
         console.log(log);
     }
 }
@@ -125,24 +130,24 @@ function sendPayloadToEndpoint(payload, endpoint) {
 }
 
 function deleteEntriesByRequestId(map, requestIdToDelete) {
-  for (let [k, v] of map) {
-    if (v === requestIdToDelete) {
-      map.delete(k);
+    for (let [k, v] of map) {
+        if (v === requestIdToDelete) {
+            map.delete(k);
+        }
     }
-  }
 }
 
-async function sendPayloadForRequestId(requestId){
+async function sendPayloadForRequestId(requestId) {
     const config = await getConfig();
     const sessionId = await getTrackingIdCookie();
-    if(!sessionId){
+    if (!sessionId) {
         return;
     }
     const spanId = requestIdToSpanIdMap.get(requestId);
     const requestPayload = requestPayloads[requestId];
     const requestUrl = requestUrls.get(requestId);
 
-    if(requestPayload && requestUrl && spanId) {
+    if (requestPayload && requestUrl && spanId) {
 
         const responsePayload = responsePayloads[requestId];
 
@@ -171,7 +176,7 @@ async function sendPayloadForRequestId(requestId){
         sendPayloadToEndpoint(insertPayloadRequest, config.endpoint + '/insert_client_recorded_payloads');
         delete requestPayloads[requestId];
         delete responsePayloads[requestId];
-        deleteEntriesByRequestId(urlToRequestIdMap,requestId);
+        deleteEntriesByRequestId(urlToRequestIdMap, requestId);
     }
 }
 
@@ -197,42 +202,42 @@ async function populateHttpPayload(config, details) {
 
     // Convert headers to a plain object
     const headers = isRequest ? requestHeaders : responseHeaders;
-    if(headers && Array.isArray(headers)) {
+    if (headers && Array.isArray(headers)) {
         headers.forEach((header) => {
             httpPayload.headerMap[header.name] = header.value;
         });
     }
 
-    if(!isRequest && statusCode) {
+    if (!isRequest && statusCode) {
         httpPayload.responseCode = statusCode;
     }
 
     // Extract query parameters from the URL
-    if(url) {
-        try{
+    if (url) {
+        try {
             const urlParams = new URLSearchParams(new URL(url).search);
             urlParams.forEach((value, key) => {
                 httpPayload.queryParamMap[key] = value;
             });
-        }catch(error){
-            console.error("Error parsing url ",url);
+        } catch (error) {
+            console.error("Error parsing url ", url);
         }
     }
 
-    let contentType="";
-    try{
+    let contentType = "";
+    try {
         contentType = (headers && headers.find && headers.find(header => header.name.toLowerCase() === 'content-type'))?.value || '';
-    }catch(error){
-        console.error("error reading headers. isRequest: " + isRequest,error);
+    } catch (error) {
+        console.error("error reading headers. isRequest: " + isRequest, error);
     }
 
     // Handling body if present
     const bodyText = isRequest ? requestBody : responseBody;
-    if(bodyText) {
+    if (bodyText) {
         try {
-            if(contentType.includes('application/json')) {
+            if (contentType.includes('application/json')) {
                 httpPayload.jsonBody = JSON.stringify(JSON.parse(bodyText));
-            } else if(contentType.includes('multipart/form-data')) {
+            } else if (contentType.includes('multipart/form-data')) {
                 const formData = new URLSearchParams(bodyText);
                 const keyValueMap = {};
                 formData.forEach((value, key) => {
@@ -241,16 +246,16 @@ async function populateHttpPayload(config, details) {
                 httpPayload.httpFormDataBody = {
                     keyValueMap
                 };
-            } else if(contentType.includes('application/octet-stream')) {
+            } else if (contentType.includes('application/octet-stream')) {
                 const buffer = new Uint8Array(bodyText).buffer;
-                if(buffer.byteLength <= 10 * 1024 * 1024) {
+                if (buffer.byteLength <= 10 * 1024 * 1024) {
                     httpPayload.binaryDataBody = {
                         data: buffer
                     };
                 } else {
                     log(config, "Binary data exceeds 10MB. Dropping data.");
                 }
-            } else if(contentType.includes('application/x-www-form-urlencoded')) {
+            } else if (contentType.includes('application/x-www-form-urlencoded')) {
                 const formData = new URLSearchParams(bodyText);
                 const keyValueMap = {};
                 formData.forEach((value, key) => {
@@ -260,11 +265,11 @@ async function populateHttpPayload(config, details) {
                     keyValueMap
                 };
             } else {
-                if(contentType.includes('text/plain')) {
+                if (contentType.includes('text/plain')) {
                     httpPayload.textBody = bodyText;
-                } else if(contentType.includes('text/html')) {
+                } else if (contentType.includes('text/html')) {
                     httpPayload.htmlBody = bodyText;
-                } else if(contentType.includes('application/xml') || contentType.includes('text/xml')) {
+                } else if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
                     httpPayload.xmlBody = bodyText;
                 } else {
                     httpPayload.textBody = bodyText;
@@ -278,45 +283,53 @@ async function populateHttpPayload(config, details) {
     return httpPayload;
 }
 
-async function checkUrl(url){
-      const config = await getConfig();
-      const matchedTracedUri = config.tracedUriRegexListToTrack.some(regex => url.match(regex));
-      const matchedUntracedUri = config.untracedUriRegexListToTrack.some(regex => url.match(regex));
-      const matchedExcludedUri = config.excludedUriRegexList.some(regex => url.match(regex));
-      if(!matchedExcludedUri) {
-        if(matchedTracedUri || matchedUntracedUri) {
-            return true;
+async function checkUrl(url) {
+    if (!url) {
+        return false;
+    }
+    const config = await getConfig();
+    try {
+        const matchedTracedUri = config.tracedUriRegexListToTrack.some(regex => url.match(regex));
+        const matchedUntracedUri = config.untracedUriRegexListToTrack.some(regex => url.match(regex));
+        const matchedExcludedUri = config.excludedUriRegexList.some(regex => url.match(regex));
+        if (!matchedExcludedUri) {
+            if (matchedTracedUri || matchedUntracedUri) {
+                return true;
+            }
         }
-      }
-      return false;
+        return false;
+    } catch (error) {
+        console.log("Error during parsing ", url);
+        return false;
+    }
 }
 
 chrome.webRequest.onBeforeRequest.addListener(
     async (details) => {
-        console.log("Details before request",details);
             const {
                 requestId,
                 method,
                 url,
                 requestBody
             } = details;
-            const isMatchingUrl= await checkUrl(url);
-            if(!isMatchingUrl){
+
+            const isMatchingUrl = await checkUrl(url);
+            if (!isMatchingUrl) {
                 return;
             }
 
             const config = await getConfig();
             const sessionId = await getTrackingIdCookie();
 
-            if(!sessionId){
+            if (!sessionId) {
                 return;
             }
-            if(!config.enableOptionsCallTracking && method === 'OPTIONS') {
+            if (!config.enableOptionsCallTracking && method === 'OPTIONS') {
                 return;
             }
 
             requestDetailsMap.set(requestId, {
-                requestBody: requestBody.clone()
+                requestBody: requestBody
             });
 
         }, {
@@ -328,9 +341,9 @@ chrome.webRequest.onBeforeRequest.addListener(
 const cleanKey = (key) => {
     // Remove any boundary artifacts or extra characters
     return key
-        .replace(/--.*$/g, '')  // Remove any content after a boundary
-        .replace(/Content-Disposition: form-data; name="(.+?)"/, '$1')  // Extract key from header
-        .trim();  // Trim any leading or trailing whitespace
+        .replace(/--.*$/g, '') // Remove any content after a boundary
+        .replace(/Content-Disposition: form-data; name="(.+?)"/, '$1') // Extract key from header
+        .trim(); // Trim any leading or trailing whitespace
 };
 
 const parseMultipartBody = (bodyText, boundary) => {
@@ -371,17 +384,18 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                 method,
                 url
             } = details;
-            const isMatchingUrl= await checkUrl(url);
-            if(!isMatchingUrl){
+
+            const isMatchingUrl = await checkUrl(url);
+            if (!isMatchingUrl) {
                 return requestHeaders;
             }
 
             const config = await getConfig();
             const sessionId = await getTrackingIdCookie();
-            if(!sessionId){
-                return ;
+            if (!sessionId) {
+                return;
             }
-            if(!config.enableOptionsCallTracking && method === 'OPTIONS') {
+            if (!config.enableOptionsCallTracking && method === 'OPTIONS') {
                 return {
                     requestHeaders
                 };
@@ -391,15 +405,15 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
             const matchedUntracedUri = config.untracedUriRegexListToTrack.some(regex => url.match(regex));
             const matchedExcludedUri = config.excludedUriRegexList.some(regex => url.match(regex));
 
-            if(!matchedExcludedUri) {
-                if(matchedTracedUri) {
+            if (!matchedExcludedUri) {
+                if (matchedTracedUri) {
                     // Add tracking headers
                     headers.set('testchimp-session-record-tracking-id', sessionId);
                     const currentUserId = config.currentUserId;
-                    if(currentUserId) {
+                    if (currentUserId) {
                         headers.set('testchimp-current-user-id', currentUserId);
                     }
-                } else if(matchedUntracedUri) {
+                } else if (matchedUntracedUri) {
                     const headers = new Map(requestHeaders.map(header => [header.name, header.value]));
                     const requestBodyDetails = requestDetailsMap.get(requestId);
 
@@ -409,7 +423,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
 
                     // Generate traceparent if not present
                     let traceparent = headers.get('traceparent');
-                    if(!traceparent) {
+                    if (!traceparent) {
                         traceparent = generateTraceparent(generateSpanId());
                     }
                     const parts = traceparent.split('-');
@@ -452,8 +466,8 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                         // Create the requestPayload object
                         const requestPayload = await populateHttpPayload(config, {
                             method: details.method,
-                            url:url,
-                            requestHeaders:requestHeaders,
+                            url: url,
+                            requestHeaders: requestHeaders,
                             requestBody: bodyText
                         });
                         requestPayloads[requestId] = requestPayload;
@@ -472,30 +486,32 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
         }, {
             urls: ["<all_urls>"]
         },
-        ["requestHeaders","extraHeaders"]
+        ["requestHeaders", "extraHeaders"]
 );
 
 chrome.webRequest.onCompleted.addListener(
-  async (details) =>{
-    const isMatchingUrl= await checkUrl(details.url);
-    if(!isMatchingUrl){
-        return;
-    }
-    const contentLength = details.responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
-    const key = `${details.url}|${contentLength}`;
-    urlToRequestIdMap.set(key, details.requestId);
-    if(urlToResponsePayloadMap.has(key)){
-        responsePayloads[details.requestId]=urlToResponsePayloadMap.get(key);
-        await sendPayloadForRequestId(requestId);
-   }
-  },
-  { urls: ["<all_urls>"] },
-  ["responseHeaders"]
+    async (details) => {
+
+            const isMatchingUrl = await checkUrl(details.url);
+            if (!isMatchingUrl) {
+                return;
+            }
+            const contentLength = details.responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
+            const key = `${details.url}|${contentLength}`;
+            urlToRequestIdMap.set(key, details.requestId);
+            if (urlToResponsePayloadMap.has(key)) {
+                responsePayloads[details.requestId] = urlToResponsePayloadMap.get(key);
+                await sendPayloadForRequestId(requestId);
+            }
+        }, {
+            urls: ["<all_urls>"]
+        },
+        ["responseHeaders"]
 );
 
 
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-    if(message.type === 'capturedResponse') {
+    if (message.type === 'capturedResponse') {
         const {
             requestId,
             responseHeaders,
@@ -503,33 +519,32 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             statusCode,
             url
         } = message;
-    const isMatchingUrl= await checkUrl(url);
-    if(!isMatchingUrl){
-        return;
-    }
-    const config = await getConfig();
-
-    const responsePayload=await populateHttpPayload(config, {
-        url:url,
-        responseHeaders: responseHeaders,
-        responseBody: responseBody,
-        statusCode: statusCode
-    });
-    const contentLength = responseHeaders && responseHeaders.find && responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
-    const key = `${url}|${contentLength}`;
-    if(requestId){
-        responsePayloads[requestId]=responsePayload;
-        await sendPayloadForRequestId(requestId);
-    }else{
-        if(urlToRequestIdMap.has(key)){
-            const requestId=urlToRequestIdMap.get(key)
-            responsePayloads[requestId]=responsePayload;
-            await sendPayloadForRequestId(requestId);
-        }else{
-            urlToResponsePayloadMap.set(key,responsePayload);
+        const isMatchingUrl = await checkUrl(url);
+        if (!isMatchingUrl) {
+            return;
         }
+        const config = await getConfig();
+
+        const responsePayload = await populateHttpPayload(config, {
+            url: url,
+            responseHeaders: responseHeaders,
+            responseBody: responseBody,
+            statusCode: statusCode
+        });
+        const contentLength = responseHeaders && responseHeaders.find && responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
+        const key = `${url}|${contentLength}`;
+        if (requestId) {
+            responsePayloads[requestId] = responsePayload;
+            await sendPayloadForRequestId(requestId);
+        } else {
+            if (urlToRequestIdMap.has(key)) {
+                const requestId = urlToRequestIdMap.get(key)
+                responsePayloads[requestId] = responsePayload;
+                await sendPayloadForRequestId(requestId);
+            } else {
+                urlToResponsePayloadMap.set(key, responsePayload);
+            }
+        }
+
     }
-
-   }
 });
-

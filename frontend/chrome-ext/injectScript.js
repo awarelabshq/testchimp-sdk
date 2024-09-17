@@ -7,34 +7,61 @@
   const requestIdMap = new Map();
 
   const originalFetch = window.fetch;
+
   window.fetch = async function(...args) {
+    let url, options;
+
+    if (args.length === 1) {
+      options = args[0];
+      url = options.url || ''; // Default to empty if no URL is provided
+    } else if (args.length === 2) {
+      url = args[0];
+      options = args[1];
+    } else {
+
+    }
+
     const response = await originalFetch.apply(this, args);
     const clone = response.clone();
 
+    // Collect response headers
     const responseHeaders = {};
     clone.headers.forEach((value, name) => {
       responseHeaders[name] = value;
     });
 
-    clone.text().then(body => {
-      const contentLength = responseHeaders['content-length'] || '';
-      const key = `${args[1]}|${contentLength}`;
-      const requestId = requestIdMap.get(key);
+    // Read response body based on content type
+    let body;
+    const contentType = clone.headers.get('content-type') || '';
 
-      const event = new CustomEvent('interceptedResponse', {
-        detail: {
-          responseHeaders: responseHeaders,
-          responseBody: body,
-          statusCode: clone.status,
-          url:args[1],
-          requestId: requestId
-        }
-      });
-      window.dispatchEvent(event);
-      if (requestId) {
-        requestIdMap.delete(key);
+    if (contentType.includes('application/json')) {
+      body = await clone.json().catch(() => ''); // Default to empty if JSON parsing fails
+    } else if (contentType.includes('text/')) {
+      body = await clone.text();
+    } else {
+      body = await clone.blob().then(blob => blob.text()); // Fallback for other types
+    }
+
+    const contentLength = responseHeaders['content-length'] || '';
+    const key = `${url}|${contentLength}`;
+    const requestId = requestIdMap.get(key);
+
+    // Dispatch interceptedResponse event
+    const event = new CustomEvent('interceptedResponse', {
+      detail: {
+        responseHeaders: responseHeaders,
+        responseBody: body,
+        statusCode: clone.status,
+        url: url,
+        requestId: requestId
       }
     });
+    window.dispatchEvent(event);
+
+    if (requestId) {
+      requestIdMap.delete(key);
+    }
+
     return response;
   };
 
