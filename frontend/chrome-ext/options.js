@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     'endpoint',
     'maxSessionDurationSecs',
     'uriRegexToIntercept',
+    'excludedUriRegexList',
     'currentUserId'
   ], function(items) {
     form.projectId.value = items.projectId || '';
@@ -18,6 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
     form.endpoint.value = items.endpoint || '';
     form.maxSessionDurationSecs.value = items.maxSessionDurationSecs || '';
     form.uriRegexToIntercept.value = items.uriRegexToIntercept || '';
+    form.excludedUriRegexList.value = items.excludedUriRegexList || '';
     form.currentUserId.value = items.currentUserId || '';
   });
 
@@ -26,6 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const projectId = form.projectId.value.trim();
     const sessionRecordingApiKey = form.sessionRecordingApiKey.value.trim();
     const uriRegexToIntercept = form.uriRegexToIntercept.value.trim();
+    const excludedUriRegexList = form.excludedUriRegexList.value.trim();
 
     // Validate required fields
     if (!projectId || !sessionRecordingApiKey || !uriRegexToIntercept) {
@@ -42,6 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
       maxSessionDurationSecs: form.maxSessionDurationSecs.value.trim(),
       eventWindowToSaveOnError: 200,
       uriRegexToIntercept: uriRegexToIntercept,
+      excludedUriRegexList: excludedUriRegexList,
       currentUserId: form.currentUserId.value.trim()
     }, function() {
       alert('Settings saved');

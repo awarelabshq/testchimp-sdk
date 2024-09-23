@@ -131,7 +131,7 @@
 <div class="container">
     <div class="title-bar">
         <img src="images/icon-128.png" alt="TestChimp Logo">
-        <h1 class="title">TestChimp Chrome Extension v0.16</h1>
+        <h1 class="title">TestChimp Chrome Extension v0.17</h1>
     </div>
     <div class="form-panel">
         <div class="form-links">
@@ -164,6 +164,10 @@
                 <div class="form-group">
                     <label for="endpoint">TestChimp export endpoint</label>
                     <input type="text" id="endpoint" name="endpoint" value="https://ingress.testchimp.io" placeholder="https://ingress.testchimp.io">
+                </div>
+                <div class="form-group">
+                    <label for="excludedUriRegexList">URL (regex) to exclude in interception</label>
+                    <input type="text" id="excludedUriRegexList" name="excludedUriRegexList" placeholder=".*exclude-url\.com.*">
                 </div>
                 <div class="form-group">
                     <label for="maxSessionDurationSecs">Max Session Duration (Seconds)</label>
