@@ -2,32 +2,59 @@
 <html>
 <head>
     <title>TestChimp Popup</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/antd/4.16.13/antd.min.css" rel="stylesheet">
     <style>
         body {
             font-family: Arial, sans-serif;
             width: 300px;
-            padding: 20px;
+            padding: 10px;
             margin: 0;
         }
         .message {
-            margin-bottom: 20px;
-            font-size: 16px;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 1em;
         }
-        #controlButtonContainer {
+        .button-container {
             text-align: center;
         }
-        #controlButton {
-            background-color: #f44336; /* Red color */
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            display: inline-block;
+        .ant-btn {
+            width: 100%;
+            font-size: 1.2em;
+            height: 50px;
+            margin-bottom: 10px;
+            border-radius: 8px; /* Rounded corners */
         }
-        #controlButton:hover {
-            opacity: 0.8;
+        .ant-btn-small {
+            width: 100%;
+            font-size: 1em;
+            height: 30px;
+            margin-bottom: 10px;
+            border-radius: 8px; /* Rounded corners */
+        }
+        #startCapture {
+            background-color: #52c41a; /* Pleasant green */
+            border-color: #52c41a;
+            color: white;
+        }
+        #endCapture {
+            background-color: #ff4d4f; /* Pleasant red */
+            border-color: #ff4d4f;
+            color: white;
+        }
+        #recentSessionsButton {
+            background-color: white; /* White background */
+            border-color: grey; /* Black border */
+            color: black; /* Black text */
+            border-radius: 8px; /* Rounded corners */
+        }
+        #recentSessions {
+            display: none;
+            margin-top: 10px;
+        }
+        #recentSessionsLink {
+            cursor: pointer;
+            margin-bottom:5px;
         }
     </style>
 </head>
@@ -35,11 +62,14 @@
 <div class="message">
     <span id="tooltip"></span>
 </div>
-<div id="message" class="message">
-    <span id="lastSessionLink"></span>
-</div>
-<div id="controlButtonContainer">
-    <button id="controlButton" style="display: none;">End Current Session</button>
+<div class="button-container">
+    <button id="startCapture" class="ant-btn" style="display: none;">Start Capture</button>
+    <button id="endCapture" class="ant-btn" style="display: none;">End Capture</button>
+    <div id="message" class="message">
+        <span id="lastSessionLink"></span>
+    </div>
+    <button id="recentSessionsButton" class="ant-btn-small"> + Recent Sessions</button>
+    <div id="recentSessions" style="display: none;"></div> <!-- Hidden by default -->
 </div>
 
 <script src="popup.js"></script>

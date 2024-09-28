@@ -28,17 +28,14 @@ async function getTrackingIdCookie() {
         if (!tabs[0].url) {
             return '';
         }
-        const currentUrl = new URL(tabs[0].url);
 
+        // Retrieve the session ID from chrome.storage.local
         return new Promise((resolve, reject) => {
-            chrome.cookies.get({
-                url: `${currentUrl.protocol}//${currentUrl.host}`,
-                name: 'testchimp.ext-session-record-tracking-id'
-            }, (cookie) => {
+            chrome.storage.local.get("testchimp.ext-session-record-tracking-id", (data) => {
                 if (chrome.runtime.lastError) {
                     reject(chrome.runtime.lastError);
                 } else {
-                    resolve(cookie?.value);
+                    resolve(data["testchimp.ext-session-record-tracking-id"] || '');
                 }
             });
         });

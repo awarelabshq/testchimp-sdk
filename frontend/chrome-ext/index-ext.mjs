@@ -44,14 +44,6 @@ let samplingConfig = {
   input: 'last' // When input multiple characters, only record the final input
 };
 
-function setCurrentUserId(userId) {
-  document.cookie = "testchimp.current_user_id=" + userId + ";path=/";
-}
-
-// Function to get the current_user_id from the cookie
-function getCurrentUserId() {
-  return getCookie("testchimp.current_user_id");
-}
 
 // Function to generate a unique session ID
 function generateSessionId() {
@@ -70,57 +62,42 @@ function log(config,log){
     }
 }
 
-// Function to retrieve session ID from standard session ID cookies or custom cookie key
-function getSessionIdFromCookie(cookieKey) {
-  if (!cookieKey) {
-    var standardCookieNames = ['JSESSIONID', 'PHPSESSID', 'ASP.NET_SessionId', 'CFID', 'CFTOKEN']; // Add more standard session ID cookie names if needed
-    var cookies = document.cookie.split(';');
-    for (var i = 0; i < cookies.length; i++) {
-      var cookie = cookies[i].trim();
-      for (var j = 0; j < standardCookieNames.length; j++) {
-        var standardCookieName = standardCookieNames[j];
-        if (cookie.startsWith(standardCookieName + '=')) {
-          return cookie.substring(standardCookieName.length + 1);
-        }
-      }
-    }
-  } else {
-    var cookies = document.cookie.split(';');
-    for (var i = 0; i < cookies.length; i++) {
-      var cookie = cookies[i].trim();
-      var cookieParts = cookie.split('=');
-      if (cookieParts.length === 2 && cookieParts[0] === cookieKey) {
-        return cookieParts[1];
-      }
-    }
-  }
-  return null; // Return null if session ID cookie doesn't exist
-}
-
 function setTrackingIdCookie(sessionId) {
-  var existingCookie = getCookie("testchimp.ext-session-record-tracking-id");
-  if (existingCookie === "") {
-    document.cookie = "testchimp.ext-session-record-tracking-id" + "=" + sessionId + ";path=/";
-  }
+    return new Promise((resolve, reject) => {
+        // Check if a value already exists
+        chrome.storage.local.get("testchimp.ext-session-record-tracking-id", function(data) {
+            if (chrome.runtime.lastError) {
+                return reject(new Error(chrome.runtime.lastError));
+            }
+
+            if (!data["testchimp.ext-session-record-tracking-id"]) {
+                // Set the tracking ID only if it doesn't exist
+                chrome.storage.local.set({ "testchimp.ext-session-record-tracking-id": sessionId }, function() {
+                    if (chrome.runtime.lastError) {
+                        return reject(new Error(chrome.runtime.lastError));
+                    }
+                    console.log("Setting testchimp tracking id to " + sessionId);
+                    resolve(); // Resolve the promise when setting is complete
+                });
+            } else {
+                // If it already exists, resolve immediately
+                resolve();
+            }
+        });
+    });
 }
 
-function getTrackingIdCookie(){
-    return getCookie("testchimp.ext-session-record-tracking-id");
-}
 
-function getCookie(name) {
-  var nameEQ = name + "=";
-  var cookies = document.cookie.split(';');
-  for (var i = 0; i < cookies.length; i++) {
-    var cookie = cookies[i];
-    while (cookie.charAt(0) == ' ') {
-      cookie = cookie.substring(1, cookie.length);
-    }
-    if (cookie.indexOf(nameEQ) == 0) {
-      return cookie.substring(nameEQ.length, cookie.length);
-    }
-  }
-  return "";
+function getTrackingIdCookie() {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.get("testchimp.ext-session-record-tracking-id", function(data) {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError));
+            } else {
+                resolve(data["testchimp.ext-session-record-tracking-id"] || "");
+            }
+        });
+    });
 }
 
 function sendPayloadToEndpoint(payload, endpoint) {
@@ -193,9 +170,13 @@ function startSendingEvents(endpoint, config, sessionId) {
 
 // Function to stop sending events
 function stopSendingEvents() {
+try{
   if (stopFn) {
     stopFn(); // Stop recording events
     stopFn = null;
+  }
+  }catch(error){
+    console.log("Error",error);
   }
 }
 
@@ -206,11 +187,21 @@ function initRecording(endpoint,config,sessionId){
   }
 };
 
-function clearTrackingIdCookie(){
-    document.cookie = "testchimp.ext-session-record-tracking-id=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;max-age=0;";
+function clearTrackingIdCookie() {
+    try {
+        chrome.storage.local.set({ "testchimp.ext-session-record-tracking-id": '' }, function() {
+            if (chrome.runtime.lastError) {
+                console.error("Error:", chrome.runtime.lastError);
+                return;
+            }
+            console.log("TestChimp tracking id cleared");
+        });
+    } catch (error) {
+        console.error("Security error caught:", error);
+    }
 }
 
-function endTrackedSession(){
+async function endTrackedSession(){
     console.log("Ending current tracking session");
     stopSendingEvents()
     clearTrackingIdCookie();
@@ -222,16 +213,11 @@ async function startRecording(config) {
   // Default endpoint if not provided
   var endpoint = (config.endpoint || 'https://ingress.testchimp.io');
 
-  // Retrieve session ID from cookie
-  var sessionId = getSessionIdFromCookie(config.sessionIdCookieKey);
-
-  // If session ID doesn't exist in cookie, generate a new one
-  if (!sessionId) {
-    sessionId = generateSessionId();
-  }
-  setTrackingIdCookie(sessionId);
-  sessionId = getTrackingIdCookie();
-
+  var sessionId = generateSessionId();
+  await setTrackingIdCookie(sessionId);
+  // The set method above sets only if no value present. This is needed so that page re-directs persists the session tracking (since this code runs on page load of each page).
+  sessionId = await getTrackingIdCookie();
+  console.log("Session id for TC",sessionId);
   // Record the session start time
   sessionStartTime = new Date().getTime();
 
@@ -289,6 +275,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function checkAndStartRecording() {
+    console.log("Content script is loaded.");
     const cookie = await getTrackingIdCookie();
     if (cookie && cookie.trim() !== '') {
       // Cookie is set, retrieve settings and start recording
