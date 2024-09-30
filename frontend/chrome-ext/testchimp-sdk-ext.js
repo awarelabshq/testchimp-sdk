@@ -1,2 +1,5338 @@
-/*! For license information please see testchimp-sdk-ext.js.LICENSE.txt */
-!function(e,t){"object"==typeof exports&&"object"==typeof module?module.exports=t():"function"==typeof define&&define.amd?define([],t):"object"==typeof exports?exports.TestChimpSDK=t():e.TestChimpSDK=t()}(this,(()=>(()=>{"use strict";var e;function t(e){var t=null==e?void 0:e.host;return Boolean((null==t?void 0:t.shadowRoot)===e)}function r(e){return"[object ShadowRoot]"===Object.prototype.toString.call(e)}function n(e){try{var t=e.rules||e.cssRules;return t?((r=Array.from(t).map(o).join("")).includes(" background-clip: text;")&&!r.includes(" -webkit-background-clip: text;")&&(r=r.replace(" background-clip: text;"," -webkit-background-clip: text; background-clip: text;")),r):null}catch(e){return null}var r}function o(e){var t=e.cssText;if(function(e){return"styleSheet"in e}(e))try{t=n(e.styleSheet)||t}catch(e){}return t}!function(e){e[e.Document=0]="Document",e[e.DocumentType=1]="DocumentType",e[e.Element=2]="Element",e[e.Text=3]="Text",e[e.CDATA=4]="CDATA",e[e.Comment=5]="Comment"}(e||(e={}));var i=function(){function e(){this.idNodeMap=new Map,this.nodeMetaMap=new WeakMap}return e.prototype.getId=function(e){var t;if(!e)return-1;var r=null===(t=this.getMeta(e))||void 0===t?void 0:t.id;return null!=r?r:-1},e.prototype.getNode=function(e){return this.idNodeMap.get(e)||null},e.prototype.getIds=function(){return Array.from(this.idNodeMap.keys())},e.prototype.getMeta=function(e){return this.nodeMetaMap.get(e)||null},e.prototype.removeNodeFromMap=function(e){var t=this,r=this.getId(e);this.idNodeMap.delete(r),e.childNodes&&e.childNodes.forEach((function(e){return t.removeNodeFromMap(e)}))},e.prototype.has=function(e){return this.idNodeMap.has(e)},e.prototype.hasNode=function(e){return this.nodeMetaMap.has(e)},e.prototype.add=function(e,t){var r=t.id;this.idNodeMap.set(r,e),this.nodeMetaMap.set(e,t)},e.prototype.replace=function(e,t){var r=this.getNode(e);if(r){var n=this.nodeMetaMap.get(r);n&&this.nodeMetaMap.set(t,n)}this.idNodeMap.set(e,t)},e.prototype.reset=function(){this.idNodeMap=new Map,this.nodeMetaMap=new WeakMap},e}();function a(e){var t=e.maskInputOptions,r=e.tagName,n=e.type,o=e.value,i=e.maskInputFn,a=o||"";return(t[r.toLowerCase()]||t[n])&&(a=i?i(a):"*".repeat(a.length)),a}var s,c,l="__rrweb_original__",d=1,u=new RegExp("[^a-z0-9-_:]"),h=-2;function p(){return d++}var g=/url\((?:(')([^']*)'|(")(.*?)"|([^)]*))\)/gm,m=/^(?!www\.|(?:http|ftp)s?:\/\/|[A-Za-z]:\\|\/\/|#).*/,f=/^(data:)([^,]*),(.*)/i;function I(e,t){return(e||"").replace(g,(function(e,r,n,o,i,a){var s,c=n||i||a,l=r||o||"";if(!c)return e;if(!m.test(c))return"url(".concat(l).concat(c).concat(l,")");if(f.test(c))return"url(".concat(l).concat(c).concat(l,")");if("/"===c[0])return"url(".concat(l).concat((s=t,(s.indexOf("//")>-1?s.split("/").slice(0,3).join("/"):s.split("/")[0]).split("?")[0]+c)).concat(l,")");var d=t.split("/"),u=c.split("/");d.pop();for(var h=0,p=u;h<p.length;h++){var g=p[h];"."!==g&&(".."===g?d.pop():d.push(g))}return"url(".concat(l).concat(d.join("/")).concat(l,")")}))}var y=/^[^ \t\n\r\u000c]+/,C=/^[, \t\n\r\u000c]+/;function v(e,t){if(!t||""===t.trim())return t;var r=e.createElement("a");return r.href=t,r.href}function b(){var e=document.createElement("a");return e.href="",e.href}function S(e,t,r,n){return"src"===r||"href"===r&&n&&("use"!==t||"#"!==n[0])||"xlink:href"===r&&n&&"#"!==n[0]?v(e,n):"background"!==r||!n||"table"!==t&&"td"!==t&&"th"!==t?"srcset"===r&&n?function(e,t){if(""===t.trim())return t;var r=0;function n(e){var n,o=e.exec(t.substring(r));return o?(n=o[0],r+=n.length,n):""}for(var o=[];n(C),!(r>=t.length);){var i=n(y);if(","===i.slice(-1))i=v(e,i.substring(0,i.length-1)),o.push(i);else{var a="";i=v(e,i);for(var s=!1;;){var c=t.charAt(r);if(""===c){o.push((i+a).trim());break}if(s)")"===c&&(s=!1);else{if(","===c){r+=1,o.push((i+a).trim());break}"("===c&&(s=!0)}a+=c,r+=1}}}return o.join(", ")}(e,n):"style"===r&&n?I(n,b()):"object"===t&&"data"===r&&n?v(e,n):n:v(e,n)}function A(e,t,r){if(!e)return!1;if(e.nodeType!==e.ELEMENT_NODE)return!!r&&A(e.parentNode,t,r);for(var n=e.classList.length;n--;){var o=e.classList[n];if(t.test(o))return!0}return!!r&&A(e.parentNode,t,r)}function k(e,t,r){var n=e.nodeType===e.ELEMENT_NODE?e:e.parentElement;if(null===n)return!1;if("string"==typeof t){if(n.classList.contains(t))return!0;if(n.closest(".".concat(t)))return!0}else if(A(n,t,!0))return!0;if(r){if(n.matches(r))return!0;if(n.closest(r))return!0}return!1}function w(e){return void 0===e?"":e.toLowerCase()}function M(o,i){var d,g=i.doc,m=i.mirror,f=i.blockClass,y=i.blockSelector,C=i.maskTextClass,v=i.maskTextSelector,A=i.skipChild,T=void 0!==A&&A,x=i.inlineStylesheet,E=void 0===x||x,R=i.maskInputOptions,N=void 0===R?{}:R,O=i.maskTextFn,L=i.maskInputFn,F=i.slimDOMOptions,D=i.dataURLOptions,W=void 0===D?{}:D,G=i.inlineImages,B=void 0!==G&&G,Z=i.recordCanvas,V=void 0!==Z&&Z,U=i.onSerialize,K=i.onIframeLoad,_=i.iframeLoadTimeout,Y=void 0===_?5e3:_,j=i.onStylesheetLoad,P=i.stylesheetLoadTimeout,J=void 0===P?5e3:P,z=i.keepIframeSrcFn,Q=void 0===z?function(){return!1}:z,H=i.newlyAddedElement,X=void 0!==H&&H,q=i.preserveWhiteSpace,$=void 0===q||q,ee=function(t,r){var o=r.doc,i=r.mirror,d=r.blockClass,h=r.blockSelector,p=r.maskTextClass,g=r.maskTextSelector,m=r.inlineStylesheet,f=r.maskInputOptions,y=void 0===f?{}:f,C=r.maskTextFn,v=r.maskInputFn,A=r.dataURLOptions,w=void 0===A?{}:A,M=r.inlineImages,T=r.recordCanvas,x=r.keepIframeSrcFn,E=r.newlyAddedElement,R=void 0!==E&&E,N=function(e,t){if(t.hasNode(e)){var r=t.getId(e);return 1===r?void 0:r}}(o,i);switch(t.nodeType){case t.DOCUMENT_NODE:return"CSS1Compat"!==t.compatMode?{type:e.Document,childNodes:[],compatMode:t.compatMode}:{type:e.Document,childNodes:[]};case t.DOCUMENT_TYPE_NODE:return{type:e.DocumentType,name:t.name,publicId:t.publicId,systemId:t.systemId,rootId:N};case t.ELEMENT_NODE:return function(t,r){for(var o=r.doc,i=r.inlineStylesheet,d=r.maskInputOptions,h=void 0===d?{}:d,p=r.maskInputFn,g=r.dataURLOptions,m=void 0===g?{}:g,f=r.inlineImages,y=r.recordCanvas,C=r.keepIframeSrcFn,v=r.newlyAddedElement,A=void 0!==v&&v,k=r.rootId,w=function(e,t,r){if("string"==typeof t){if(e.classList.contains(t))return!0}else for(var n=e.classList.length;n--;){var o=e.classList[n];if(t.test(o))return!0}return!!r&&e.matches(r)}(t,r.blockClass,r.blockSelector),M=function(e){if(e instanceof HTMLFormElement)return"form";var t=e.tagName.toLowerCase().trim();return u.test(t)?"div":t}(t),T={},x=t.attributes.length,E=0;E<x;E++){var R=t.attributes[E];T[R.name]=S(o,M,R.name,R.value)}if("link"===M&&i){var N=Array.from(o.styleSheets).find((function(e){return e.href===t.href})),O=null;N&&(O=n(N)),O&&(delete T.rel,delete T.href,T._cssText=I(O,N.href))}if("style"===M&&t.sheet&&!(t.innerText||t.textContent||"").trim().length&&(O=n(t.sheet))&&(T._cssText=I(O,b())),"input"===M||"textarea"===M||"select"===M){var L=t.value,F=t.checked;"radio"!==T.type&&"checkbox"!==T.type&&"submit"!==T.type&&"button"!==T.type&&L?T.value=a({type:T.type,tagName:M,value:L,maskInputOptions:h,maskInputFn:p}):F&&(T.checked=F)}if("option"===M&&(t.selected&&!h.select?T.selected=!0:delete T.selected),"canvas"===M&&y)if("2d"===t.__context)(function(e){var t=e.getContext("2d");if(!t)return!0;for(var r=0;r<e.width;r+=50)for(var n=0;n<e.height;n+=50){var o=t.getImageData,i=l in o?o[l]:o;if(new Uint32Array(i.call(t,r,n,Math.min(50,e.width-r),Math.min(50,e.height-n)).data.buffer).some((function(e){return 0!==e})))return!1}return!0})(t)||(T.rr_dataURL=t.toDataURL(m.type,m.quality));else if(!("__context"in t)){var D=t.toDataURL(m.type,m.quality),W=document.createElement("canvas");W.width=t.width,W.height=t.height,D!==W.toDataURL(m.type,m.quality)&&(T.rr_dataURL=D)}if("img"===M&&f){s||(s=o.createElement("canvas"),c=s.getContext("2d"));var G=t,B=G.crossOrigin;G.crossOrigin="anonymous";var Z=function(){try{s.width=G.naturalWidth,s.height=G.naturalHeight,c.drawImage(G,0,0),T.rr_dataURL=s.toDataURL(m.type,m.quality)}catch(e){console.warn("Cannot inline img src=".concat(G.currentSrc,"! Error: ").concat(e))}B?T.crossOrigin=B:G.removeAttribute("crossorigin")};G.complete&&0!==G.naturalWidth?Z():G.onload=Z}if("audio"!==M&&"video"!==M||(T.rr_mediaState=t.paused?"paused":"played",T.rr_mediaCurrentTime=t.currentTime),A||(t.scrollLeft&&(T.rr_scrollLeft=t.scrollLeft),t.scrollTop&&(T.rr_scrollTop=t.scrollTop)),w){var V=t.getBoundingClientRect(),U=V.width,K=V.height;T={class:T.class,rr_width:"".concat(U,"px"),rr_height:"".concat(K,"px")}}return"iframe"!==M||C(T.src)||(t.contentDocument||(T.rr_src=T.src),delete T.src),{type:e.Element,tagName:M,attributes:T,childNodes:[],isSVG:(_=t,Boolean("svg"===_.tagName||_.ownerSVGElement)||void 0),needBlock:w,rootId:k};var _}(t,{doc:o,blockClass:d,blockSelector:h,inlineStylesheet:m,maskInputOptions:y,maskInputFn:v,dataURLOptions:w,inlineImages:M,recordCanvas:T,keepIframeSrcFn:x,newlyAddedElement:R,rootId:N});case t.TEXT_NODE:return function(t,r){var n,o,i=r.maskTextClass,a=r.maskTextSelector,s=r.maskTextFn,c=r.rootId,l=t.parentNode&&t.parentNode.tagName,d=t.textContent,u="STYLE"===l||void 0,h="SCRIPT"===l||void 0;if(u&&d){try{t.nextSibling||t.previousSibling||(null===(n=t.parentNode.sheet)||void 0===n?void 0:n.cssRules)&&(d=(o=t.parentNode.sheet).cssRules?Array.from(o.cssRules).map((function(e){return e.cssText||""})).join(""):"")}catch(e){console.warn("Cannot get CSS styles from text's parentNode. Error: ".concat(e),t)}d=I(d,b())}return h&&(d="SCRIPT_PLACEHOLDER"),!u&&!h&&d&&k(t,i,a)&&(d=s?s(d):d.replace(/[\S]/g,"*")),{type:e.Text,textContent:d||"",isStyle:u,rootId:c}}(t,{maskTextClass:p,maskTextSelector:g,maskTextFn:C,rootId:N});case t.CDATA_SECTION_NODE:return{type:e.CDATA,textContent:"",rootId:N};case t.COMMENT_NODE:return{type:e.Comment,textContent:t.textContent||"",rootId:N};default:return!1}}(o,{doc:g,mirror:m,blockClass:f,blockSelector:y,maskTextClass:C,maskTextSelector:v,inlineStylesheet:E,maskInputOptions:N,maskTextFn:O,maskInputFn:L,dataURLOptions:W,inlineImages:B,recordCanvas:V,keepIframeSrcFn:Q,newlyAddedElement:X});if(!ee)return console.warn(o,"not serialized"),null;d=m.hasNode(o)?m.getId(o):!function(t,r){if(r.comment&&t.type===e.Comment)return!0;if(t.type===e.Element){if(r.script&&("script"===t.tagName||"link"===t.tagName&&"preload"===t.attributes.rel&&"script"===t.attributes.as||"link"===t.tagName&&"prefetch"===t.attributes.rel&&"string"==typeof t.attributes.href&&t.attributes.href.endsWith(".js")))return!0;if(r.headFavicon&&("link"===t.tagName&&"shortcut icon"===t.attributes.rel||"meta"===t.tagName&&(w(t.attributes.name).match(/^msapplication-tile(image|color)$/)||"application-name"===w(t.attributes.name)||"icon"===w(t.attributes.rel)||"apple-touch-icon"===w(t.attributes.rel)||"shortcut icon"===w(t.attributes.rel))))return!0;if("meta"===t.tagName){if(r.headMetaDescKeywords&&w(t.attributes.name).match(/^description|keywords$/))return!0;if(r.headMetaSocial&&(w(t.attributes.property).match(/^(og|twitter|fb):/)||w(t.attributes.name).match(/^(og|twitter):/)||"pinterest"===w(t.attributes.name)))return!0;if(r.headMetaRobots&&("robots"===w(t.attributes.name)||"googlebot"===w(t.attributes.name)||"bingbot"===w(t.attributes.name)))return!0;if(r.headMetaHttpEquiv&&void 0!==t.attributes["http-equiv"])return!0;if(r.headMetaAuthorship&&("author"===w(t.attributes.name)||"generator"===w(t.attributes.name)||"framework"===w(t.attributes.name)||"publisher"===w(t.attributes.name)||"progid"===w(t.attributes.name)||w(t.attributes.property).match(/^article:/)||w(t.attributes.property).match(/^product:/)))return!0;if(r.headMetaVerification&&("google-site-verification"===w(t.attributes.name)||"yandex-verification"===w(t.attributes.name)||"csrf-token"===w(t.attributes.name)||"p:domain_verify"===w(t.attributes.name)||"verify-v1"===w(t.attributes.name)||"verification"===w(t.attributes.name)||"shopify-checkout-api-token"===w(t.attributes.name)))return!0}}return!1}(ee,F)&&($||ee.type!==e.Text||ee.isStyle||ee.textContent.replace(/^\s+|\s+$/gm,"").length)?p():h;var te=Object.assign(ee,{id:d});if(m.add(o,te),d===h)return null;U&&U(o);var re=!T;if(te.type===e.Element){re=re&&!te.needBlock,delete te.needBlock;var ne=o.shadowRoot;ne&&r(ne)&&(te.isShadowHost=!0)}if((te.type===e.Document||te.type===e.Element)&&re){F.headWhitespace&&te.type===e.Element&&"head"===te.tagName&&($=!1);for(var oe={doc:g,mirror:m,blockClass:f,blockSelector:y,maskTextClass:C,maskTextSelector:v,skipChild:T,inlineStylesheet:E,maskInputOptions:N,maskTextFn:O,maskInputFn:L,slimDOMOptions:F,dataURLOptions:W,inlineImages:B,recordCanvas:V,preserveWhiteSpace:$,onSerialize:U,onIframeLoad:K,iframeLoadTimeout:Y,onStylesheetLoad:j,stylesheetLoadTimeout:J,keepIframeSrcFn:Q},ie=0,ae=Array.from(o.childNodes);ie<ae.length;ie++)(le=M(ae[ie],oe))&&te.childNodes.push(le);if(function(e){return e.nodeType===e.ELEMENT_NODE}(o)&&o.shadowRoot)for(var se=0,ce=Array.from(o.shadowRoot.childNodes);se<ce.length;se++){var le;(le=M(ce[se],oe))&&(r(o.shadowRoot)&&(le.isShadow=!0),te.childNodes.push(le))}}return o.parentNode&&t(o.parentNode)&&r(o.parentNode)&&(te.isShadow=!0),te.type===e.Element&&"iframe"===te.tagName&&function(e,t,r){var n=e.contentWindow;if(n){var o,i=!1;try{o=n.document.readyState}catch(e){return}if("complete"===o){var a="about:blank";if(n.location.href!==a||e.src===a||""===e.src)return setTimeout(t,0),e.addEventListener("load",t);e.addEventListener("load",t)}else{var s=setTimeout((function(){i||(t(),i=!0)}),r);e.addEventListener("load",(function(){clearTimeout(s),i=!0,t()}))}}}(o,(function(){var e=o.contentDocument;if(e&&K){var t=M(e,{doc:e,mirror:m,blockClass:f,blockSelector:y,maskTextClass:C,maskTextSelector:v,skipChild:!1,inlineStylesheet:E,maskInputOptions:N,maskTextFn:O,maskInputFn:L,slimDOMOptions:F,dataURLOptions:W,inlineImages:B,recordCanvas:V,preserveWhiteSpace:$,onSerialize:U,onIframeLoad:K,iframeLoadTimeout:Y,onStylesheetLoad:j,stylesheetLoadTimeout:J,keepIframeSrcFn:Q});t&&K(o,t)}}),Y),te.type===e.Element&&"link"===te.tagName&&"stylesheet"===te.attributes.rel&&function(e,t,r){var n,o=!1;try{n=e.sheet}catch(e){return}if(!n){var i=setTimeout((function(){o||(t(),o=!0)}),r);e.addEventListener("load",(function(){clearTimeout(i),o=!0,t()}))}}(o,(function(){if(j){var e=M(o,{doc:g,mirror:m,blockClass:f,blockSelector:y,maskTextClass:C,maskTextSelector:v,skipChild:!1,inlineStylesheet:E,maskInputOptions:N,maskTextFn:O,maskInputFn:L,slimDOMOptions:F,dataURLOptions:W,inlineImages:B,recordCanvas:V,preserveWhiteSpace:$,onSerialize:U,onIframeLoad:K,iframeLoadTimeout:Y,onStylesheetLoad:j,stylesheetLoadTimeout:J,keepIframeSrcFn:Q});e&&j(o,e)}}),J),te}function T(e,t,r=document){const n={capture:!0,passive:!0};return r.addEventListener(e,t,n),()=>r.removeEventListener(e,t,n)}new RegExp(/([^\\]):hover/.source,"g");const x="Please stop import mirror directly. Instead of that,\r\nnow you can use replayer.getMirror() to access the mirror instance of a replayer,\r\nor you can use record.mirror to access the mirror instance during recording.";let E={map:{},getId:()=>(console.error(x),-1),getNode:()=>(console.error(x),null),removeNodeFromMap(){console.error(x)},has:()=>(console.error(x),!1),reset(){console.error(x)}};function R(e,t,r={}){let n=null,o=0;return function(...i){const a=Date.now();o||!1!==r.leading||(o=a);const s=t-(a-o),c=this;s<=0||s>t?(n&&(clearTimeout(n),n=null),o=a,e.apply(c,i)):n||!1===r.trailing||(n=setTimeout((()=>{o=!1===r.leading?0:Date.now(),n=null,e.apply(c,i)}),s))}}function N(e,t,r,n,o=window){const i=o.Object.getOwnPropertyDescriptor(e,t);return o.Object.defineProperty(e,t,n?r:{set(e){setTimeout((()=>{r.set.call(this,e)}),0),i&&i.set&&i.set.call(this,e)}}),()=>N(e,t,i||{},!0)}function O(e,t,r){try{if(!(t in e))return()=>{};const n=e[t],o=r(n);return"function"==typeof o&&(o.prototype=o.prototype||{},Object.defineProperties(o,{__rrweb_original__:{enumerable:!1,value:n}})),e[t]=o,()=>{e[t]=n}}catch(e){return()=>{}}}function L(){return window.innerHeight||document.documentElement&&document.documentElement.clientHeight||document.body&&document.body.clientHeight}function F(){return window.innerWidth||document.documentElement&&document.documentElement.clientWidth||document.body&&document.body.clientWidth}function D(e,t,r,n){if(!e)return!1;const o=e.nodeType===e.ELEMENT_NODE?e:e.parentElement;if(!o)return!1;if("string"==typeof t){if(o.classList.contains(t))return!0;if(n&&null!==o.closest("."+t))return!0}else if(A(o,t,n))return!0;if(r){if(e.matches(r))return!0;if(n&&null!==o.closest(r))return!0}return!1}function W(e,t){return t.getId(e)===h}function G(e,r){if(t(e))return!1;const n=r.getId(e);return!r.has(n)||(!e.parentNode||e.parentNode.nodeType!==e.DOCUMENT_NODE)&&(!e.parentNode||G(e.parentNode,r))}function B(e){return Boolean(e.changedTouches)}function Z(e,t){return Boolean("IFRAME"===e.nodeName&&t.getMeta(e))}function V(e,t){return Boolean("LINK"===e.nodeName&&e.nodeType===e.ELEMENT_NODE&&e.getAttribute&&"stylesheet"===e.getAttribute("rel")&&t.getMeta(e))}function U(e){return Boolean(null==e?void 0:e.shadowRoot)}"undefined"!=typeof window&&window.Proxy&&window.Reflect&&(E=new Proxy(E,{get:(e,t,r)=>("map"===t&&console.error(x),Reflect.get(e,t,r))}));class K{constructor(){this.id=1,this.styleIDMap=new WeakMap,this.idStyleMap=new Map}getId(e){var t;return null!==(t=this.styleIDMap.get(e))&&void 0!==t?t:-1}has(e){return this.styleIDMap.has(e)}add(e,t){if(this.has(e))return this.getId(e);let r;return r=void 0===t?this.id++:t,this.styleIDMap.set(e,r),this.idStyleMap.set(r,e),r}getStyle(e){return this.idStyleMap.get(e)||null}reset(){this.styleIDMap=new WeakMap,this.idStyleMap=new Map,this.id=1}generateId(){return this.id++}}var _=(e=>(e[e.DomContentLoaded=0]="DomContentLoaded",e[e.Load=1]="Load",e[e.FullSnapshot=2]="FullSnapshot",e[e.IncrementalSnapshot=3]="IncrementalSnapshot",e[e.Meta=4]="Meta",e[e.Custom=5]="Custom",e[e.Plugin=6]="Plugin",e))(_||{}),Y=(e=>(e[e.Mutation=0]="Mutation",e[e.MouseMove=1]="MouseMove",e[e.MouseInteraction=2]="MouseInteraction",e[e.Scroll=3]="Scroll",e[e.ViewportResize=4]="ViewportResize",e[e.Input=5]="Input",e[e.TouchMove=6]="TouchMove",e[e.MediaInteraction=7]="MediaInteraction",e[e.StyleSheetRule=8]="StyleSheetRule",e[e.CanvasMutation=9]="CanvasMutation",e[e.Font=10]="Font",e[e.Log=11]="Log",e[e.Drag=12]="Drag",e[e.StyleDeclaration=13]="StyleDeclaration",e[e.Selection=14]="Selection",e[e.AdoptedStyleSheet=15]="AdoptedStyleSheet",e))(Y||{}),j=(e=>(e[e.MouseUp=0]="MouseUp",e[e.MouseDown=1]="MouseDown",e[e.Click=2]="Click",e[e.ContextMenu=3]="ContextMenu",e[e.DblClick=4]="DblClick",e[e.Focus=5]="Focus",e[e.Blur=6]="Blur",e[e.TouchStart=7]="TouchStart",e[e.TouchMove_Departed=8]="TouchMove_Departed",e[e.TouchEnd=9]="TouchEnd",e[e.TouchCancel=10]="TouchCancel",e))(j||{}),P=(e=>(e[e["2D"]=0]="2D",e[e.WebGL=1]="WebGL",e[e.WebGL2=2]="WebGL2",e))(P||{});function J(e){return"__ln"in e}class z{constructor(){this.length=0,this.head=null}get(e){if(e>=this.length)throw new Error("Position outside of list range");let t=this.head;for(let r=0;r<e;r++)t=(null==t?void 0:t.next)||null;return t}addNode(e){const t={value:e,previous:null,next:null};if(e.__ln=t,e.previousSibling&&J(e.previousSibling)){const r=e.previousSibling.__ln.next;t.next=r,t.previous=e.previousSibling.__ln,e.previousSibling.__ln.next=t,r&&(r.previous=t)}else if(e.nextSibling&&J(e.nextSibling)&&e.nextSibling.__ln.previous){const r=e.nextSibling.__ln.previous;t.previous=r,t.next=e.nextSibling.__ln,e.nextSibling.__ln.previous=t,r&&(r.next=t)}else this.head&&(this.head.previous=t),t.next=this.head,this.head=t;this.length++}removeNode(e){const t=e.__ln;this.head&&(t.previous?(t.previous.next=t.next,t.next&&(t.next.previous=t.previous)):(this.head=t.next,this.head&&(this.head.previous=null)),e.__ln&&delete e.__ln,this.length--)}}const Q=(e,t)=>`${e}@${t}`;class H{constructor(){this.frozen=!1,this.locked=!1,this.texts=[],this.attributes=[],this.removes=[],this.mapRemoves=[],this.movedMap={},this.addedSet=new Set,this.movedSet=new Set,this.droppedSet=new Set,this.processMutations=e=>{e.forEach(this.processMutation),this.emit()},this.emit=()=>{if(this.frozen||this.locked)return;const e=[],r=new z,n=e=>{let t=e,r=h;for(;r===h;)t=t&&t.nextSibling,r=t&&this.mirror.getId(t);return r},o=o=>{var i,a,s,c;let l=null;(null===(a=null===(i=o.getRootNode)||void 0===i?void 0:i.call(o))||void 0===a?void 0:a.nodeType)===Node.DOCUMENT_FRAGMENT_NODE&&o.getRootNode().host&&(l=o.getRootNode().host);let d=l;for(;(null===(c=null===(s=null==d?void 0:d.getRootNode)||void 0===s?void 0:s.call(d))||void 0===c?void 0:c.nodeType)===Node.DOCUMENT_FRAGMENT_NODE&&d.getRootNode().host;)d=d.getRootNode().host;const u=!(this.doc.contains(o)||d&&this.doc.contains(d));if(!o.parentNode||u)return;const h=t(o.parentNode)?this.mirror.getId(l):this.mirror.getId(o.parentNode),p=n(o);if(-1===h||-1===p)return r.addNode(o);const g=M(o,{doc:this.doc,mirror:this.mirror,blockClass:this.blockClass,blockSelector:this.blockSelector,maskTextClass:this.maskTextClass,maskTextSelector:this.maskTextSelector,skipChild:!0,newlyAddedElement:!0,inlineStylesheet:this.inlineStylesheet,maskInputOptions:this.maskInputOptions,maskTextFn:this.maskTextFn,maskInputFn:this.maskInputFn,slimDOMOptions:this.slimDOMOptions,dataURLOptions:this.dataURLOptions,recordCanvas:this.recordCanvas,inlineImages:this.inlineImages,onSerialize:e=>{Z(e,this.mirror)&&this.iframeManager.addIframe(e),V(e,this.mirror)&&this.stylesheetManager.trackLinkElement(e),U(o)&&this.shadowDomManager.addShadowRoot(o.shadowRoot,this.doc)},onIframeLoad:(e,t)=>{this.iframeManager.attachIframe(e,t),this.shadowDomManager.observeAttachShadow(e)},onStylesheetLoad:(e,t)=>{this.stylesheetManager.attachLinkElement(e,t)}});g&&e.push({parentId:h,nextId:p,node:g})};for(;this.mapRemoves.length;)this.mirror.removeNodeFromMap(this.mapRemoves.shift());for(const e of Array.from(this.movedSet.values()))q(this.removes,e,this.mirror)&&!this.movedSet.has(e.parentNode)||o(e);for(const e of Array.from(this.addedSet.values()))ee(this.droppedSet,e)||q(this.removes,e,this.mirror)?ee(this.movedSet,e)?o(e):this.droppedSet.add(e):o(e);let i=null;for(;r.length;){let e=null;if(i){const t=this.mirror.getId(i.value.parentNode),r=n(i.value);-1!==t&&-1!==r&&(e=i)}if(!e)for(let t=r.length-1;t>=0;t--){const o=r.get(t);if(o){const t=this.mirror.getId(o.value.parentNode);if(-1===n(o.value))continue;if(-1!==t){e=o;break}{const t=o.value;if(t.parentNode&&t.parentNode.nodeType===Node.DOCUMENT_FRAGMENT_NODE){const r=t.parentNode.host;if(-1!==this.mirror.getId(r)){e=o;break}}}}}if(!e){for(;r.head;)r.removeNode(r.head.value);break}i=e.previous,r.removeNode(e.value),o(e.value)}const a={texts:this.texts.map((e=>({id:this.mirror.getId(e.node),value:e.value}))).filter((e=>this.mirror.has(e.id))),attributes:this.attributes.map((e=>({id:this.mirror.getId(e.node),attributes:e.attributes}))).filter((e=>this.mirror.has(e.id))),removes:this.removes,adds:e};(a.texts.length||a.attributes.length||a.removes.length||a.adds.length)&&(this.texts=[],this.attributes=[],this.removes=[],this.addedSet=new Set,this.movedSet=new Set,this.droppedSet=new Set,this.movedMap={},this.mutationCb(a))},this.processMutation=e=>{if(!W(e.target,this.mirror))switch(e.type){case"characterData":{const t=e.target.textContent;D(e.target,this.blockClass,this.blockSelector,!1)||t===e.oldValue||this.texts.push({value:k(e.target,this.maskTextClass,this.maskTextSelector)&&t?this.maskTextFn?this.maskTextFn(t):t.replace(/[\S]/g,"*"):t,node:e.target});break}case"attributes":{const t=e.target;let r=e.target.getAttribute(e.attributeName);if("value"===e.attributeName&&(r=a({maskInputOptions:this.maskInputOptions,tagName:e.target.tagName,type:e.target.getAttribute("type"),value:r,maskInputFn:this.maskInputFn})),D(e.target,this.blockClass,this.blockSelector,!1)||r===e.oldValue)return;let n=this.attributes.find((t=>t.node===e.target));if("IFRAME"===t.tagName&&"src"===e.attributeName&&!this.keepIframeSrcFn(r)){if(t.contentDocument)return;e.attributeName="rr_src"}if(n||(n={node:e.target,attributes:{}},this.attributes.push(n)),"style"===e.attributeName){const r=this.doc.createElement("span");e.oldValue&&r.setAttribute("style",e.oldValue),void 0!==n.attributes.style&&null!==n.attributes.style||(n.attributes.style={});const o=n.attributes.style;for(const e of Array.from(t.style)){const n=t.style.getPropertyValue(e),i=t.style.getPropertyPriority(e);n===r.style.getPropertyValue(e)&&i===r.style.getPropertyPriority(e)||(o[e]=""===i?n:[n,i])}for(const e of Array.from(r.style))""===t.style.getPropertyValue(e)&&(o[e]=!1)}else n.attributes[e.attributeName]=S(this.doc,t.tagName,e.attributeName,r);break}case"childList":if(D(e.target,this.blockClass,this.blockSelector,!0))return;e.addedNodes.forEach((t=>this.genAdds(t,e.target))),e.removedNodes.forEach((n=>{const o=this.mirror.getId(n),i=t(e.target)?this.mirror.getId(e.target.host):this.mirror.getId(e.target);D(e.target,this.blockClass,this.blockSelector,!1)||W(n,this.mirror)||!function(e,t){return-1!==t.getId(e)}(n,this.mirror)||(this.addedSet.has(n)?(X(this.addedSet,n),this.droppedSet.add(n)):this.addedSet.has(e.target)&&-1===o||G(e.target,this.mirror)||(this.movedSet.has(n)&&this.movedMap[Q(o,i)]?X(this.movedSet,n):this.removes.push({parentId:i,id:o,isShadow:!(!t(e.target)||!r(e.target))||void 0})),this.mapRemoves.push(n))}))}},this.genAdds=(e,t)=>{if(this.mirror.hasNode(e)){if(W(e,this.mirror))return;this.movedSet.add(e);let r=null;t&&this.mirror.hasNode(t)&&(r=this.mirror.getId(t)),r&&-1!==r&&(this.movedMap[Q(this.mirror.getId(e),r)]=!0)}else this.addedSet.add(e),this.droppedSet.delete(e);D(e,this.blockClass,this.blockSelector,!1)||e.childNodes.forEach((e=>this.genAdds(e)))}}init(e){["mutationCb","blockClass","blockSelector","maskTextClass","maskTextSelector","inlineStylesheet","maskInputOptions","maskTextFn","maskInputFn","keepIframeSrcFn","recordCanvas","inlineImages","slimDOMOptions","dataURLOptions","doc","mirror","iframeManager","stylesheetManager","shadowDomManager","canvasManager"].forEach((t=>{this[t]=e[t]}))}freeze(){this.frozen=!0,this.canvasManager.freeze()}unfreeze(){this.frozen=!1,this.canvasManager.unfreeze(),this.emit()}isFrozen(){return this.frozen}lock(){this.locked=!0,this.canvasManager.lock()}unlock(){this.locked=!1,this.canvasManager.unlock(),this.emit()}reset(){this.shadowDomManager.reset(),this.canvasManager.reset()}}function X(e,t){e.delete(t),t.childNodes.forEach((t=>X(e,t)))}function q(e,t,r){return 0!==e.length&&$(e,t,r)}function $(e,t,r){const{parentNode:n}=t;if(!n)return!1;const o=r.getId(n);return!!e.some((e=>e.id===o))||$(e,n,r)}function ee(e,t){return 0!==e.size&&te(e,t)}function te(e,t){const{parentNode:r}=t;return!!r&&(!!e.has(r)||te(e,r))}const re=[],ne="undefined"!=typeof CSSGroupingRule,oe="undefined"!=typeof CSSMediaRule,ie="undefined"!=typeof CSSSupportsRule,ae="undefined"!=typeof CSSConditionRule;function se(e){try{if("composedPath"in e){const t=e.composedPath();if(t.length)return t[0]}else if("path"in e&&e.path.length)return e.path[0];return e.target}catch(t){return e.target}}function ce(e,t){var r,n;const o=new H;re.push(o),o.init(e);let i=window.MutationObserver||window.__rrMutationObserver;const a=null===(n=null===(r=null===window||void 0===window?void 0:window.Zone)||void 0===r?void 0:r.__symbol__)||void 0===n?void 0:n.call(r,"MutationObserver");a&&window[a]&&(i=window[a]);const s=new i(o.processMutations.bind(o));return s.observe(t,{attributes:!0,attributeOldValue:!0,characterData:!0,characterDataOldValue:!0,childList:!0,subtree:!0}),s}function le({scrollCb:e,doc:t,mirror:r,blockClass:n,blockSelector:o,sampling:i}){return T("scroll",R((i=>{const a=se(i);if(!a||D(a,n,o,!0))return;const s=r.getId(a);if(a===t){const r=t.scrollingElement||t.documentElement;e({id:s,x:r.scrollLeft,y:r.scrollTop})}else e({id:s,x:a.scrollLeft,y:a.scrollTop})}),i.scroll||100),t)}function de(e,t){const r=Object.assign({},e);return t||delete r.userTriggered,r}const ue=["INPUT","TEXTAREA","SELECT"],he=new WeakMap;function pe(e){return function(e,t){if(ne&&e.parentRule instanceof CSSGroupingRule||oe&&e.parentRule instanceof CSSMediaRule||ie&&e.parentRule instanceof CSSSupportsRule||ae&&e.parentRule instanceof CSSConditionRule){const r=Array.from(e.parentRule.cssRules).indexOf(e);t.unshift(r)}else if(e.parentStyleSheet){const r=Array.from(e.parentStyleSheet.cssRules).indexOf(e);t.unshift(r)}return t}(e,[])}function ge(e,t,r){let n,o;return e?(e.ownerNode?n=t.getId(e.ownerNode):o=r.getId(e),{styleId:o,id:n}):{}}function me({mirror:e,stylesheetManager:t},r){var n,o,i;let a=null;a="#document"===r.nodeName?e.getId(r):e.getId(r.host);const s="#document"===r.nodeName?null===(n=r.defaultView)||void 0===n?void 0:n.Document:null===(i=null===(o=r.ownerDocument)||void 0===o?void 0:o.defaultView)||void 0===i?void 0:i.ShadowRoot,c=Object.getOwnPropertyDescriptor(null==s?void 0:s.prototype,"adoptedStyleSheets");return null!==a&&-1!==a&&s&&c?(Object.defineProperty(r,"adoptedStyleSheets",{configurable:c.configurable,enumerable:c.enumerable,get(){var e;return null===(e=c.get)||void 0===e?void 0:e.call(this)},set(e){var r;const n=null===(r=c.set)||void 0===r?void 0:r.call(this,e);if(null!==a&&-1!==a)try{t.adoptStyleSheets(e,a)}catch(e){}return n}}),()=>{Object.defineProperty(r,"adoptedStyleSheets",{configurable:c.configurable,enumerable:c.enumerable,get:c.get,set:c.set})}):()=>{}}function fe(e,t={}){const r=e.doc.defaultView;if(!r)return()=>{};!function(e,t){const{mutationCb:r,mousemoveCb:n,mouseInteractionCb:o,scrollCb:i,viewportResizeCb:a,inputCb:s,mediaInteractionCb:c,styleSheetRuleCb:l,styleDeclarationCb:d,canvasMutationCb:u,fontCb:h,selectionCb:p}=e;e.mutationCb=(...e)=>{t.mutation&&t.mutation(...e),r(...e)},e.mousemoveCb=(...e)=>{t.mousemove&&t.mousemove(...e),n(...e)},e.mouseInteractionCb=(...e)=>{t.mouseInteraction&&t.mouseInteraction(...e),o(...e)},e.scrollCb=(...e)=>{t.scroll&&t.scroll(...e),i(...e)},e.viewportResizeCb=(...e)=>{t.viewportResize&&t.viewportResize(...e),a(...e)},e.inputCb=(...e)=>{t.input&&t.input(...e),s(...e)},e.mediaInteractionCb=(...e)=>{t.mediaInteaction&&t.mediaInteaction(...e),c(...e)},e.styleSheetRuleCb=(...e)=>{t.styleSheetRule&&t.styleSheetRule(...e),l(...e)},e.styleDeclarationCb=(...e)=>{t.styleDeclaration&&t.styleDeclaration(...e),d(...e)},e.canvasMutationCb=(...e)=>{t.canvasMutation&&t.canvasMutation(...e),u(...e)},e.fontCb=(...e)=>{t.font&&t.font(...e),h(...e)},e.selectionCb=(...e)=>{t.selection&&t.selection(...e),p(...e)}}(e,t);const n=ce(e,e.doc),o=function({mousemoveCb:e,sampling:t,doc:r,mirror:n}){if(!1===t.mousemove)return()=>{};const o="number"==typeof t.mousemove?t.mousemove:50,i="number"==typeof t.mousemoveCallback?t.mousemoveCallback:500;let a,s=[];const c=R((t=>{const r=Date.now()-a;e(s.map((e=>(e.timeOffset-=r,e))),t),s=[],a=null}),i),l=R((e=>{const t=se(e),{clientX:r,clientY:o}=B(e)?e.changedTouches[0]:e;a||(a=Date.now()),s.push({x:r,y:o,id:n.getId(t),timeOffset:Date.now()-a}),c("undefined"!=typeof DragEvent&&e instanceof DragEvent?Y.Drag:e instanceof MouseEvent?Y.MouseMove:Y.TouchMove)}),o,{trailing:!1}),d=[T("mousemove",l,r),T("touchmove",l,r),T("drag",l,r)];return()=>{d.forEach((e=>e()))}}(e),i=function({mouseInteractionCb:e,doc:t,mirror:r,blockClass:n,blockSelector:o,sampling:i}){if(!1===i.mouseInteraction)return()=>{};const a=!0===i.mouseInteraction||void 0===i.mouseInteraction?{}:i.mouseInteraction,s=[];return Object.keys(j).filter((e=>Number.isNaN(Number(e))&&!e.endsWith("_Departed")&&!1!==a[e])).forEach((i=>{const a=i.toLowerCase(),c=(t=>i=>{const a=se(i);if(D(a,n,o,!0))return;const s=B(i)?i.changedTouches[0]:i;if(!s)return;const c=r.getId(a),{clientX:l,clientY:d}=s;e({type:j[t],id:c,x:l,y:d})})(i);s.push(T(a,c,t))})),()=>{s.forEach((e=>e()))}}(e),s=le(e),c=function({viewportResizeCb:e}){let t=-1,r=-1;return T("resize",R((()=>{const n=L(),o=F();t===n&&r===o||(e({width:Number(o),height:Number(n)}),t=n,r=o)}),200),window)}(e),l=function({inputCb:e,doc:t,mirror:r,blockClass:n,blockSelector:o,ignoreClass:i,maskInputOptions:s,maskInputFn:c,sampling:l,userTriggeredOnInput:d}){function u(e){let r=se(e);const l=e.isTrusted;if(r&&"OPTION"===r.tagName&&(r=r.parentElement),!r||!r.tagName||ue.indexOf(r.tagName)<0||D(r,n,o,!0))return;const u=r.type;if(r.classList.contains(i))return;let p=r.value,g=!1;"radio"===u||"checkbox"===u?g=r.checked:(s[r.tagName.toLowerCase()]||s[u])&&(p=a({maskInputOptions:s,tagName:r.tagName,type:u,value:p,maskInputFn:c})),h(r,de({text:p,isChecked:g,userTriggered:l},d));const m=r.name;"radio"===u&&m&&g&&t.querySelectorAll(`input[type="radio"][name="${m}"]`).forEach((e=>{e!==r&&h(e,de({text:e.value,isChecked:!g,userTriggered:!1},d))}))}function h(t,n){const o=he.get(t);if(!o||o.text!==n.text||o.isChecked!==n.isChecked){he.set(t,n);const o=r.getId(t);e(Object.assign(Object.assign({},n),{id:o}))}}const p=("last"===l.input?["change"]:["input","change"]).map((e=>T(e,u,t))),g=t.defaultView;if(!g)return()=>{p.forEach((e=>e()))};const m=g.Object.getOwnPropertyDescriptor(g.HTMLInputElement.prototype,"value"),f=[[g.HTMLInputElement.prototype,"value"],[g.HTMLInputElement.prototype,"checked"],[g.HTMLSelectElement.prototype,"value"],[g.HTMLTextAreaElement.prototype,"value"],[g.HTMLSelectElement.prototype,"selectedIndex"],[g.HTMLOptionElement.prototype,"selected"]];return m&&m.set&&p.push(...f.map((e=>N(e[0],e[1],{set(){u({target:this})}},!1,g)))),()=>{p.forEach((e=>e()))}}(e),d=function({mediaInteractionCb:e,blockClass:t,blockSelector:r,mirror:n,sampling:o}){const i=i=>R((o=>{const a=se(o);if(!a||D(a,t,r,!0))return;const{currentTime:s,volume:c,muted:l,playbackRate:d}=a;e({type:i,id:n.getId(a),currentTime:s,volume:c,muted:l,playbackRate:d})}),o.media||500),a=[T("play",i(0)),T("pause",i(1)),T("seeked",i(2)),T("volumechange",i(3)),T("ratechange",i(4))];return()=>{a.forEach((e=>e()))}}(e),u=function({styleSheetRuleCb:e,mirror:t,stylesheetManager:r},{win:n}){const o=n.CSSStyleSheet.prototype.insertRule;n.CSSStyleSheet.prototype.insertRule=function(n,i){const{id:a,styleId:s}=ge(this,t,r.styleMirror);return(a&&-1!==a||s&&-1!==s)&&e({id:a,styleId:s,adds:[{rule:n,index:i}]}),o.apply(this,[n,i])};const i=n.CSSStyleSheet.prototype.deleteRule;let a,s;n.CSSStyleSheet.prototype.deleteRule=function(n){const{id:o,styleId:a}=ge(this,t,r.styleMirror);return(o&&-1!==o||a&&-1!==a)&&e({id:o,styleId:a,removes:[{index:n}]}),i.apply(this,[n])},n.CSSStyleSheet.prototype.replace&&(a=n.CSSStyleSheet.prototype.replace,n.CSSStyleSheet.prototype.replace=function(n){const{id:o,styleId:i}=ge(this,t,r.styleMirror);return(o&&-1!==o||i&&-1!==i)&&e({id:o,styleId:i,replace:n}),a.apply(this,[n])}),n.CSSStyleSheet.prototype.replaceSync&&(s=n.CSSStyleSheet.prototype.replaceSync,n.CSSStyleSheet.prototype.replaceSync=function(n){const{id:o,styleId:i}=ge(this,t,r.styleMirror);return(o&&-1!==o||i&&-1!==i)&&e({id:o,styleId:i,replaceSync:n}),s.apply(this,[n])});const c={};ne?c.CSSGroupingRule=n.CSSGroupingRule:(oe&&(c.CSSMediaRule=n.CSSMediaRule),ae&&(c.CSSConditionRule=n.CSSConditionRule),ie&&(c.CSSSupportsRule=n.CSSSupportsRule));const l={};return Object.entries(c).forEach((([n,o])=>{l[n]={insertRule:o.prototype.insertRule,deleteRule:o.prototype.deleteRule},o.prototype.insertRule=function(o,i){const{id:a,styleId:s}=ge(this.parentStyleSheet,t,r.styleMirror);return(a&&-1!==a||s&&-1!==s)&&e({id:a,styleId:s,adds:[{rule:o,index:[...pe(this),i||0]}]}),l[n].insertRule.apply(this,[o,i])},o.prototype.deleteRule=function(o){const{id:i,styleId:a}=ge(this.parentStyleSheet,t,r.styleMirror);return(i&&-1!==i||a&&-1!==a)&&e({id:i,styleId:a,removes:[{index:[...pe(this),o]}]}),l[n].deleteRule.apply(this,[o])}})),()=>{n.CSSStyleSheet.prototype.insertRule=o,n.CSSStyleSheet.prototype.deleteRule=i,a&&(n.CSSStyleSheet.prototype.replace=a),s&&(n.CSSStyleSheet.prototype.replaceSync=s),Object.entries(c).forEach((([e,t])=>{t.prototype.insertRule=l[e].insertRule,t.prototype.deleteRule=l[e].deleteRule}))}}(e,{win:r}),h=me(e,e.doc),p=function({styleDeclarationCb:e,mirror:t,ignoreCSSAttributes:r,stylesheetManager:n},{win:o}){const i=o.CSSStyleDeclaration.prototype.setProperty;o.CSSStyleDeclaration.prototype.setProperty=function(o,a,s){var c;if(r.has(o))return i.apply(this,[o,a,s]);const{id:l,styleId:d}=ge(null===(c=this.parentRule)||void 0===c?void 0:c.parentStyleSheet,t,n.styleMirror);return(l&&-1!==l||d&&-1!==d)&&e({id:l,styleId:d,set:{property:o,value:a,priority:s},index:pe(this.parentRule)}),i.apply(this,[o,a,s])};const a=o.CSSStyleDeclaration.prototype.removeProperty;return o.CSSStyleDeclaration.prototype.removeProperty=function(o){var i;if(r.has(o))return a.apply(this,[o]);const{id:s,styleId:c}=ge(null===(i=this.parentRule)||void 0===i?void 0:i.parentStyleSheet,t,n.styleMirror);return(s&&-1!==s||c&&-1!==c)&&e({id:s,styleId:c,remove:{property:o},index:pe(this.parentRule)}),a.apply(this,[o])},()=>{o.CSSStyleDeclaration.prototype.setProperty=i,o.CSSStyleDeclaration.prototype.removeProperty=a}}(e,{win:r}),g=e.collectFonts?function({fontCb:e,doc:t}){const r=t.defaultView;if(!r)return()=>{};const n=[],o=new WeakMap,i=r.FontFace;r.FontFace=function(e,t,r){const n=new i(e,t,r);return o.set(n,{family:e,buffer:"string"!=typeof t,descriptors:r,fontSource:"string"==typeof t?t:JSON.stringify(Array.from(new Uint8Array(t)))}),n};const a=O(t.fonts,"add",(function(t){return function(r){return setTimeout((()=>{const t=o.get(r);t&&(e(t),o.delete(r))}),0),t.apply(this,[r])}}));return n.push((()=>{r.FontFace=i})),n.push(a),()=>{n.forEach((e=>e()))}}(e):()=>{},m=function(e){const{doc:t,mirror:r,blockClass:n,blockSelector:o,selectionCb:i}=e;let a=!0;const s=()=>{const e=t.getSelection();if(!e||a&&(null==e?void 0:e.isCollapsed))return;a=e.isCollapsed||!1;const s=[],c=e.rangeCount||0;for(let t=0;t<c;t++){const i=e.getRangeAt(t),{startContainer:a,startOffset:c,endContainer:l,endOffset:d}=i;D(a,n,o,!0)||D(l,n,o,!0)||s.push({start:r.getId(a),startOffset:c,end:r.getId(l),endOffset:d})}i({ranges:s})};return s(),T("selectionchange",s)}(e),f=[];for(const t of e.plugins)f.push(t.observer(t.callback,r,t.options));return()=>{re.forEach((e=>e.reset())),n.disconnect(),o(),i(),s(),c(),l(),d(),u(),h(),p(),g(),m(),f.forEach((e=>e()))}}class Ie{constructor(e){this.generateIdFn=e,this.iframeIdToRemoteIdMap=new WeakMap,this.iframeRemoteIdToIdMap=new WeakMap}getId(e,t,r,n){const o=r||this.getIdToRemoteIdMap(e),i=n||this.getRemoteIdToIdMap(e);let a=o.get(t);return a||(a=this.generateIdFn(),o.set(t,a),i.set(a,t)),a}getIds(e,t){const r=this.getIdToRemoteIdMap(e),n=this.getRemoteIdToIdMap(e);return t.map((t=>this.getId(e,t,r,n)))}getRemoteId(e,t,r){const n=r||this.getRemoteIdToIdMap(e);if("number"!=typeof t)return t;return n.get(t)||-1}getRemoteIds(e,t){const r=this.getRemoteIdToIdMap(e);return t.map((t=>this.getRemoteId(e,t,r)))}reset(e){if(!e)return this.iframeIdToRemoteIdMap=new WeakMap,void(this.iframeRemoteIdToIdMap=new WeakMap);this.iframeIdToRemoteIdMap.delete(e),this.iframeRemoteIdToIdMap.delete(e)}getIdToRemoteIdMap(e){let t=this.iframeIdToRemoteIdMap.get(e);return t||(t=new Map,this.iframeIdToRemoteIdMap.set(e,t)),t}getRemoteIdToIdMap(e){let t=this.iframeRemoteIdToIdMap.get(e);return t||(t=new Map,this.iframeRemoteIdToIdMap.set(e,t)),t}}class ye{constructor(e){this.iframes=new WeakMap,this.crossOriginIframeMap=new WeakMap,this.crossOriginIframeMirror=new Ie(p),this.mutationCb=e.mutationCb,this.wrappedEmit=e.wrappedEmit,this.stylesheetManager=e.stylesheetManager,this.recordCrossOriginIframes=e.recordCrossOriginIframes,this.crossOriginIframeStyleMirror=new Ie(this.stylesheetManager.styleMirror.generateId.bind(this.stylesheetManager.styleMirror)),this.mirror=e.mirror,this.recordCrossOriginIframes&&window.addEventListener("message",this.handleMessage.bind(this))}addIframe(e){this.iframes.set(e,!0),e.contentWindow&&this.crossOriginIframeMap.set(e.contentWindow,e)}addLoadListener(e){this.loadListener=e}attachIframe(e,t){var r;this.mutationCb({adds:[{parentId:this.mirror.getId(e),nextId:null,node:t}],removes:[],texts:[],attributes:[],isAttachIframe:!0}),null===(r=this.loadListener)||void 0===r||r.call(this,e),e.contentDocument&&e.contentDocument.adoptedStyleSheets&&e.contentDocument.adoptedStyleSheets.length>0&&this.stylesheetManager.adoptStyleSheets(e.contentDocument.adoptedStyleSheets,this.mirror.getId(e.contentDocument))}handleMessage(e){if("rrweb"===e.data.type){if(!e.source)return;const t=this.crossOriginIframeMap.get(e.source);if(!t)return;const r=this.transformCrossOriginEvent(t,e.data.event);r&&this.wrappedEmit(r,e.data.isCheckout)}}transformCrossOriginEvent(e,t){var r;switch(t.type){case _.FullSnapshot:return this.crossOriginIframeMirror.reset(e),this.crossOriginIframeStyleMirror.reset(e),this.replaceIdOnNode(t.data.node,e),{timestamp:t.timestamp,type:_.IncrementalSnapshot,data:{source:Y.Mutation,adds:[{parentId:this.mirror.getId(e),nextId:null,node:t.data.node}],removes:[],texts:[],attributes:[],isAttachIframe:!0}};case _.Meta:case _.Load:case _.DomContentLoaded:return!1;case _.Plugin:return t;case _.Custom:return this.replaceIds(t.data.payload,e,["id","parentId","previousId","nextId"]),t;case _.IncrementalSnapshot:switch(t.data.source){case Y.Mutation:return t.data.adds.forEach((t=>{this.replaceIds(t,e,["parentId","nextId","previousId"]),this.replaceIdOnNode(t.node,e)})),t.data.removes.forEach((t=>{this.replaceIds(t,e,["parentId","id"])})),t.data.attributes.forEach((t=>{this.replaceIds(t,e,["id"])})),t.data.texts.forEach((t=>{this.replaceIds(t,e,["id"])})),t;case Y.Drag:case Y.TouchMove:case Y.MouseMove:return t.data.positions.forEach((t=>{this.replaceIds(t,e,["id"])})),t;case Y.ViewportResize:return!1;case Y.MediaInteraction:case Y.MouseInteraction:case Y.Scroll:case Y.CanvasMutation:case Y.Input:return this.replaceIds(t.data,e,["id"]),t;case Y.StyleSheetRule:case Y.StyleDeclaration:return this.replaceIds(t.data,e,["id"]),this.replaceStyleIds(t.data,e,["styleId"]),t;case Y.Font:return t;case Y.Selection:return t.data.ranges.forEach((t=>{this.replaceIds(t,e,["start","end"])})),t;case Y.AdoptedStyleSheet:return this.replaceIds(t.data,e,["id"]),this.replaceStyleIds(t.data,e,["styleIds"]),null===(r=t.data.styles)||void 0===r||r.forEach((t=>{this.replaceStyleIds(t,e,["styleId"])})),t}}}replace(e,t,r,n){for(const o of n)(Array.isArray(t[o])||"number"==typeof t[o])&&(Array.isArray(t[o])?t[o]=e.getIds(r,t[o]):t[o]=e.getId(r,t[o]));return t}replaceIds(e,t,r){return this.replace(this.crossOriginIframeMirror,e,t,r)}replaceStyleIds(e,t,r){return this.replace(this.crossOriginIframeStyleMirror,e,t,r)}replaceIdOnNode(e,t){this.replaceIds(e,t,["id"]),"childNodes"in e&&e.childNodes.forEach((e=>{this.replaceIdOnNode(e,t)}))}}class Ce{constructor(e){this.shadowDoms=new WeakSet,this.restorePatches=[],this.mutationCb=e.mutationCb,this.scrollCb=e.scrollCb,this.bypassOptions=e.bypassOptions,this.mirror=e.mirror;const t=this;this.restorePatches.push(O(Element.prototype,"attachShadow",(function(e){return function(r){const n=e.call(this,r);return this.shadowRoot&&t.addShadowRoot(this.shadowRoot,this.ownerDocument),n}})))}addShadowRoot(e,t){r(e)&&(this.shadowDoms.has(e)||(this.shadowDoms.add(e),ce(Object.assign(Object.assign({},this.bypassOptions),{doc:t,mutationCb:this.mutationCb,mirror:this.mirror,shadowDomManager:this}),e),le(Object.assign(Object.assign({},this.bypassOptions),{scrollCb:this.scrollCb,doc:e,mirror:this.mirror})),setTimeout((()=>{e.adoptedStyleSheets&&e.adoptedStyleSheets.length>0&&this.bypassOptions.stylesheetManager.adoptStyleSheets(e.adoptedStyleSheets,this.mirror.getId(e.host)),me({mirror:this.mirror,stylesheetManager:this.bypassOptions.stylesheetManager},e)}),0)))}observeAttachShadow(e){if(e.contentWindow){const t=this;this.restorePatches.push(O(e.contentWindow.HTMLElement.prototype,"attachShadow",(function(r){return function(n){const o=r.call(this,n);return this.shadowRoot&&t.addShadowRoot(this.shadowRoot,e.contentDocument),o}})))}}reset(){this.restorePatches.forEach((e=>e())),this.shadowDoms=new WeakSet}}for(var ve="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",be="undefined"==typeof Uint8Array?[]:new Uint8Array(256),Se=0;Se<64;Se++)be[ve.charCodeAt(Se)]=Se;const Ae=new Map,ke=(e,t,r)=>{if(!e||!Te(e,t)&&"object"!=typeof e)return;const n=function(e,t){let r=Ae.get(e);return r||(r=new Map,Ae.set(e,r)),r.has(t)||r.set(t,[]),r.get(t)}(r,e.constructor.name);let o=n.indexOf(e);return-1===o&&(o=n.length,n.push(e)),o};function we(e,t,r){if(e instanceof Array)return e.map((e=>we(e,t,r)));if(null===e)return e;if(e instanceof Float32Array||e instanceof Float64Array||e instanceof Int32Array||e instanceof Uint32Array||e instanceof Uint8Array||e instanceof Uint16Array||e instanceof Int16Array||e instanceof Int8Array||e instanceof Uint8ClampedArray)return{rr_type:e.constructor.name,args:[Object.values(e)]};if(e instanceof ArrayBuffer){const t=e.constructor.name,r=function(e){var t,r=new Uint8Array(e),n=r.length,o="";for(t=0;t<n;t+=3)o+=ve[r[t]>>2],o+=ve[(3&r[t])<<4|r[t+1]>>4],o+=ve[(15&r[t+1])<<2|r[t+2]>>6],o+=ve[63&r[t+2]];return n%3==2?o=o.substring(0,o.length-1)+"=":n%3==1&&(o=o.substring(0,o.length-2)+"=="),o}(e);return{rr_type:t,base64:r}}if(e instanceof DataView)return{rr_type:e.constructor.name,args:[we(e.buffer,t,r),e.byteOffset,e.byteLength]};if(e instanceof HTMLImageElement){const t=e.constructor.name,{src:r}=e;return{rr_type:t,src:r}}return e instanceof HTMLCanvasElement?{rr_type:"HTMLImageElement",src:e.toDataURL()}:e instanceof ImageData?{rr_type:e.constructor.name,args:[we(e.data,t,r),e.width,e.height]}:Te(e,t)||"object"==typeof e?{rr_type:e.constructor.name,index:ke(e,t,r)}:e}const Me=(e,t,r)=>[...e].map((e=>we(e,t,r))),Te=(e,t)=>{const r=["WebGLActiveInfo","WebGLBuffer","WebGLFramebuffer","WebGLProgram","WebGLRenderbuffer","WebGLShader","WebGLShaderPrecisionFormat","WebGLTexture","WebGLUniformLocation","WebGLVertexArrayObject","WebGLVertexArrayObjectOES"].filter((e=>"function"==typeof t[e]));return Boolean(r.find((r=>e instanceof t[r])))};function xe(e,t,r){const n=[];try{const o=O(e.HTMLCanvasElement.prototype,"getContext",(function(e){return function(n,...o){return D(this,t,r,!0)||"__context"in this||(this.__context=n),e.apply(this,[n,...o])}}));n.push(o)}catch(e){console.error("failed to patch HTMLCanvasElement.prototype.getContext")}return()=>{n.forEach((e=>e()))}}function Ee(e,t,r,n,o,i,a){const s=[],c=Object.getOwnPropertyNames(e);for(const i of c)if(!["isContextLost","canvas","drawingBufferWidth","drawingBufferHeight"].includes(i))try{if("function"!=typeof e[i])continue;const c=O(e,i,(function(e){return function(...s){const c=e.apply(this,s);if(ke(c,a,this),!D(this.canvas,n,o,!0)){const e=Me([...s],a,this),n={type:t,property:i,args:e};r(this.canvas,n)}return c}}));s.push(c)}catch(n){const o=N(e,i,{set(e){r(this.canvas,{type:t,property:i,args:[e],setter:!0})}});s.push(o)}return s}var Re=null;try{var Ne="undefined"!=typeof module&&"function"==typeof module.require&&module.require("worker_threads")||"function"==typeof require&&require("worker_threads")||"function"==typeof require&&require("worker_threads");Re=Ne.Worker}catch(e){}var Oe,Le,Fe=(Oe="Lyogcm9sbHVwLXBsdWdpbi13ZWItd29ya2VyLWxvYWRlciAqLwooZnVuY3Rpb24gKCkgewogICAgJ3VzZSBzdHJpY3QnOwoKICAgIC8qISAqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKg0KICAgIENvcHlyaWdodCAoYykgTWljcm9zb2Z0IENvcnBvcmF0aW9uLg0KDQogICAgUGVybWlzc2lvbiB0byB1c2UsIGNvcHksIG1vZGlmeSwgYW5kL29yIGRpc3RyaWJ1dGUgdGhpcyBzb2Z0d2FyZSBmb3IgYW55DQogICAgcHVycG9zZSB3aXRoIG9yIHdpdGhvdXQgZmVlIGlzIGhlcmVieSBncmFudGVkLg0KDQogICAgVEhFIFNPRlRXQVJFIElTIFBST1ZJREVEICJBUyBJUyIgQU5EIFRIRSBBVVRIT1IgRElTQ0xBSU1TIEFMTCBXQVJSQU5USUVTIFdJVEgNCiAgICBSRUdBUkQgVE8gVEhJUyBTT0ZUV0FSRSBJTkNMVURJTkcgQUxMIElNUExJRUQgV0FSUkFOVElFUyBPRiBNRVJDSEFOVEFCSUxJVFkNCiAgICBBTkQgRklUTkVTUy4gSU4gTk8gRVZFTlQgU0hBTEwgVEhFIEFVVEhPUiBCRSBMSUFCTEUgRk9SIEFOWSBTUEVDSUFMLCBESVJFQ1QsDQogICAgSU5ESVJFQ1QsIE9SIENPTlNFUVVFTlRJQUwgREFNQUdFUyBPUiBBTlkgREFNQUdFUyBXSEFUU09FVkVSIFJFU1VMVElORyBGUk9NDQogICAgTE9TUyBPRiBVU0UsIERBVEEgT1IgUFJPRklUUywgV0hFVEhFUiBJTiBBTiBBQ1RJT04gT0YgQ09OVFJBQ1QsIE5FR0xJR0VOQ0UgT1INCiAgICBPVEhFUiBUT1JUSU9VUyBBQ1RJT04sIEFSSVNJTkcgT1VUIE9GIE9SIElOIENPTk5FQ1RJT04gV0lUSCBUSEUgVVNFIE9SDQogICAgUEVSRk9STUFOQ0UgT0YgVEhJUyBTT0ZUV0FSRS4NCiAgICAqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKiAqLw0KDQogICAgZnVuY3Rpb24gX19hd2FpdGVyKHRoaXNBcmcsIF9hcmd1bWVudHMsIFAsIGdlbmVyYXRvcikgew0KICAgICAgICBmdW5jdGlvbiBhZG9wdCh2YWx1ZSkgeyByZXR1cm4gdmFsdWUgaW5zdGFuY2VvZiBQID8gdmFsdWUgOiBuZXcgUChmdW5jdGlvbiAocmVzb2x2ZSkgeyByZXNvbHZlKHZhbHVlKTsgfSk7IH0NCiAgICAgICAgcmV0dXJuIG5ldyAoUCB8fCAoUCA9IFByb21pc2UpKShmdW5jdGlvbiAocmVzb2x2ZSwgcmVqZWN0KSB7DQogICAgICAgICAgICBmdW5jdGlvbiBmdWxmaWxsZWQodmFsdWUpIHsgdHJ5IHsgc3RlcChnZW5lcmF0b3IubmV4dCh2YWx1ZSkpOyB9IGNhdGNoIChlKSB7IHJlamVjdChlKTsgfSB9DQogICAgICAgICAgICBmdW5jdGlvbiByZWplY3RlZCh2YWx1ZSkgeyB0cnkgeyBzdGVwKGdlbmVyYXRvclsidGhyb3ciXSh2YWx1ZSkpOyB9IGNhdGNoIChlKSB7IHJlamVjdChlKTsgfSB9DQogICAgICAgICAgICBmdW5jdGlvbiBzdGVwKHJlc3VsdCkgeyByZXN1bHQuZG9uZSA/IHJlc29sdmUocmVzdWx0LnZhbHVlKSA6IGFkb3B0KHJlc3VsdC52YWx1ZSkudGhlbihmdWxmaWxsZWQsIHJlamVjdGVkKTsgfQ0KICAgICAgICAgICAgc3RlcCgoZ2VuZXJhdG9yID0gZ2VuZXJhdG9yLmFwcGx5KHRoaXNBcmcsIF9hcmd1bWVudHMgfHwgW10pKS5uZXh0KCkpOw0KICAgICAgICB9KTsNCiAgICB9CgogICAgLyoKICAgICAqIGJhc2U2NC1hcnJheWJ1ZmZlciAxLjAuMSA8aHR0cHM6Ly9naXRodWIuY29tL25pa2xhc3ZoL2Jhc2U2NC1hcnJheWJ1ZmZlcj4KICAgICAqIENvcHlyaWdodCAoYykgMjAyMSBOaWtsYXMgdm9uIEhlcnR6ZW4gPGh0dHBzOi8vaGVydHplbi5jb20+CiAgICAgKiBSZWxlYXNlZCB1bmRlciBNSVQgTGljZW5zZQogICAgICovCiAgICB2YXIgY2hhcnMgPSAnQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejAxMjM0NTY3ODkrLyc7CiAgICAvLyBVc2UgYSBsb29rdXAgdGFibGUgdG8gZmluZCB0aGUgaW5kZXguCiAgICB2YXIgbG9va3VwID0gdHlwZW9mIFVpbnQ4QXJyYXkgPT09ICd1bmRlZmluZWQnID8gW10gOiBuZXcgVWludDhBcnJheSgyNTYpOwogICAgZm9yICh2YXIgaSA9IDA7IGkgPCBjaGFycy5sZW5ndGg7IGkrKykgewogICAgICAgIGxvb2t1cFtjaGFycy5jaGFyQ29kZUF0KGkpXSA9IGk7CiAgICB9CiAgICB2YXIgZW5jb2RlID0gZnVuY3Rpb24gKGFycmF5YnVmZmVyKSB7CiAgICAgICAgdmFyIGJ5dGVzID0gbmV3IFVpbnQ4QXJyYXkoYXJyYXlidWZmZXIpLCBpLCBsZW4gPSBieXRlcy5sZW5ndGgsIGJhc2U2NCA9ICcnOwogICAgICAgIGZvciAoaSA9IDA7IGkgPCBsZW47IGkgKz0gMykgewogICAgICAgICAgICBiYXNlNjQgKz0gY2hhcnNbYnl0ZXNbaV0gPj4gMl07CiAgICAgICAgICAgIGJhc2U2NCArPSBjaGFyc1soKGJ5dGVzW2ldICYgMykgPDwgNCkgfCAoYnl0ZXNbaSArIDFdID4+IDQpXTsKICAgICAgICAgICAgYmFzZTY0ICs9IGNoYXJzWygoYnl0ZXNbaSArIDFdICYgMTUpIDw8IDIpIHwgKGJ5dGVzW2kgKyAyXSA+PiA2KV07CiAgICAgICAgICAgIGJhc2U2NCArPSBjaGFyc1tieXRlc1tpICsgMl0gJiA2M107CiAgICAgICAgfQogICAgICAgIGlmIChsZW4gJSAzID09PSAyKSB7CiAgICAgICAgICAgIGJhc2U2NCA9IGJhc2U2NC5zdWJzdHJpbmcoMCwgYmFzZTY0Lmxlbmd0aCAtIDEpICsgJz0nOwogICAgICAgIH0KICAgICAgICBlbHNlIGlmIChsZW4gJSAzID09PSAxKSB7CiAgICAgICAgICAgIGJhc2U2NCA9IGJhc2U2NC5zdWJzdHJpbmcoMCwgYmFzZTY0Lmxlbmd0aCAtIDIpICsgJz09JzsKICAgICAgICB9CiAgICAgICAgcmV0dXJuIGJhc2U2NDsKICAgIH07CgogICAgY29uc3QgbGFzdEJsb2JNYXAgPSBuZXcgTWFwKCk7DQogICAgY29uc3QgdHJhbnNwYXJlbnRCbG9iTWFwID0gbmV3IE1hcCgpOw0KICAgIGZ1bmN0aW9uIGdldFRyYW5zcGFyZW50QmxvYkZvcih3aWR0aCwgaGVpZ2h0LCBkYXRhVVJMT3B0aW9ucykgew0KICAgICAgICByZXR1cm4gX19hd2FpdGVyKHRoaXMsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiogKCkgew0KICAgICAgICAgICAgY29uc3QgaWQgPSBgJHt3aWR0aH0tJHtoZWlnaHR9YDsNCiAgICAgICAgICAgIGlmICgnT2Zmc2NyZWVuQ2FudmFzJyBpbiBnbG9iYWxUaGlzKSB7DQogICAgICAgICAgICAgICAgaWYgKHRyYW5zcGFyZW50QmxvYk1hcC5oYXMoaWQpKQ0KICAgICAgICAgICAgICAgICAgICByZXR1cm4gdHJhbnNwYXJlbnRCbG9iTWFwLmdldChpZCk7DQogICAgICAgICAgICAgICAgY29uc3Qgb2Zmc2NyZWVuID0gbmV3IE9mZnNjcmVlbkNhbnZhcyh3aWR0aCwgaGVpZ2h0KTsNCiAgICAgICAgICAgICAgICBvZmZzY3JlZW4uZ2V0Q29udGV4dCgnMmQnKTsNCiAgICAgICAgICAgICAgICBjb25zdCBibG9iID0geWllbGQgb2Zmc2NyZWVuLmNvbnZlcnRUb0Jsb2IoZGF0YVVSTE9wdGlvbnMpOw0KICAgICAgICAgICAgICAgIGNvbnN0IGFycmF5QnVmZmVyID0geWllbGQgYmxvYi5hcnJheUJ1ZmZlcigpOw0KICAgICAgICAgICAgICAgIGNvbnN0IGJhc2U2NCA9IGVuY29kZShhcnJheUJ1ZmZlcik7DQogICAgICAgICAgICAgICAgdHJhbnNwYXJlbnRCbG9iTWFwLnNldChpZCwgYmFzZTY0KTsNCiAgICAgICAgICAgICAgICByZXR1cm4gYmFzZTY0Ow0KICAgICAgICAgICAgfQ0KICAgICAgICAgICAgZWxzZSB7DQogICAgICAgICAgICAgICAgcmV0dXJuICcnOw0KICAgICAgICAgICAgfQ0KICAgICAgICB9KTsNCiAgICB9DQogICAgY29uc3Qgd29ya2VyID0gc2VsZjsNCiAgICB3b3JrZXIub25tZXNzYWdlID0gZnVuY3Rpb24gKGUpIHsNCiAgICAgICAgcmV0dXJuIF9fYXdhaXRlcih0aGlzLCB2b2lkIDAsIHZvaWQgMCwgZnVuY3Rpb24qICgpIHsNCiAgICAgICAgICAgIGlmICgnT2Zmc2NyZWVuQ2FudmFzJyBpbiBnbG9iYWxUaGlzKSB7DQogICAgICAgICAgICAgICAgY29uc3QgeyBpZCwgYml0bWFwLCB3aWR0aCwgaGVpZ2h0LCBkYXRhVVJMT3B0aW9ucyB9ID0gZS5kYXRhOw0KICAgICAgICAgICAgICAgIGNvbnN0IHRyYW5zcGFyZW50QmFzZTY0ID0gZ2V0VHJhbnNwYXJlbnRCbG9iRm9yKHdpZHRoLCBoZWlnaHQsIGRhdGFVUkxPcHRpb25zKTsNCiAgICAgICAgICAgICAgICBjb25zdCBvZmZzY3JlZW4gPSBuZXcgT2Zmc2NyZWVuQ2FudmFzKHdpZHRoLCBoZWlnaHQpOw0KICAgICAgICAgICAgICAgIGNvbnN0IGN0eCA9IG9mZnNjcmVlbi5nZXRDb250ZXh0KCcyZCcpOw0KICAgICAgICAgICAgICAgIGN0eC5kcmF3SW1hZ2UoYml0bWFwLCAwLCAwKTsNCiAgICAgICAgICAgICAgICBiaXRtYXAuY2xvc2UoKTsNCiAgICAgICAgICAgICAgICBjb25zdCBibG9iID0geWllbGQgb2Zmc2NyZWVuLmNvbnZlcnRUb0Jsb2IoZGF0YVVSTE9wdGlvbnMpOw0KICAgICAgICAgICAgICAgIGNvbnN0IHR5cGUgPSBibG9iLnR5cGU7DQogICAgICAgICAgICAgICAgY29uc3QgYXJyYXlCdWZmZXIgPSB5aWVsZCBibG9iLmFycmF5QnVmZmVyKCk7DQogICAgICAgICAgICAgICAgY29uc3QgYmFzZTY0ID0gZW5jb2RlKGFycmF5QnVmZmVyKTsNCiAgICAgICAgICAgICAgICBpZiAoIWxhc3RCbG9iTWFwLmhhcyhpZCkgJiYgKHlpZWxkIHRyYW5zcGFyZW50QmFzZTY0KSA9PT0gYmFzZTY0KSB7DQogICAgICAgICAgICAgICAgICAgIGxhc3RCbG9iTWFwLnNldChpZCwgYmFzZTY0KTsNCiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIHdvcmtlci5wb3N0TWVzc2FnZSh7IGlkIH0pOw0KICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICBpZiAobGFzdEJsb2JNYXAuZ2V0KGlkKSA9PT0gYmFzZTY0KQ0KICAgICAgICAgICAgICAgICAgICByZXR1cm4gd29ya2VyLnBvc3RNZXNzYWdlKHsgaWQgfSk7DQogICAgICAgICAgICAgICAgd29ya2VyLnBvc3RNZXNzYWdlKHsNCiAgICAgICAgICAgICAgICAgICAgaWQsDQogICAgICAgICAgICAgICAgICAgIHR5cGUsDQogICAgICAgICAgICAgICAgICAgIGJhc2U2NCwNCiAgICAgICAgICAgICAgICAgICAgd2lkdGgsDQogICAgICAgICAgICAgICAgICAgIGhlaWdodCwNCiAgICAgICAgICAgICAgICB9KTsNCiAgICAgICAgICAgICAgICBsYXN0QmxvYk1hcC5zZXQoaWQsIGJhc2U2NCk7DQogICAgICAgICAgICB9DQogICAgICAgICAgICBlbHNlIHsNCiAgICAgICAgICAgICAgICByZXR1cm4gd29ya2VyLnBvc3RNZXNzYWdlKHsgaWQ6IGUuZGF0YS5pZCB9KTsNCiAgICAgICAgICAgIH0NCiAgICAgICAgfSk7DQogICAgfTsKCn0pKCk7Cgo=",Le=!1,"[object process]"===Object.prototype.toString.call("undefined"!=typeof process?process:0)?function(e,t,r){var n=void 0===t?null:t,o=function(e,t){return Buffer.from(e,"base64").toString(t?"utf16":"utf8")}(e,void 0!==r&&r),i=o.indexOf("\n",10)+1,a=o.substring(i)+(n?"//# sourceMappingURL="+n:"");return function(e){return new Re(a,Object.assign({},e,{eval:!0}))}}(Oe,null,Le):function(e){var t;return function(r){return t=t||function(e,t,r){var n=void 0===t?null:t,o=function(e,t){var r=atob(e);if(t){for(var n=new Uint8Array(r.length),o=0,i=r.length;o<i;++o)n[o]=r.charCodeAt(o);return String.fromCharCode.apply(null,new Uint16Array(n.buffer))}return r}(e,void 0!==r&&r),i=o.indexOf("\n",10)+1,a=o.substring(i)+(n?"//# sourceMappingURL="+n:""),s=new Blob([a],{type:"application/javascript"});return URL.createObjectURL(s)}(e,null,false),new Worker(t,r)}}(Oe));class De{constructor(e){this.pendingCanvasMutations=new Map,this.rafStamps={latestId:0,invokeId:null},this.frozen=!1,this.locked=!1,this.processMutation=(e,t)=>{!(this.rafStamps.invokeId&&this.rafStamps.latestId!==this.rafStamps.invokeId)&&this.rafStamps.invokeId||(this.rafStamps.invokeId=this.rafStamps.latestId),this.pendingCanvasMutations.has(e)||this.pendingCanvasMutations.set(e,[]),this.pendingCanvasMutations.get(e).push(t)};const{sampling:t="all",win:r,blockClass:n,blockSelector:o,recordCanvas:i,dataURLOptions:a}=e;this.mutationCb=e.mutationCb,this.mirror=e.mirror,i&&"all"===t&&this.initCanvasMutationObserver(r,n,o),i&&"number"==typeof t&&this.initCanvasFPSObserver(t,r,n,o,{dataURLOptions:a})}reset(){this.pendingCanvasMutations.clear(),this.resetObservers&&this.resetObservers()}freeze(){this.frozen=!0}unfreeze(){this.frozen=!1}lock(){this.locked=!0}unlock(){this.locked=!1}initCanvasFPSObserver(e,t,r,n,o){const i=xe(t,r,n),a=new Map,s=new Fe;s.onmessage=e=>{const{id:t}=e.data;if(a.set(t,!1),!("base64"in e.data))return;const{base64:r,type:n,width:o,height:i}=e.data;this.mutationCb({id:t,type:P["2D"],commands:[{property:"clearRect",args:[0,0,o,i]},{property:"drawImage",args:[{rr_type:"ImageBitmap",args:[{rr_type:"Blob",data:[{rr_type:"ArrayBuffer",base64:r}],type:n}]},0,0]}]})};const c=1e3/e;let l,d=0;const u=e=>{d&&e-d<c||(d=e,(()=>{const e=[];return t.document.querySelectorAll("canvas").forEach((t=>{D(t,r,n,!0)||e.push(t)})),e})().forEach((e=>{return t=this,r=void 0,i=function*(){var t;const r=this.mirror.getId(e);if(a.get(r))return;if(a.set(r,!0),["webgl","webgl2"].includes(e.__context)){const r=e.getContext(e.__context);!1===(null===(t=null==r?void 0:r.getContextAttributes())||void 0===t?void 0:t.preserveDrawingBuffer)&&(null==r||r.clear(r.COLOR_BUFFER_BIT))}const n=yield createImageBitmap(e);s.postMessage({id:r,bitmap:n,width:e.width,height:e.height,dataURLOptions:o.dataURLOptions},[n])},new((n=void 0)||(n=Promise))((function(e,o){function a(e){try{c(i.next(e))}catch(e){o(e)}}function s(e){try{c(i.throw(e))}catch(e){o(e)}}function c(t){var r;t.done?e(t.value):(r=t.value,r instanceof n?r:new n((function(e){e(r)}))).then(a,s)}c((i=i.apply(t,r||[])).next())}));var t,r,n,i}))),l=requestAnimationFrame(u)};l=requestAnimationFrame(u),this.resetObservers=()=>{i(),cancelAnimationFrame(l)}}initCanvasMutationObserver(e,t,r){this.startRAFTimestamping(),this.startPendingCanvasMutationFlusher();const n=xe(e,t,r),o=function(e,t,r,n){const o=[],i=Object.getOwnPropertyNames(t.CanvasRenderingContext2D.prototype);for(const a of i)try{if("function"!=typeof t.CanvasRenderingContext2D.prototype[a])continue;const i=O(t.CanvasRenderingContext2D.prototype,a,(function(o){return function(...i){return D(this.canvas,r,n,!0)||setTimeout((()=>{const r=Me([...i],t,this);e(this.canvas,{type:P["2D"],property:a,args:r})}),0),o.apply(this,i)}}));o.push(i)}catch(r){const n=N(t.CanvasRenderingContext2D.prototype,a,{set(t){e(this.canvas,{type:P["2D"],property:a,args:[t],setter:!0})}});o.push(n)}return()=>{o.forEach((e=>e()))}}(this.processMutation.bind(this),e,t,r),i=function(e,t,r,n){const o=[];return o.push(...Ee(t.WebGLRenderingContext.prototype,P.WebGL,e,r,n,0,t)),void 0!==t.WebGL2RenderingContext&&o.push(...Ee(t.WebGL2RenderingContext.prototype,P.WebGL2,e,r,n,0,t)),()=>{o.forEach((e=>e()))}}(this.processMutation.bind(this),e,t,r,this.mirror);this.resetObservers=()=>{n(),o(),i()}}startPendingCanvasMutationFlusher(){requestAnimationFrame((()=>this.flushPendingCanvasMutations()))}startRAFTimestamping(){const e=t=>{this.rafStamps.latestId=t,requestAnimationFrame(e)};requestAnimationFrame(e)}flushPendingCanvasMutations(){this.pendingCanvasMutations.forEach(((e,t)=>{const r=this.mirror.getId(t);this.flushPendingCanvasMutationFor(t,r)})),requestAnimationFrame((()=>this.flushPendingCanvasMutations()))}flushPendingCanvasMutationFor(e,t){if(this.frozen||this.locked)return;const r=this.pendingCanvasMutations.get(e);if(!r||-1===t)return;const n=r.map((e=>{const t=function(e,t){var r={};for(var n in e)Object.prototype.hasOwnProperty.call(e,n)&&t.indexOf(n)<0&&(r[n]=e[n]);if(null!=e&&"function"==typeof Object.getOwnPropertySymbols){var o=0;for(n=Object.getOwnPropertySymbols(e);o<n.length;o++)t.indexOf(n[o])<0&&Object.prototype.propertyIsEnumerable.call(e,n[o])&&(r[n[o]]=e[n[o]])}return r}(e,["type"]);return t})),{type:o}=r[0];this.mutationCb({id:t,type:o,commands:n}),this.pendingCanvasMutations.delete(e)}}class We{constructor(e){this.trackedLinkElements=new WeakSet,this.styleMirror=new K,this.mutationCb=e.mutationCb,this.adoptedStyleSheetCb=e.adoptedStyleSheetCb}attachLinkElement(e,t){"_cssText"in t.attributes&&this.mutationCb({adds:[],removes:[],texts:[],attributes:[{id:t.id,attributes:t.attributes}]}),this.trackLinkElement(e)}trackLinkElement(e){this.trackedLinkElements.has(e)||(this.trackedLinkElements.add(e),this.trackStylesheetInLinkElement(e))}adoptStyleSheets(e,t){if(0===e.length)return;const r={id:t,styleIds:[]},n=[];for(const t of e){let e;if(this.styleMirror.has(t))e=this.styleMirror.getId(t);else{e=this.styleMirror.add(t);const r=Array.from(t.rules||CSSRule);n.push({styleId:e,rules:r.map(((e,t)=>({rule:o(e),index:t})))})}r.styleIds.push(e)}n.length>0&&(r.styles=n),this.adoptedStyleSheetCb(r)}reset(){this.styleMirror.reset(),this.trackedLinkElements=new WeakSet}trackStylesheetInLinkElement(e){}}function Ge(e){return Object.assign(Object.assign({},e),{timestamp:Date.now()})}let Be,Ze,Ve,Ue=!1;const Ke=new i;function _e(e={}){const{emit:t,checkoutEveryNms:r,checkoutEveryNth:n,blockClass:o="rr-block",blockSelector:a=null,ignoreClass:s="rr-ignore",maskTextClass:c="rr-mask",maskTextSelector:l=null,inlineStylesheet:d=!0,maskAllInputs:u,maskInputOptions:h,slimDOMOptions:p,maskInputFn:g,maskTextFn:m,hooks:f,packFn:I,sampling:y={},dataURLOptions:C={},mousemoveWait:v,recordCanvas:b=!1,recordCrossOriginIframes:S=!1,userTriggeredOnInput:A=!1,collectFonts:k=!1,inlineImages:w=!1,plugins:x,keepIframeSrcFn:E=()=>!1,ignoreCSSAttributes:R=new Set([])}=e,N=!S||window.parent===window;let O=!1;if(!N)try{window.parent.document,O=!1}catch(e){O=!0}if(N&&!t)throw new Error("emit function is required");void 0!==v&&void 0===y.mousemove&&(y.mousemove=v),Ke.reset();const D=!0===u?{color:!0,date:!0,"datetime-local":!0,email:!0,month:!0,number:!0,range:!0,search:!0,tel:!0,text:!0,time:!0,url:!0,week:!0,textarea:!0,select:!0,password:!0}:void 0!==h?h:{password:!0},W=!0===p||"all"===p?{script:!0,comment:!0,headFavicon:!0,headWhitespace:!0,headMetaSocial:!0,headMetaRobots:!0,headMetaHttpEquiv:!0,headMetaVerification:!0,headMetaAuthorship:"all"===p,headMetaDescKeywords:"all"===p}:p||{};let G;!function(e=window){"NodeList"in e&&!e.NodeList.prototype.forEach&&(e.NodeList.prototype.forEach=Array.prototype.forEach),"DOMTokenList"in e&&!e.DOMTokenList.prototype.forEach&&(e.DOMTokenList.prototype.forEach=Array.prototype.forEach),Node.prototype.contains||(Node.prototype.contains=(...e)=>{let t=e[0];if(!(0 in e))throw new TypeError("1 argument is required");do{if(this===t)return!0}while(t=t&&t.parentNode);return!1})}();let B=0;const K=e=>{for(const t of x||[])t.eventProcessor&&(e=t.eventProcessor(e));return I&&(e=I(e)),e};Be=(e,o)=>{var i;if(!(null===(i=re[0])||void 0===i?void 0:i.isFrozen())||e.type===_.FullSnapshot||e.type===_.IncrementalSnapshot&&e.data.source===Y.Mutation||re.forEach((e=>e.unfreeze())),N)null==t||t(K(e),o);else if(O){const t={type:"rrweb",event:K(e),isCheckout:o};window.parent.postMessage(t,"*")}if(e.type===_.FullSnapshot)G=e,B=0;else if(e.type===_.IncrementalSnapshot){if(e.data.source===Y.Mutation&&e.data.isAttachIframe)return;B++;const t=n&&B>=n,o=r&&e.timestamp-G.timestamp>r;(t||o)&&Ze(!0)}};const j=e=>{Be(Ge({type:_.IncrementalSnapshot,data:Object.assign({source:Y.Mutation},e)}))},P=e=>Be(Ge({type:_.IncrementalSnapshot,data:Object.assign({source:Y.Scroll},e)})),J=e=>Be(Ge({type:_.IncrementalSnapshot,data:Object.assign({source:Y.CanvasMutation},e)})),z=new We({mutationCb:j,adoptedStyleSheetCb:e=>Be(Ge({type:_.IncrementalSnapshot,data:Object.assign({source:Y.AdoptedStyleSheet},e)}))}),Q=new ye({mirror:Ke,mutationCb:j,stylesheetManager:z,recordCrossOriginIframes:S,wrappedEmit:Be});for(const e of x||[])e.getMirror&&e.getMirror({nodeMirror:Ke,crossOriginIframeMirror:Q.crossOriginIframeMirror,crossOriginIframeStyleMirror:Q.crossOriginIframeStyleMirror});Ve=new De({recordCanvas:b,mutationCb:J,win:window,blockClass:o,blockSelector:a,mirror:Ke,sampling:y.canvas,dataURLOptions:C});const H=new Ce({mutationCb:j,scrollCb:P,bypassOptions:{blockClass:o,blockSelector:a,maskTextClass:c,maskTextSelector:l,inlineStylesheet:d,maskInputOptions:D,dataURLOptions:C,maskTextFn:m,maskInputFn:g,recordCanvas:b,inlineImages:w,sampling:y,slimDOMOptions:W,iframeManager:Q,stylesheetManager:z,canvasManager:Ve,keepIframeSrcFn:E},mirror:Ke});Ze=(e=!1)=>{var t,r,n,s,u,h;Be(Ge({type:_.Meta,data:{href:window.location.href,width:F(),height:L()}}),e),z.reset(),re.forEach((e=>e.lock()));const p=function(e,t){var r=t||{},n=r.mirror,o=void 0===n?new i:n,a=r.blockClass,s=r.blockSelector,c=r.maskTextClass,l=r.maskTextSelector,d=r.inlineStylesheet,u=r.inlineImages,h=r.recordCanvas,p=r.maskAllInputs,g=void 0!==p&&p,m=r.slimDOM,f=void 0!==m&&m,I=r.keepIframeSrcFn;return M(e,{doc:e,mirror:o,blockClass:void 0===a?"rr-block":a,blockSelector:void 0===s?null:s,maskTextClass:void 0===c?"rr-mask":c,maskTextSelector:void 0===l?null:l,skipChild:!1,inlineStylesheet:void 0===d||d,maskInputOptions:!0===g?{color:!0,date:!0,"datetime-local":!0,email:!0,month:!0,number:!0,range:!0,search:!0,tel:!0,text:!0,time:!0,url:!0,week:!0,textarea:!0,select:!0,password:!0}:!1===g?{password:!0}:g,maskTextFn:r.maskTextFn,maskInputFn:r.maskInputFn,slimDOMOptions:!0===f||"all"===f?{script:!0,comment:!0,headFavicon:!0,headWhitespace:!0,headMetaDescKeywords:"all"===f,headMetaSocial:!0,headMetaRobots:!0,headMetaHttpEquiv:!0,headMetaAuthorship:!0,headMetaVerification:!0}:!1===f?{}:f,dataURLOptions:r.dataURLOptions,inlineImages:void 0!==u&&u,recordCanvas:void 0!==h&&h,preserveWhiteSpace:r.preserveWhiteSpace,onSerialize:r.onSerialize,onIframeLoad:r.onIframeLoad,iframeLoadTimeout:r.iframeLoadTimeout,onStylesheetLoad:r.onStylesheetLoad,stylesheetLoadTimeout:r.stylesheetLoadTimeout,keepIframeSrcFn:void 0===I?function(){return!1}:I,newlyAddedElement:!1})}(document,{mirror:Ke,blockClass:o,blockSelector:a,maskTextClass:c,maskTextSelector:l,inlineStylesheet:d,maskAllInputs:D,maskTextFn:m,slimDOM:W,dataURLOptions:C,recordCanvas:b,inlineImages:w,onSerialize:e=>{Z(e,Ke)&&Q.addIframe(e),V(e,Ke)&&z.trackLinkElement(e),U(e)&&H.addShadowRoot(e.shadowRoot,document)},onIframeLoad:(e,t)=>{Q.attachIframe(e,t),H.observeAttachShadow(e)},onStylesheetLoad:(e,t)=>{z.attachLinkElement(e,t)},keepIframeSrcFn:E});if(!p)return console.warn("Failed to snapshot the document");Be(Ge({type:_.FullSnapshot,data:{node:p,initialOffset:{left:void 0!==window.pageXOffset?window.pageXOffset:(null===document||void 0===document?void 0:document.documentElement.scrollLeft)||(null===(r=null===(t=null===document||void 0===document?void 0:document.body)||void 0===t?void 0:t.parentElement)||void 0===r?void 0:r.scrollLeft)||(null===(n=null===document||void 0===document?void 0:document.body)||void 0===n?void 0:n.scrollLeft)||0,top:void 0!==window.pageYOffset?window.pageYOffset:(null===document||void 0===document?void 0:document.documentElement.scrollTop)||(null===(u=null===(s=null===document||void 0===document?void 0:document.body)||void 0===s?void 0:s.parentElement)||void 0===u?void 0:u.scrollTop)||(null===(h=null===document||void 0===document?void 0:document.body)||void 0===h?void 0:h.scrollTop)||0}}})),re.forEach((e=>e.unlock())),document.adoptedStyleSheets&&document.adoptedStyleSheets.length>0&&z.adoptStyleSheets(document.adoptedStyleSheets,Ke.getId(document))};try{const e=[];e.push(T("DOMContentLoaded",(()=>{Be(Ge({type:_.DomContentLoaded,data:{}}))})));const t=e=>{var t;return fe({mutationCb:j,mousemoveCb:(e,t)=>Be(Ge({type:_.IncrementalSnapshot,data:{source:t,positions:e}})),mouseInteractionCb:e=>Be(Ge({type:_.IncrementalSnapshot,data:Object.assign({source:Y.MouseInteraction},e)})),scrollCb:P,viewportResizeCb:e=>Be(Ge({type:_.IncrementalSnapshot,data:Object.assign({source:Y.ViewportResize},e)})),inputCb:e=>Be(Ge({type:_.IncrementalSnapshot,data:Object.assign({source:Y.Input},e)})),mediaInteractionCb:e=>Be(Ge({type:_.IncrementalSnapshot,data:Object.assign({source:Y.MediaInteraction},e)})),styleSheetRuleCb:e=>Be(Ge({type:_.IncrementalSnapshot,data:Object.assign({source:Y.StyleSheetRule},e)})),styleDeclarationCb:e=>Be(Ge({type:_.IncrementalSnapshot,data:Object.assign({source:Y.StyleDeclaration},e)})),canvasMutationCb:J,fontCb:e=>Be(Ge({type:_.IncrementalSnapshot,data:Object.assign({source:Y.Font},e)})),selectionCb:e=>{Be(Ge({type:_.IncrementalSnapshot,data:Object.assign({source:Y.Selection},e)}))},blockClass:o,ignoreClass:s,maskTextClass:c,maskTextSelector:l,maskInputOptions:D,inlineStylesheet:d,sampling:y,recordCanvas:b,inlineImages:w,userTriggeredOnInput:A,collectFonts:k,doc:e,maskInputFn:g,maskTextFn:m,keepIframeSrcFn:E,blockSelector:a,slimDOMOptions:W,dataURLOptions:C,mirror:Ke,iframeManager:Q,stylesheetManager:z,shadowDomManager:H,canvasManager:Ve,ignoreCSSAttributes:R,plugins:(null===(t=null==x?void 0:x.filter((e=>e.observer)))||void 0===t?void 0:t.map((e=>({observer:e.observer,options:e.options,callback:t=>Be(Ge({type:_.Plugin,data:{plugin:e.name,payload:t}}))}))))||[]},f)};Q.addLoadListener((r=>{e.push(t(r.contentDocument))}));const r=()=>{Ze(),e.push(t(document)),Ue=!0};return"interactive"===document.readyState||"complete"===document.readyState?r():e.push(T("load",(()=>{Be(Ge({type:_.Load,data:{}})),r()}),window)),()=>{e.forEach((e=>e())),Ue=!1}}catch(e){console.warn(e)}}function Ye(e){return Ye="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e},Ye(e)}function je(){je=function(){return t};var e,t={},r=Object.prototype,n=r.hasOwnProperty,o=Object.defineProperty||function(e,t,r){e[t]=r.value},i="function"==typeof Symbol?Symbol:{},a=i.iterator||"@@iterator",s=i.asyncIterator||"@@asyncIterator",c=i.toStringTag||"@@toStringTag";function l(e,t,r){return Object.defineProperty(e,t,{value:r,enumerable:!0,configurable:!0,writable:!0}),e[t]}try{l({},"")}catch(e){l=function(e,t,r){return e[t]=r}}function d(e,t,r,n){var i=t&&t.prototype instanceof I?t:I,a=Object.create(i.prototype),s=new R(n||[]);return o(a,"_invoke",{value:M(e,r,s)}),a}function u(e,t,r){try{return{type:"normal",arg:e.call(t,r)}}catch(e){return{type:"throw",arg:e}}}t.wrap=d;var h="suspendedStart",p="suspendedYield",g="executing",m="completed",f={};function I(){}function y(){}function C(){}var v={};l(v,a,(function(){return this}));var b=Object.getPrototypeOf,S=b&&b(b(N([])));S&&S!==r&&n.call(S,a)&&(v=S);var A=C.prototype=I.prototype=Object.create(v);function k(e){["next","throw","return"].forEach((function(t){l(e,t,(function(e){return this._invoke(t,e)}))}))}function w(e,t){function r(o,i,a,s){var c=u(e[o],e,i);if("throw"!==c.type){var l=c.arg,d=l.value;return d&&"object"==Ye(d)&&n.call(d,"__await")?t.resolve(d.__await).then((function(e){r("next",e,a,s)}),(function(e){r("throw",e,a,s)})):t.resolve(d).then((function(e){l.value=e,a(l)}),(function(e){return r("throw",e,a,s)}))}s(c.arg)}var i;o(this,"_invoke",{value:function(e,n){function o(){return new t((function(t,o){r(e,n,t,o)}))}return i=i?i.then(o,o):o()}})}function M(t,r,n){var o=h;return function(i,a){if(o===g)throw Error("Generator is already running");if(o===m){if("throw"===i)throw a;return{value:e,done:!0}}for(n.method=i,n.arg=a;;){var s=n.delegate;if(s){var c=T(s,n);if(c){if(c===f)continue;return c}}if("next"===n.method)n.sent=n._sent=n.arg;else if("throw"===n.method){if(o===h)throw o=m,n.arg;n.dispatchException(n.arg)}else"return"===n.method&&n.abrupt("return",n.arg);o=g;var l=u(t,r,n);if("normal"===l.type){if(o=n.done?m:p,l.arg===f)continue;return{value:l.arg,done:n.done}}"throw"===l.type&&(o=m,n.method="throw",n.arg=l.arg)}}}function T(t,r){var n=r.method,o=t.iterator[n];if(o===e)return r.delegate=null,"throw"===n&&t.iterator.return&&(r.method="return",r.arg=e,T(t,r),"throw"===r.method)||"return"!==n&&(r.method="throw",r.arg=new TypeError("The iterator does not provide a '"+n+"' method")),f;var i=u(o,t.iterator,r.arg);if("throw"===i.type)return r.method="throw",r.arg=i.arg,r.delegate=null,f;var a=i.arg;return a?a.done?(r[t.resultName]=a.value,r.next=t.nextLoc,"return"!==r.method&&(r.method="next",r.arg=e),r.delegate=null,f):a:(r.method="throw",r.arg=new TypeError("iterator result is not an object"),r.delegate=null,f)}function x(e){var t={tryLoc:e[0]};1 in e&&(t.catchLoc=e[1]),2 in e&&(t.finallyLoc=e[2],t.afterLoc=e[3]),this.tryEntries.push(t)}function E(e){var t=e.completion||{};t.type="normal",delete t.arg,e.completion=t}function R(e){this.tryEntries=[{tryLoc:"root"}],e.forEach(x,this),this.reset(!0)}function N(t){if(t||""===t){var r=t[a];if(r)return r.call(t);if("function"==typeof t.next)return t;if(!isNaN(t.length)){var o=-1,i=function r(){for(;++o<t.length;)if(n.call(t,o))return r.value=t[o],r.done=!1,r;return r.value=e,r.done=!0,r};return i.next=i}}throw new TypeError(Ye(t)+" is not iterable")}return y.prototype=C,o(A,"constructor",{value:C,configurable:!0}),o(C,"constructor",{value:y,configurable:!0}),y.displayName=l(C,c,"GeneratorFunction"),t.isGeneratorFunction=function(e){var t="function"==typeof e&&e.constructor;return!!t&&(t===y||"GeneratorFunction"===(t.displayName||t.name))},t.mark=function(e){return Object.setPrototypeOf?Object.setPrototypeOf(e,C):(e.__proto__=C,l(e,c,"GeneratorFunction")),e.prototype=Object.create(A),e},t.awrap=function(e){return{__await:e}},k(w.prototype),l(w.prototype,s,(function(){return this})),t.AsyncIterator=w,t.async=function(e,r,n,o,i){void 0===i&&(i=Promise);var a=new w(d(e,r,n,o),i);return t.isGeneratorFunction(r)?a:a.next().then((function(e){return e.done?e.value:a.next()}))},k(A),l(A,c,"Generator"),l(A,a,(function(){return this})),l(A,"toString",(function(){return"[object Generator]"})),t.keys=function(e){var t=Object(e),r=[];for(var n in t)r.push(n);return r.reverse(),function e(){for(;r.length;){var n=r.pop();if(n in t)return e.value=n,e.done=!1,e}return e.done=!0,e}},t.values=N,R.prototype={constructor:R,reset:function(t){if(this.prev=0,this.next=0,this.sent=this._sent=e,this.done=!1,this.delegate=null,this.method="next",this.arg=e,this.tryEntries.forEach(E),!t)for(var r in this)"t"===r.charAt(0)&&n.call(this,r)&&!isNaN(+r.slice(1))&&(this[r]=e)},stop:function(){this.done=!0;var e=this.tryEntries[0].completion;if("throw"===e.type)throw e.arg;return this.rval},dispatchException:function(t){if(this.done)throw t;var r=this;function o(n,o){return s.type="throw",s.arg=t,r.next=n,o&&(r.method="next",r.arg=e),!!o}for(var i=this.tryEntries.length-1;i>=0;--i){var a=this.tryEntries[i],s=a.completion;if("root"===a.tryLoc)return o("end");if(a.tryLoc<=this.prev){var c=n.call(a,"catchLoc"),l=n.call(a,"finallyLoc");if(c&&l){if(this.prev<a.catchLoc)return o(a.catchLoc,!0);if(this.prev<a.finallyLoc)return o(a.finallyLoc)}else if(c){if(this.prev<a.catchLoc)return o(a.catchLoc,!0)}else{if(!l)throw Error("try statement without catch or finally");if(this.prev<a.finallyLoc)return o(a.finallyLoc)}}}},abrupt:function(e,t){for(var r=this.tryEntries.length-1;r>=0;--r){var o=this.tryEntries[r];if(o.tryLoc<=this.prev&&n.call(o,"finallyLoc")&&this.prev<o.finallyLoc){var i=o;break}}i&&("break"===e||"continue"===e)&&i.tryLoc<=t&&t<=i.finallyLoc&&(i=null);var a=i?i.completion:{};return a.type=e,a.arg=t,i?(this.method="next",this.next=i.finallyLoc,f):this.complete(a)},complete:function(e,t){if("throw"===e.type)throw e.arg;return"break"===e.type||"continue"===e.type?this.next=e.arg:"return"===e.type?(this.rval=this.arg=e.arg,this.method="return",this.next="end"):"normal"===e.type&&t&&(this.next=t),f},finish:function(e){for(var t=this.tryEntries.length-1;t>=0;--t){var r=this.tryEntries[t];if(r.finallyLoc===e)return this.complete(r.completion,r.afterLoc),E(r),f}},catch:function(e){for(var t=this.tryEntries.length-1;t>=0;--t){var r=this.tryEntries[t];if(r.tryLoc===e){var n=r.completion;if("throw"===n.type){var o=n.arg;E(r)}return o}}throw Error("illegal catch attempt")},delegateYield:function(t,r,n){return this.delegate={iterator:N(t),resultName:r,nextLoc:n},"next"===this.method&&(this.arg=e),f}},t}function Pe(e,t,r,n,o,i,a){try{var s=e[i](a),c=s.value}catch(e){return void r(e)}s.done?t(c):Promise.resolve(c).then(n,o)}function Je(e){return function(){var t=this,r=arguments;return new Promise((function(n,o){var i=e.apply(t,r);function a(e){Pe(i,n,o,a,s,"next",e)}function s(e){Pe(i,n,o,a,s,"throw",e)}a(void 0)}))}}if(_e.addCustomEvent=(e,t)=>{if(!Ue)throw new Error("please add custom event after start recording");Be(Ge({type:_.Custom,data:{tag:e,payload:t}}))},_e.freezePage=()=>{re.forEach((e=>e.freeze()))},_e.takeFullSnapshot=e=>{if(!Ue)throw new Error("please take full snapshot after start recording");Ze(e)},_e.mirror=Ke,!window.__scriptInjected){window.__scriptInjected=!0;var ze=document.createElement("script");ze.src=chrome.runtime.getURL("injectScript.js"),ze.onload=function(){this.remove()},document.documentElement.appendChild(ze)}window.addEventListener("interceptedResponse",(function(e){var t,r=e.detail,n=r.responseHeaders,o=r.responseBody,i=r.statusCode,a=r.url,s=r.requestId;null===(t=chrome.runtime)||void 0===t||t.sendMessage({type:"capturedResponse",requestId:s,responseHeaders:n,responseBody:o,statusCode:i,url:a})}));var Qe,He,Xe=[],qe=!1,$e={mousemove:!1,mouseInteraction:!0,scroll:150,media:800,input:"last"};function et(e){return new Promise((function(t,r){chrome.storage.local.get("testchimp.ext-session-record-tracking-id",(function(n){if(chrome.runtime.lastError)return r(new Error(chrome.runtime.lastError));n["testchimp.ext-session-record-tracking-id"]?t():chrome.storage.local.set({"testchimp.ext-session-record-tracking-id":e},(function(){if(chrome.runtime.lastError)return r(new Error(chrome.runtime.lastError));console.log("Setting testchimp tracking id to "+e),t()}))}))}))}function tt(){return new Promise((function(e,t){chrome.storage.local.get("testchimp.ext-session-record-tracking-id",(function(r){chrome.runtime.lastError?t(new Error(chrome.runtime.lastError)):e(r["testchimp.ext-session-record-tracking-id"]||"")}))}))}function rt(){try{Qe&&(Qe(),Qe=null)}catch(e){console.log("Error",e)}}function nt(e,t,r){qe&&function(e,t,r){Qe=_e({emit:function(e){Xe.push(e)},sampling:$e});var n=setInterval((function(){var o=((new Date).getTime()-He)/1e3;!t.maxSessionDurationSecs||t.maxSessionDurationSecs&&o<t.maxSessionDurationSecs?function(e,t,r,n){if(0!==n.length&&t.projectId&&t.sessionRecordingApiKey){var o=n.map((function(e){return{payload:JSON.stringify(e)}}));Xe=[],function(e,t){var r=JSON.stringify(e);fetch(t,{method:"POST",headers:{"Content-Type":"application/json"},mode:"no-cors",body:r}).catch((function(e){console.error("Error sending payload:",e)}))}({tracking_id:r,aware_project_id:t.projectId,aware_session_tracking_api_key:t.sessionRecordingApiKey,event_list:{events:o}},e+"/session_records")}}(e,t,r,Xe):(clearInterval(n),"function"==typeof Qe&&(Qe(),Qe=null))}),5e3)}(e,t,r)}function ot(){try{chrome.storage.local.set({"testchimp.ext-session-record-tracking-id":""},(function(){chrome.runtime.lastError?console.error("Error:",chrome.runtime.lastError):console.log("TestChimp tracking id cleared")}))}catch(e){console.error("Security error caught:",e)}}function it(){return(it=Je(je().mark((function e(){return je().wrap((function(e){for(;;)switch(e.prev=e.next){case 0:console.log("Ending current tracking session"),rt(),ot();case 3:case"end":return e.stop()}}),e)})))).apply(this,arguments)}function at(e){return st.apply(this,arguments)}function st(){return(st=Je(je().mark((function e(t){var r,n,o,i,a,s,c,l,d;return je().wrap((function(e){for(;;)switch(e.prev=e.next){case 0:return console.log("Initializing recording for TestChimp Project: "+t.projectId),r=t.endpoint||"https://ingress.testchimp.io",n="session_"+"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,(function(e){var t=16*Math.random()|0;return("x"===e?t:3&t|8).toString(16)})),e.next=5,et(n);case 5:return e.next=7,tt();case 7:if(n=e.sent,console.log("Session id for TC",n),He=(new Date).getTime(),o=600,i=200,a=["/^$/"],s=["/^$/"],c=0,l=0,d="QA",t.projectId){e.next=20;break}return console.error("No project id specified for session capture"),e.abrupt("return");case 20:if(t.sessionRecordingApiKey){e.next=23;break}return console.error("No session recording api key specified for session capture"),e.abrupt("return");case 23:t={enableRecording:t.enableRecording||!0,endpoint:r,projectId:t.projectId,sessionRecordingApiKey:t.sessionRecordingApiKey,samplingProbability:t.samplingProbability||c,maxSessionDurationSecs:t.maxSessionDurationSecs||o,samplingProbabilityOnError:t.samplingProbabilityOnError||l,eventWindowToSaveOnError:t.eventWindowToSaveOnError||i,tracedUriRegexListToTrack:t.tracedUriRegexListToTrack||a,untracedUriRegexListToTrack:t.untracedUriRegexListToTrack||s,excludedUriRegexList:t.excludedUriRegexList||[],environment:t.environment||d,enableLogging:t.enableLogging||!0,enableOptionsCallTracking:t.enableOptionsCallTracking||!1},console.log("config used for session recording: ",t),qe=t.samplingProbability&&Math.random()<=t.samplingProbability,t.samplingProbabilityOnError&&(Math.random(),t.samplingProbabilityOnError),nt(r,t,n);case 28:case"end":return e.stop()}}),e)})))).apply(this,arguments)}function ct(){return(ct=Je(je().mark((function e(){var t;return je().wrap((function(e){for(;;)switch(e.prev=e.next){case 0:return console.log("Content script is loaded."),e.next=3,tt();case 3:(t=e.sent)&&""!==t.trim()&&chrome.storage.sync.get(["projectId","sessionRecordingApiKey","endpoint","maxSessionDurationSecs","eventWindowToSaveOnError","uriRegexToIntercept"],(function(e){chrome.runtime.lastError?console.error("Error retrieving settings from storage:",chrome.runtime.lastError):at({projectId:e.projectId,sessionRecordingApiKey:e.sessionRecordingApiKey,endpoint:e.endpoint,samplingProbabilityOnError:0,samplingProbability:1,maxSessionDurationSecs:e.maxSessionDurationSecs||500,eventWindowToSaveOnError:200,untracedUriRegexListToTrack:e.uriRegexToIntercept||".*"})}));case 5:case"end":return e.stop()}}),e)})))).apply(this,arguments)}return chrome.runtime.onMessage.addListener((function(e,t,r){"startTCRecording"===e.action&&at(e.data),"endTCRecording"===e.action&&function(){it.apply(this,arguments)}()})),document.addEventListener("DOMContentLoaded",(function(){return ct.apply(this,arguments)})),{}})()));
+(function webpackUniversalModuleDefinition(root, factory) {
+	if(typeof exports === 'object' && typeof module === 'object')
+		module.exports = factory();
+	else if(typeof define === 'function' && define.amd)
+		define([], factory);
+	else if(typeof exports === 'object')
+		exports["TestChimpSDK"] = factory();
+	else
+		root["TestChimpSDK"] = factory();
+})(this, () => {
+return /******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+var __webpack_exports__ = {};
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb-snapshot/es/rrweb-snapshot.js
+var NodeType;
+(function (NodeType) {
+    NodeType[NodeType["Document"] = 0] = "Document";
+    NodeType[NodeType["DocumentType"] = 1] = "DocumentType";
+    NodeType[NodeType["Element"] = 2] = "Element";
+    NodeType[NodeType["Text"] = 3] = "Text";
+    NodeType[NodeType["CDATA"] = 4] = "CDATA";
+    NodeType[NodeType["Comment"] = 5] = "Comment";
+})(NodeType || (NodeType = {}));
+
+function isElement(n) {
+    return n.nodeType === n.ELEMENT_NODE;
+}
+function isShadowRoot(n) {
+    var host = n === null || n === void 0 ? void 0 : n.host;
+    return Boolean((host === null || host === void 0 ? void 0 : host.shadowRoot) === n);
+}
+function isNativeShadowDom(shadowRoot) {
+    return Object.prototype.toString.call(shadowRoot) === '[object ShadowRoot]';
+}
+function fixBrowserCompatibilityIssuesInCSS(cssText) {
+    if (cssText.includes(' background-clip: text;') &&
+        !cssText.includes(' -webkit-background-clip: text;')) {
+        cssText = cssText.replace(' background-clip: text;', ' -webkit-background-clip: text; background-clip: text;');
+    }
+    return cssText;
+}
+function getCssRulesString(s) {
+    try {
+        var rules = s.rules || s.cssRules;
+        return rules
+            ? fixBrowserCompatibilityIssuesInCSS(Array.from(rules).map(getCssRuleString).join(''))
+            : null;
+    }
+    catch (error) {
+        return null;
+    }
+}
+function getCssRuleString(rule) {
+    var cssStringified = rule.cssText;
+    if (isCSSImportRule(rule)) {
+        try {
+            cssStringified = getCssRulesString(rule.styleSheet) || cssStringified;
+        }
+        catch (_a) {
+        }
+    }
+    return cssStringified;
+}
+function isCSSImportRule(rule) {
+    return 'styleSheet' in rule;
+}
+var Mirror = (function () {
+    function Mirror() {
+        this.idNodeMap = new Map();
+        this.nodeMetaMap = new WeakMap();
+    }
+    Mirror.prototype.getId = function (n) {
+        var _a;
+        if (!n)
+            return -1;
+        var id = (_a = this.getMeta(n)) === null || _a === void 0 ? void 0 : _a.id;
+        return id !== null && id !== void 0 ? id : -1;
+    };
+    Mirror.prototype.getNode = function (id) {
+        return this.idNodeMap.get(id) || null;
+    };
+    Mirror.prototype.getIds = function () {
+        return Array.from(this.idNodeMap.keys());
+    };
+    Mirror.prototype.getMeta = function (n) {
+        return this.nodeMetaMap.get(n) || null;
+    };
+    Mirror.prototype.removeNodeFromMap = function (n) {
+        var _this = this;
+        var id = this.getId(n);
+        this.idNodeMap["delete"](id);
+        if (n.childNodes) {
+            n.childNodes.forEach(function (childNode) {
+                return _this.removeNodeFromMap(childNode);
+            });
+        }
+    };
+    Mirror.prototype.has = function (id) {
+        return this.idNodeMap.has(id);
+    };
+    Mirror.prototype.hasNode = function (node) {
+        return this.nodeMetaMap.has(node);
+    };
+    Mirror.prototype.add = function (n, meta) {
+        var id = meta.id;
+        this.idNodeMap.set(id, n);
+        this.nodeMetaMap.set(n, meta);
+    };
+    Mirror.prototype.replace = function (id, n) {
+        var oldNode = this.getNode(id);
+        if (oldNode) {
+            var meta = this.nodeMetaMap.get(oldNode);
+            if (meta)
+                this.nodeMetaMap.set(n, meta);
+        }
+        this.idNodeMap.set(id, n);
+    };
+    Mirror.prototype.reset = function () {
+        this.idNodeMap = new Map();
+        this.nodeMetaMap = new WeakMap();
+    };
+    return Mirror;
+}());
+function createMirror() {
+    return new Mirror();
+}
+function maskInputValue(_a) {
+    var maskInputOptions = _a.maskInputOptions, tagName = _a.tagName, type = _a.type, value = _a.value, maskInputFn = _a.maskInputFn;
+    var text = value || '';
+    if (maskInputOptions[tagName.toLowerCase()] ||
+        maskInputOptions[type]) {
+        if (maskInputFn) {
+            text = maskInputFn(text);
+        }
+        else {
+            text = '*'.repeat(text.length);
+        }
+    }
+    return text;
+}
+var ORIGINAL_ATTRIBUTE_NAME = '__rrweb_original__';
+function is2DCanvasBlank(canvas) {
+    var ctx = canvas.getContext('2d');
+    if (!ctx)
+        return true;
+    var chunkSize = 50;
+    for (var x = 0; x < canvas.width; x += chunkSize) {
+        for (var y = 0; y < canvas.height; y += chunkSize) {
+            var getImageData = ctx.getImageData;
+            var originalGetImageData = ORIGINAL_ATTRIBUTE_NAME in getImageData
+                ? getImageData[ORIGINAL_ATTRIBUTE_NAME]
+                : getImageData;
+            var pixelBuffer = new Uint32Array(originalGetImageData.call(ctx, x, y, Math.min(chunkSize, canvas.width - x), Math.min(chunkSize, canvas.height - y)).data.buffer);
+            if (pixelBuffer.some(function (pixel) { return pixel !== 0; }))
+                return false;
+        }
+    }
+    return true;
+}
+
+var _id = 1;
+var tagNameRegex = new RegExp('[^a-z0-9-_:]');
+var IGNORED_NODE = -2;
+function genId() {
+    return _id++;
+}
+function getValidTagName(element) {
+    if (element instanceof HTMLFormElement) {
+        return 'form';
+    }
+    var processedTagName = element.tagName.toLowerCase().trim();
+    if (tagNameRegex.test(processedTagName)) {
+        return 'div';
+    }
+    return processedTagName;
+}
+function stringifyStyleSheet(sheet) {
+    return sheet.cssRules
+        ? Array.from(sheet.cssRules)
+            .map(function (rule) { return rule.cssText || ''; })
+            .join('')
+        : '';
+}
+function extractOrigin(url) {
+    var origin = '';
+    if (url.indexOf('//') > -1) {
+        origin = url.split('/').slice(0, 3).join('/');
+    }
+    else {
+        origin = url.split('/')[0];
+    }
+    origin = origin.split('?')[0];
+    return origin;
+}
+var canvasService;
+var canvasCtx;
+var URL_IN_CSS_REF = /url\((?:(')([^']*)'|(")(.*?)"|([^)]*))\)/gm;
+var RELATIVE_PATH = /^(?!www\.|(?:http|ftp)s?:\/\/|[A-Za-z]:\\|\/\/|#).*/;
+var DATA_URI = /^(data:)([^,]*),(.*)/i;
+function absoluteToStylesheet(cssText, href) {
+    return (cssText || '').replace(URL_IN_CSS_REF, function (origin, quote1, path1, quote2, path2, path3) {
+        var filePath = path1 || path2 || path3;
+        var maybeQuote = quote1 || quote2 || '';
+        if (!filePath) {
+            return origin;
+        }
+        if (!RELATIVE_PATH.test(filePath)) {
+            return "url(".concat(maybeQuote).concat(filePath).concat(maybeQuote, ")");
+        }
+        if (DATA_URI.test(filePath)) {
+            return "url(".concat(maybeQuote).concat(filePath).concat(maybeQuote, ")");
+        }
+        if (filePath[0] === '/') {
+            return "url(".concat(maybeQuote).concat(extractOrigin(href) + filePath).concat(maybeQuote, ")");
+        }
+        var stack = href.split('/');
+        var parts = filePath.split('/');
+        stack.pop();
+        for (var _i = 0, parts_1 = parts; _i < parts_1.length; _i++) {
+            var part = parts_1[_i];
+            if (part === '.') {
+                continue;
+            }
+            else if (part === '..') {
+                stack.pop();
+            }
+            else {
+                stack.push(part);
+            }
+        }
+        return "url(".concat(maybeQuote).concat(stack.join('/')).concat(maybeQuote, ")");
+    });
+}
+var SRCSET_NOT_SPACES = /^[^ \t\n\r\u000c]+/;
+var SRCSET_COMMAS_OR_SPACES = /^[, \t\n\r\u000c]+/;
+function getAbsoluteSrcsetString(doc, attributeValue) {
+    if (attributeValue.trim() === '') {
+        return attributeValue;
+    }
+    var pos = 0;
+    function collectCharacters(regEx) {
+        var chars;
+        var match = regEx.exec(attributeValue.substring(pos));
+        if (match) {
+            chars = match[0];
+            pos += chars.length;
+            return chars;
+        }
+        return '';
+    }
+    var output = [];
+    while (true) {
+        collectCharacters(SRCSET_COMMAS_OR_SPACES);
+        if (pos >= attributeValue.length) {
+            break;
+        }
+        var url = collectCharacters(SRCSET_NOT_SPACES);
+        if (url.slice(-1) === ',') {
+            url = absoluteToDoc(doc, url.substring(0, url.length - 1));
+            output.push(url);
+        }
+        else {
+            var descriptorsStr = '';
+            url = absoluteToDoc(doc, url);
+            var inParens = false;
+            while (true) {
+                var c = attributeValue.charAt(pos);
+                if (c === '') {
+                    output.push((url + descriptorsStr).trim());
+                    break;
+                }
+                else if (!inParens) {
+                    if (c === ',') {
+                        pos += 1;
+                        output.push((url + descriptorsStr).trim());
+                        break;
+                    }
+                    else if (c === '(') {
+                        inParens = true;
+                    }
+                }
+                else {
+                    if (c === ')') {
+                        inParens = false;
+                    }
+                }
+                descriptorsStr += c;
+                pos += 1;
+            }
+        }
+    }
+    return output.join(', ');
+}
+function absoluteToDoc(doc, attributeValue) {
+    if (!attributeValue || attributeValue.trim() === '') {
+        return attributeValue;
+    }
+    var a = doc.createElement('a');
+    a.href = attributeValue;
+    return a.href;
+}
+function isSVGElement(el) {
+    return Boolean(el.tagName === 'svg' || el.ownerSVGElement);
+}
+function getHref() {
+    var a = document.createElement('a');
+    a.href = '';
+    return a.href;
+}
+function transformAttribute(doc, tagName, name, value) {
+    if (name === 'src' ||
+        (name === 'href' && value && !(tagName === 'use' && value[0] === '#'))) {
+        return absoluteToDoc(doc, value);
+    }
+    else if (name === 'xlink:href' && value && value[0] !== '#') {
+        return absoluteToDoc(doc, value);
+    }
+    else if (name === 'background' &&
+        value &&
+        (tagName === 'table' || tagName === 'td' || tagName === 'th')) {
+        return absoluteToDoc(doc, value);
+    }
+    else if (name === 'srcset' && value) {
+        return getAbsoluteSrcsetString(doc, value);
+    }
+    else if (name === 'style' && value) {
+        return absoluteToStylesheet(value, getHref());
+    }
+    else if (tagName === 'object' && name === 'data' && value) {
+        return absoluteToDoc(doc, value);
+    }
+    else {
+        return value;
+    }
+}
+function _isBlockedElement(element, blockClass, blockSelector) {
+    if (typeof blockClass === 'string') {
+        if (element.classList.contains(blockClass)) {
+            return true;
+        }
+    }
+    else {
+        for (var eIndex = element.classList.length; eIndex--;) {
+            var className = element.classList[eIndex];
+            if (blockClass.test(className)) {
+                return true;
+            }
+        }
+    }
+    if (blockSelector) {
+        return element.matches(blockSelector);
+    }
+    return false;
+}
+function classMatchesRegex(node, regex, checkAncestors) {
+    if (!node)
+        return false;
+    if (node.nodeType !== node.ELEMENT_NODE) {
+        if (!checkAncestors)
+            return false;
+        return classMatchesRegex(node.parentNode, regex, checkAncestors);
+    }
+    for (var eIndex = node.classList.length; eIndex--;) {
+        var className = node.classList[eIndex];
+        if (regex.test(className)) {
+            return true;
+        }
+    }
+    if (!checkAncestors)
+        return false;
+    return classMatchesRegex(node.parentNode, regex, checkAncestors);
+}
+function needMaskingText(node, maskTextClass, maskTextSelector) {
+    var el = node.nodeType === node.ELEMENT_NODE
+        ? node
+        : node.parentElement;
+    if (el === null)
+        return false;
+    if (typeof maskTextClass === 'string') {
+        if (el.classList.contains(maskTextClass))
+            return true;
+        if (el.closest(".".concat(maskTextClass)))
+            return true;
+    }
+    else {
+        if (classMatchesRegex(el, maskTextClass, true))
+            return true;
+    }
+    if (maskTextSelector) {
+        if (el.matches(maskTextSelector))
+            return true;
+        if (el.closest(maskTextSelector))
+            return true;
+    }
+    return false;
+}
+function onceIframeLoaded(iframeEl, listener, iframeLoadTimeout) {
+    var win = iframeEl.contentWindow;
+    if (!win) {
+        return;
+    }
+    var fired = false;
+    var readyState;
+    try {
+        readyState = win.document.readyState;
+    }
+    catch (error) {
+        return;
+    }
+    if (readyState !== 'complete') {
+        var timer_1 = setTimeout(function () {
+            if (!fired) {
+                listener();
+                fired = true;
+            }
+        }, iframeLoadTimeout);
+        iframeEl.addEventListener('load', function () {
+            clearTimeout(timer_1);
+            fired = true;
+            listener();
+        });
+        return;
+    }
+    var blankUrl = 'about:blank';
+    if (win.location.href !== blankUrl ||
+        iframeEl.src === blankUrl ||
+        iframeEl.src === '') {
+        setTimeout(listener, 0);
+        return iframeEl.addEventListener('load', listener);
+    }
+    iframeEl.addEventListener('load', listener);
+}
+function onceStylesheetLoaded(link, listener, styleSheetLoadTimeout) {
+    var fired = false;
+    var styleSheetLoaded;
+    try {
+        styleSheetLoaded = link.sheet;
+    }
+    catch (error) {
+        return;
+    }
+    if (styleSheetLoaded)
+        return;
+    var timer = setTimeout(function () {
+        if (!fired) {
+            listener();
+            fired = true;
+        }
+    }, styleSheetLoadTimeout);
+    link.addEventListener('load', function () {
+        clearTimeout(timer);
+        fired = true;
+        listener();
+    });
+}
+function serializeNode(n, options) {
+    var doc = options.doc, mirror = options.mirror, blockClass = options.blockClass, blockSelector = options.blockSelector, maskTextClass = options.maskTextClass, maskTextSelector = options.maskTextSelector, inlineStylesheet = options.inlineStylesheet, _a = options.maskInputOptions, maskInputOptions = _a === void 0 ? {} : _a, maskTextFn = options.maskTextFn, maskInputFn = options.maskInputFn, _b = options.dataURLOptions, dataURLOptions = _b === void 0 ? {} : _b, inlineImages = options.inlineImages, recordCanvas = options.recordCanvas, keepIframeSrcFn = options.keepIframeSrcFn, _c = options.newlyAddedElement, newlyAddedElement = _c === void 0 ? false : _c;
+    var rootId = getRootId(doc, mirror);
+    switch (n.nodeType) {
+        case n.DOCUMENT_NODE:
+            if (n.compatMode !== 'CSS1Compat') {
+                return {
+                    type: NodeType.Document,
+                    childNodes: [],
+                    compatMode: n.compatMode
+                };
+            }
+            else {
+                return {
+                    type: NodeType.Document,
+                    childNodes: []
+                };
+            }
+        case n.DOCUMENT_TYPE_NODE:
+            return {
+                type: NodeType.DocumentType,
+                name: n.name,
+                publicId: n.publicId,
+                systemId: n.systemId,
+                rootId: rootId
+            };
+        case n.ELEMENT_NODE:
+            return serializeElementNode(n, {
+                doc: doc,
+                blockClass: blockClass,
+                blockSelector: blockSelector,
+                inlineStylesheet: inlineStylesheet,
+                maskInputOptions: maskInputOptions,
+                maskInputFn: maskInputFn,
+                dataURLOptions: dataURLOptions,
+                inlineImages: inlineImages,
+                recordCanvas: recordCanvas,
+                keepIframeSrcFn: keepIframeSrcFn,
+                newlyAddedElement: newlyAddedElement,
+                rootId: rootId
+            });
+        case n.TEXT_NODE:
+            return serializeTextNode(n, {
+                maskTextClass: maskTextClass,
+                maskTextSelector: maskTextSelector,
+                maskTextFn: maskTextFn,
+                rootId: rootId
+            });
+        case n.CDATA_SECTION_NODE:
+            return {
+                type: NodeType.CDATA,
+                textContent: '',
+                rootId: rootId
+            };
+        case n.COMMENT_NODE:
+            return {
+                type: NodeType.Comment,
+                textContent: n.textContent || '',
+                rootId: rootId
+            };
+        default:
+            return false;
+    }
+}
+function getRootId(doc, mirror) {
+    if (!mirror.hasNode(doc))
+        return undefined;
+    var docId = mirror.getId(doc);
+    return docId === 1 ? undefined : docId;
+}
+function serializeTextNode(n, options) {
+    var _a;
+    var maskTextClass = options.maskTextClass, maskTextSelector = options.maskTextSelector, maskTextFn = options.maskTextFn, rootId = options.rootId;
+    var parentTagName = n.parentNode && n.parentNode.tagName;
+    var textContent = n.textContent;
+    var isStyle = parentTagName === 'STYLE' ? true : undefined;
+    var isScript = parentTagName === 'SCRIPT' ? true : undefined;
+    if (isStyle && textContent) {
+        try {
+            if (n.nextSibling || n.previousSibling) {
+            }
+            else if ((_a = n.parentNode.sheet) === null || _a === void 0 ? void 0 : _a.cssRules) {
+                textContent = stringifyStyleSheet(n.parentNode.sheet);
+            }
+        }
+        catch (err) {
+            console.warn("Cannot get CSS styles from text's parentNode. Error: ".concat(err), n);
+        }
+        textContent = absoluteToStylesheet(textContent, getHref());
+    }
+    if (isScript) {
+        textContent = 'SCRIPT_PLACEHOLDER';
+    }
+    if (!isStyle &&
+        !isScript &&
+        textContent &&
+        needMaskingText(n, maskTextClass, maskTextSelector)) {
+        textContent = maskTextFn
+            ? maskTextFn(textContent)
+            : textContent.replace(/[\S]/g, '*');
+    }
+    return {
+        type: NodeType.Text,
+        textContent: textContent || '',
+        isStyle: isStyle,
+        rootId: rootId
+    };
+}
+function serializeElementNode(n, options) {
+    var doc = options.doc, blockClass = options.blockClass, blockSelector = options.blockSelector, inlineStylesheet = options.inlineStylesheet, _a = options.maskInputOptions, maskInputOptions = _a === void 0 ? {} : _a, maskInputFn = options.maskInputFn, _b = options.dataURLOptions, dataURLOptions = _b === void 0 ? {} : _b, inlineImages = options.inlineImages, recordCanvas = options.recordCanvas, keepIframeSrcFn = options.keepIframeSrcFn, _c = options.newlyAddedElement, newlyAddedElement = _c === void 0 ? false : _c, rootId = options.rootId;
+    var needBlock = _isBlockedElement(n, blockClass, blockSelector);
+    var tagName = getValidTagName(n);
+    var attributes = {};
+    var len = n.attributes.length;
+    for (var i = 0; i < len; i++) {
+        var attr = n.attributes[i];
+        attributes[attr.name] = transformAttribute(doc, tagName, attr.name, attr.value);
+    }
+    if (tagName === 'link' && inlineStylesheet) {
+        var stylesheet = Array.from(doc.styleSheets).find(function (s) {
+            return s.href === n.href;
+        });
+        var cssText = null;
+        if (stylesheet) {
+            cssText = getCssRulesString(stylesheet);
+        }
+        if (cssText) {
+            delete attributes.rel;
+            delete attributes.href;
+            attributes._cssText = absoluteToStylesheet(cssText, stylesheet.href);
+        }
+    }
+    if (tagName === 'style' &&
+        n.sheet &&
+        !(n.innerText || n.textContent || '').trim().length) {
+        var cssText = getCssRulesString(n.sheet);
+        if (cssText) {
+            attributes._cssText = absoluteToStylesheet(cssText, getHref());
+        }
+    }
+    if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
+        var value = n.value;
+        var checked = n.checked;
+        if (attributes.type !== 'radio' &&
+            attributes.type !== 'checkbox' &&
+            attributes.type !== 'submit' &&
+            attributes.type !== 'button' &&
+            value) {
+            attributes.value = maskInputValue({
+                type: attributes.type,
+                tagName: tagName,
+                value: value,
+                maskInputOptions: maskInputOptions,
+                maskInputFn: maskInputFn
+            });
+        }
+        else if (checked) {
+            attributes.checked = checked;
+        }
+    }
+    if (tagName === 'option') {
+        if (n.selected && !maskInputOptions['select']) {
+            attributes.selected = true;
+        }
+        else {
+            delete attributes.selected;
+        }
+    }
+    if (tagName === 'canvas' && recordCanvas) {
+        if (n.__context === '2d') {
+            if (!is2DCanvasBlank(n)) {
+                attributes.rr_dataURL = n.toDataURL(dataURLOptions.type, dataURLOptions.quality);
+            }
+        }
+        else if (!('__context' in n)) {
+            var canvasDataURL = n.toDataURL(dataURLOptions.type, dataURLOptions.quality);
+            var blankCanvas = document.createElement('canvas');
+            blankCanvas.width = n.width;
+            blankCanvas.height = n.height;
+            var blankCanvasDataURL = blankCanvas.toDataURL(dataURLOptions.type, dataURLOptions.quality);
+            if (canvasDataURL !== blankCanvasDataURL) {
+                attributes.rr_dataURL = canvasDataURL;
+            }
+        }
+    }
+    if (tagName === 'img' && inlineImages) {
+        if (!canvasService) {
+            canvasService = doc.createElement('canvas');
+            canvasCtx = canvasService.getContext('2d');
+        }
+        var image_1 = n;
+        var oldValue_1 = image_1.crossOrigin;
+        image_1.crossOrigin = 'anonymous';
+        var recordInlineImage = function () {
+            try {
+                canvasService.width = image_1.naturalWidth;
+                canvasService.height = image_1.naturalHeight;
+                canvasCtx.drawImage(image_1, 0, 0);
+                attributes.rr_dataURL = canvasService.toDataURL(dataURLOptions.type, dataURLOptions.quality);
+            }
+            catch (err) {
+                console.warn("Cannot inline img src=".concat(image_1.currentSrc, "! Error: ").concat(err));
+            }
+            oldValue_1
+                ? (attributes.crossOrigin = oldValue_1)
+                : image_1.removeAttribute('crossorigin');
+        };
+        if (image_1.complete && image_1.naturalWidth !== 0)
+            recordInlineImage();
+        else
+            image_1.onload = recordInlineImage;
+    }
+    if (tagName === 'audio' || tagName === 'video') {
+        attributes.rr_mediaState = n.paused
+            ? 'paused'
+            : 'played';
+        attributes.rr_mediaCurrentTime = n.currentTime;
+    }
+    if (!newlyAddedElement) {
+        if (n.scrollLeft) {
+            attributes.rr_scrollLeft = n.scrollLeft;
+        }
+        if (n.scrollTop) {
+            attributes.rr_scrollTop = n.scrollTop;
+        }
+    }
+    if (needBlock) {
+        var _d = n.getBoundingClientRect(), width = _d.width, height = _d.height;
+        attributes = {
+            "class": attributes["class"],
+            rr_width: "".concat(width, "px"),
+            rr_height: "".concat(height, "px")
+        };
+    }
+    if (tagName === 'iframe' && !keepIframeSrcFn(attributes.src)) {
+        if (!n.contentDocument) {
+            attributes.rr_src = attributes.src;
+        }
+        delete attributes.src;
+    }
+    return {
+        type: NodeType.Element,
+        tagName: tagName,
+        attributes: attributes,
+        childNodes: [],
+        isSVG: isSVGElement(n) || undefined,
+        needBlock: needBlock,
+        rootId: rootId
+    };
+}
+function lowerIfExists(maybeAttr) {
+    if (maybeAttr === undefined) {
+        return '';
+    }
+    else {
+        return maybeAttr.toLowerCase();
+    }
+}
+function slimDOMExcluded(sn, slimDOMOptions) {
+    if (slimDOMOptions.comment && sn.type === NodeType.Comment) {
+        return true;
+    }
+    else if (sn.type === NodeType.Element) {
+        if (slimDOMOptions.script &&
+            (sn.tagName === 'script' ||
+                (sn.tagName === 'link' &&
+                    sn.attributes.rel === 'preload' &&
+                    sn.attributes.as === 'script') ||
+                (sn.tagName === 'link' &&
+                    sn.attributes.rel === 'prefetch' &&
+                    typeof sn.attributes.href === 'string' &&
+                    sn.attributes.href.endsWith('.js')))) {
+            return true;
+        }
+        else if (slimDOMOptions.headFavicon &&
+            ((sn.tagName === 'link' && sn.attributes.rel === 'shortcut icon') ||
+                (sn.tagName === 'meta' &&
+                    (lowerIfExists(sn.attributes.name).match(/^msapplication-tile(image|color)$/) ||
+                        lowerIfExists(sn.attributes.name) === 'application-name' ||
+                        lowerIfExists(sn.attributes.rel) === 'icon' ||
+                        lowerIfExists(sn.attributes.rel) === 'apple-touch-icon' ||
+                        lowerIfExists(sn.attributes.rel) === 'shortcut icon')))) {
+            return true;
+        }
+        else if (sn.tagName === 'meta') {
+            if (slimDOMOptions.headMetaDescKeywords &&
+                lowerIfExists(sn.attributes.name).match(/^description|keywords$/)) {
+                return true;
+            }
+            else if (slimDOMOptions.headMetaSocial &&
+                (lowerIfExists(sn.attributes.property).match(/^(og|twitter|fb):/) ||
+                    lowerIfExists(sn.attributes.name).match(/^(og|twitter):/) ||
+                    lowerIfExists(sn.attributes.name) === 'pinterest')) {
+                return true;
+            }
+            else if (slimDOMOptions.headMetaRobots &&
+                (lowerIfExists(sn.attributes.name) === 'robots' ||
+                    lowerIfExists(sn.attributes.name) === 'googlebot' ||
+                    lowerIfExists(sn.attributes.name) === 'bingbot')) {
+                return true;
+            }
+            else if (slimDOMOptions.headMetaHttpEquiv &&
+                sn.attributes['http-equiv'] !== undefined) {
+                return true;
+            }
+            else if (slimDOMOptions.headMetaAuthorship &&
+                (lowerIfExists(sn.attributes.name) === 'author' ||
+                    lowerIfExists(sn.attributes.name) === 'generator' ||
+                    lowerIfExists(sn.attributes.name) === 'framework' ||
+                    lowerIfExists(sn.attributes.name) === 'publisher' ||
+                    lowerIfExists(sn.attributes.name) === 'progid' ||
+                    lowerIfExists(sn.attributes.property).match(/^article:/) ||
+                    lowerIfExists(sn.attributes.property).match(/^product:/))) {
+                return true;
+            }
+            else if (slimDOMOptions.headMetaVerification &&
+                (lowerIfExists(sn.attributes.name) === 'google-site-verification' ||
+                    lowerIfExists(sn.attributes.name) === 'yandex-verification' ||
+                    lowerIfExists(sn.attributes.name) === 'csrf-token' ||
+                    lowerIfExists(sn.attributes.name) === 'p:domain_verify' ||
+                    lowerIfExists(sn.attributes.name) === 'verify-v1' ||
+                    lowerIfExists(sn.attributes.name) === 'verification' ||
+                    lowerIfExists(sn.attributes.name) === 'shopify-checkout-api-token')) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+function serializeNodeWithId(n, options) {
+    var doc = options.doc, mirror = options.mirror, blockClass = options.blockClass, blockSelector = options.blockSelector, maskTextClass = options.maskTextClass, maskTextSelector = options.maskTextSelector, _a = options.skipChild, skipChild = _a === void 0 ? false : _a, _b = options.inlineStylesheet, inlineStylesheet = _b === void 0 ? true : _b, _c = options.maskInputOptions, maskInputOptions = _c === void 0 ? {} : _c, maskTextFn = options.maskTextFn, maskInputFn = options.maskInputFn, slimDOMOptions = options.slimDOMOptions, _d = options.dataURLOptions, dataURLOptions = _d === void 0 ? {} : _d, _e = options.inlineImages, inlineImages = _e === void 0 ? false : _e, _f = options.recordCanvas, recordCanvas = _f === void 0 ? false : _f, onSerialize = options.onSerialize, onIframeLoad = options.onIframeLoad, _g = options.iframeLoadTimeout, iframeLoadTimeout = _g === void 0 ? 5000 : _g, onStylesheetLoad = options.onStylesheetLoad, _h = options.stylesheetLoadTimeout, stylesheetLoadTimeout = _h === void 0 ? 5000 : _h, _j = options.keepIframeSrcFn, keepIframeSrcFn = _j === void 0 ? function () { return false; } : _j, _k = options.newlyAddedElement, newlyAddedElement = _k === void 0 ? false : _k;
+    var _l = options.preserveWhiteSpace, preserveWhiteSpace = _l === void 0 ? true : _l;
+    var _serializedNode = serializeNode(n, {
+        doc: doc,
+        mirror: mirror,
+        blockClass: blockClass,
+        blockSelector: blockSelector,
+        maskTextClass: maskTextClass,
+        maskTextSelector: maskTextSelector,
+        inlineStylesheet: inlineStylesheet,
+        maskInputOptions: maskInputOptions,
+        maskTextFn: maskTextFn,
+        maskInputFn: maskInputFn,
+        dataURLOptions: dataURLOptions,
+        inlineImages: inlineImages,
+        recordCanvas: recordCanvas,
+        keepIframeSrcFn: keepIframeSrcFn,
+        newlyAddedElement: newlyAddedElement
+    });
+    if (!_serializedNode) {
+        console.warn(n, 'not serialized');
+        return null;
+    }
+    var id;
+    if (mirror.hasNode(n)) {
+        id = mirror.getId(n);
+    }
+    else if (slimDOMExcluded(_serializedNode, slimDOMOptions) ||
+        (!preserveWhiteSpace &&
+            _serializedNode.type === NodeType.Text &&
+            !_serializedNode.isStyle &&
+            !_serializedNode.textContent.replace(/^\s+|\s+$/gm, '').length)) {
+        id = IGNORED_NODE;
+    }
+    else {
+        id = genId();
+    }
+    var serializedNode = Object.assign(_serializedNode, { id: id });
+    mirror.add(n, serializedNode);
+    if (id === IGNORED_NODE) {
+        return null;
+    }
+    if (onSerialize) {
+        onSerialize(n);
+    }
+    var recordChild = !skipChild;
+    if (serializedNode.type === NodeType.Element) {
+        recordChild = recordChild && !serializedNode.needBlock;
+        delete serializedNode.needBlock;
+        var shadowRoot = n.shadowRoot;
+        if (shadowRoot && isNativeShadowDom(shadowRoot))
+            serializedNode.isShadowHost = true;
+    }
+    if ((serializedNode.type === NodeType.Document ||
+        serializedNode.type === NodeType.Element) &&
+        recordChild) {
+        if (slimDOMOptions.headWhitespace &&
+            serializedNode.type === NodeType.Element &&
+            serializedNode.tagName === 'head') {
+            preserveWhiteSpace = false;
+        }
+        var bypassOptions = {
+            doc: doc,
+            mirror: mirror,
+            blockClass: blockClass,
+            blockSelector: blockSelector,
+            maskTextClass: maskTextClass,
+            maskTextSelector: maskTextSelector,
+            skipChild: skipChild,
+            inlineStylesheet: inlineStylesheet,
+            maskInputOptions: maskInputOptions,
+            maskTextFn: maskTextFn,
+            maskInputFn: maskInputFn,
+            slimDOMOptions: slimDOMOptions,
+            dataURLOptions: dataURLOptions,
+            inlineImages: inlineImages,
+            recordCanvas: recordCanvas,
+            preserveWhiteSpace: preserveWhiteSpace,
+            onSerialize: onSerialize,
+            onIframeLoad: onIframeLoad,
+            iframeLoadTimeout: iframeLoadTimeout,
+            onStylesheetLoad: onStylesheetLoad,
+            stylesheetLoadTimeout: stylesheetLoadTimeout,
+            keepIframeSrcFn: keepIframeSrcFn
+        };
+        for (var _i = 0, _m = Array.from(n.childNodes); _i < _m.length; _i++) {
+            var childN = _m[_i];
+            var serializedChildNode = serializeNodeWithId(childN, bypassOptions);
+            if (serializedChildNode) {
+                serializedNode.childNodes.push(serializedChildNode);
+            }
+        }
+        if (isElement(n) && n.shadowRoot) {
+            for (var _o = 0, _p = Array.from(n.shadowRoot.childNodes); _o < _p.length; _o++) {
+                var childN = _p[_o];
+                var serializedChildNode = serializeNodeWithId(childN, bypassOptions);
+                if (serializedChildNode) {
+                    isNativeShadowDom(n.shadowRoot) &&
+                        (serializedChildNode.isShadow = true);
+                    serializedNode.childNodes.push(serializedChildNode);
+                }
+            }
+        }
+    }
+    if (n.parentNode &&
+        isShadowRoot(n.parentNode) &&
+        isNativeShadowDom(n.parentNode)) {
+        serializedNode.isShadow = true;
+    }
+    if (serializedNode.type === NodeType.Element &&
+        serializedNode.tagName === 'iframe') {
+        onceIframeLoaded(n, function () {
+            var iframeDoc = n.contentDocument;
+            if (iframeDoc && onIframeLoad) {
+                var serializedIframeNode = serializeNodeWithId(iframeDoc, {
+                    doc: iframeDoc,
+                    mirror: mirror,
+                    blockClass: blockClass,
+                    blockSelector: blockSelector,
+                    maskTextClass: maskTextClass,
+                    maskTextSelector: maskTextSelector,
+                    skipChild: false,
+                    inlineStylesheet: inlineStylesheet,
+                    maskInputOptions: maskInputOptions,
+                    maskTextFn: maskTextFn,
+                    maskInputFn: maskInputFn,
+                    slimDOMOptions: slimDOMOptions,
+                    dataURLOptions: dataURLOptions,
+                    inlineImages: inlineImages,
+                    recordCanvas: recordCanvas,
+                    preserveWhiteSpace: preserveWhiteSpace,
+                    onSerialize: onSerialize,
+                    onIframeLoad: onIframeLoad,
+                    iframeLoadTimeout: iframeLoadTimeout,
+                    onStylesheetLoad: onStylesheetLoad,
+                    stylesheetLoadTimeout: stylesheetLoadTimeout,
+                    keepIframeSrcFn: keepIframeSrcFn
+                });
+                if (serializedIframeNode) {
+                    onIframeLoad(n, serializedIframeNode);
+                }
+            }
+        }, iframeLoadTimeout);
+    }
+    if (serializedNode.type === NodeType.Element &&
+        serializedNode.tagName === 'link' &&
+        serializedNode.attributes.rel === 'stylesheet') {
+        onceStylesheetLoaded(n, function () {
+            if (onStylesheetLoad) {
+                var serializedLinkNode = serializeNodeWithId(n, {
+                    doc: doc,
+                    mirror: mirror,
+                    blockClass: blockClass,
+                    blockSelector: blockSelector,
+                    maskTextClass: maskTextClass,
+                    maskTextSelector: maskTextSelector,
+                    skipChild: false,
+                    inlineStylesheet: inlineStylesheet,
+                    maskInputOptions: maskInputOptions,
+                    maskTextFn: maskTextFn,
+                    maskInputFn: maskInputFn,
+                    slimDOMOptions: slimDOMOptions,
+                    dataURLOptions: dataURLOptions,
+                    inlineImages: inlineImages,
+                    recordCanvas: recordCanvas,
+                    preserveWhiteSpace: preserveWhiteSpace,
+                    onSerialize: onSerialize,
+                    onIframeLoad: onIframeLoad,
+                    iframeLoadTimeout: iframeLoadTimeout,
+                    onStylesheetLoad: onStylesheetLoad,
+                    stylesheetLoadTimeout: stylesheetLoadTimeout,
+                    keepIframeSrcFn: keepIframeSrcFn
+                });
+                if (serializedLinkNode) {
+                    onStylesheetLoad(n, serializedLinkNode);
+                }
+            }
+        }, stylesheetLoadTimeout);
+    }
+    return serializedNode;
+}
+function snapshot(n, options) {
+    var _a = options || {}, _b = _a.mirror, mirror = _b === void 0 ? new Mirror() : _b, _c = _a.blockClass, blockClass = _c === void 0 ? 'rr-block' : _c, _d = _a.blockSelector, blockSelector = _d === void 0 ? null : _d, _e = _a.maskTextClass, maskTextClass = _e === void 0 ? 'rr-mask' : _e, _f = _a.maskTextSelector, maskTextSelector = _f === void 0 ? null : _f, _g = _a.inlineStylesheet, inlineStylesheet = _g === void 0 ? true : _g, _h = _a.inlineImages, inlineImages = _h === void 0 ? false : _h, _j = _a.recordCanvas, recordCanvas = _j === void 0 ? false : _j, _k = _a.maskAllInputs, maskAllInputs = _k === void 0 ? false : _k, maskTextFn = _a.maskTextFn, maskInputFn = _a.maskInputFn, _l = _a.slimDOM, slimDOM = _l === void 0 ? false : _l, dataURLOptions = _a.dataURLOptions, preserveWhiteSpace = _a.preserveWhiteSpace, onSerialize = _a.onSerialize, onIframeLoad = _a.onIframeLoad, iframeLoadTimeout = _a.iframeLoadTimeout, onStylesheetLoad = _a.onStylesheetLoad, stylesheetLoadTimeout = _a.stylesheetLoadTimeout, _m = _a.keepIframeSrcFn, keepIframeSrcFn = _m === void 0 ? function () { return false; } : _m;
+    var maskInputOptions = maskAllInputs === true
+        ? {
+            color: true,
+            date: true,
+            'datetime-local': true,
+            email: true,
+            month: true,
+            number: true,
+            range: true,
+            search: true,
+            tel: true,
+            text: true,
+            time: true,
+            url: true,
+            week: true,
+            textarea: true,
+            select: true,
+            password: true
+        }
+        : maskAllInputs === false
+            ? {
+                password: true
+            }
+            : maskAllInputs;
+    var slimDOMOptions = slimDOM === true || slimDOM === 'all'
+        ?
+            {
+                script: true,
+                comment: true,
+                headFavicon: true,
+                headWhitespace: true,
+                headMetaDescKeywords: slimDOM === 'all',
+                headMetaSocial: true,
+                headMetaRobots: true,
+                headMetaHttpEquiv: true,
+                headMetaAuthorship: true,
+                headMetaVerification: true
+            }
+        : slimDOM === false
+            ? {}
+            : slimDOM;
+    return serializeNodeWithId(n, {
+        doc: n,
+        mirror: mirror,
+        blockClass: blockClass,
+        blockSelector: blockSelector,
+        maskTextClass: maskTextClass,
+        maskTextSelector: maskTextSelector,
+        skipChild: false,
+        inlineStylesheet: inlineStylesheet,
+        maskInputOptions: maskInputOptions,
+        maskTextFn: maskTextFn,
+        maskInputFn: maskInputFn,
+        slimDOMOptions: slimDOMOptions,
+        dataURLOptions: dataURLOptions,
+        inlineImages: inlineImages,
+        recordCanvas: recordCanvas,
+        preserveWhiteSpace: preserveWhiteSpace,
+        onSerialize: onSerialize,
+        onIframeLoad: onIframeLoad,
+        iframeLoadTimeout: iframeLoadTimeout,
+        onStylesheetLoad: onStylesheetLoad,
+        stylesheetLoadTimeout: stylesheetLoadTimeout,
+        keepIframeSrcFn: keepIframeSrcFn,
+        newlyAddedElement: false
+    });
+}
+
+var commentre = /\/\*[^*]*\*+([^/*][^*]*\*+)*\//g;
+function parse(css, options) {
+    if (options === void 0) { options = {}; }
+    var lineno = 1;
+    var column = 1;
+    function updatePosition(str) {
+        var lines = str.match(/\n/g);
+        if (lines) {
+            lineno += lines.length;
+        }
+        var i = str.lastIndexOf('\n');
+        column = i === -1 ? column + str.length : str.length - i;
+    }
+    function position() {
+        var start = { line: lineno, column: column };
+        return function (node) {
+            node.position = new Position(start);
+            whitespace();
+            return node;
+        };
+    }
+    var Position = (function () {
+        function Position(start) {
+            this.start = start;
+            this.end = { line: lineno, column: column };
+            this.source = options.source;
+        }
+        return Position;
+    }());
+    Position.prototype.content = css;
+    var errorsList = [];
+    function error(msg) {
+        var err = new Error("".concat(options.source || '', ":").concat(lineno, ":").concat(column, ": ").concat(msg));
+        err.reason = msg;
+        err.filename = options.source;
+        err.line = lineno;
+        err.column = column;
+        err.source = css;
+        if (options.silent) {
+            errorsList.push(err);
+        }
+        else {
+            throw err;
+        }
+    }
+    function stylesheet() {
+        var rulesList = rules();
+        return {
+            type: 'stylesheet',
+            stylesheet: {
+                source: options.source,
+                rules: rulesList,
+                parsingErrors: errorsList
+            }
+        };
+    }
+    function open() {
+        return match(/^{\s*/);
+    }
+    function close() {
+        return match(/^}/);
+    }
+    function rules() {
+        var node;
+        var rules = [];
+        whitespace();
+        comments(rules);
+        while (css.length && css.charAt(0) !== '}' && (node = atrule() || rule())) {
+            if (node !== false) {
+                rules.push(node);
+                comments(rules);
+            }
+        }
+        return rules;
+    }
+    function match(re) {
+        var m = re.exec(css);
+        if (!m) {
+            return;
+        }
+        var str = m[0];
+        updatePosition(str);
+        css = css.slice(str.length);
+        return m;
+    }
+    function whitespace() {
+        match(/^\s*/);
+    }
+    function comments(rules) {
+        if (rules === void 0) { rules = []; }
+        var c;
+        while ((c = comment())) {
+            if (c !== false) {
+                rules.push(c);
+            }
+            c = comment();
+        }
+        return rules;
+    }
+    function comment() {
+        var pos = position();
+        if ('/' !== css.charAt(0) || '*' !== css.charAt(1)) {
+            return;
+        }
+        var i = 2;
+        while ('' !== css.charAt(i) &&
+            ('*' !== css.charAt(i) || '/' !== css.charAt(i + 1))) {
+            ++i;
+        }
+        i += 2;
+        if ('' === css.charAt(i - 1)) {
+            return error('End of comment missing');
+        }
+        var str = css.slice(2, i - 2);
+        column += 2;
+        updatePosition(str);
+        css = css.slice(i);
+        column += 2;
+        return pos({
+            type: 'comment',
+            comment: str
+        });
+    }
+    function selector() {
+        var m = match(/^([^{]+)/);
+        if (!m) {
+            return;
+        }
+        return trim(m[0])
+            .replace(/\/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*\/+/g, '')
+            .replace(/"(?:\\"|[^"])*"|'(?:\\'|[^'])*'/g, function (m) {
+            return m.replace(/,/g, '\u200C');
+        })
+            .split(/\s*(?![^(]*\)),\s*/)
+            .map(function (s) {
+            return s.replace(/\u200C/g, ',');
+        });
+    }
+    function declaration() {
+        var pos = position();
+        var propMatch = match(/^(\*?[-#\/\*\\\w]+(\[[0-9a-z_-]+\])?)\s*/);
+        if (!propMatch) {
+            return;
+        }
+        var prop = trim(propMatch[0]);
+        if (!match(/^:\s*/)) {
+            return error("property missing ':'");
+        }
+        var val = match(/^((?:'(?:\\'|.)*?'|"(?:\\"|.)*?"|\([^\)]*?\)|[^};])+)/);
+        var ret = pos({
+            type: 'declaration',
+            property: prop.replace(commentre, ''),
+            value: val ? trim(val[0]).replace(commentre, '') : ''
+        });
+        match(/^[;\s]*/);
+        return ret;
+    }
+    function declarations() {
+        var decls = [];
+        if (!open()) {
+            return error("missing '{'");
+        }
+        comments(decls);
+        var decl;
+        while ((decl = declaration())) {
+            if (decl !== false) {
+                decls.push(decl);
+                comments(decls);
+            }
+            decl = declaration();
+        }
+        if (!close()) {
+            return error("missing '}'");
+        }
+        return decls;
+    }
+    function keyframe() {
+        var m;
+        var vals = [];
+        var pos = position();
+        while ((m = match(/^((\d+\.\d+|\.\d+|\d+)%?|[a-z]+)\s*/))) {
+            vals.push(m[1]);
+            match(/^,\s*/);
+        }
+        if (!vals.length) {
+            return;
+        }
+        return pos({
+            type: 'keyframe',
+            values: vals,
+            declarations: declarations()
+        });
+    }
+    function atkeyframes() {
+        var pos = position();
+        var m = match(/^@([-\w]+)?keyframes\s*/);
+        if (!m) {
+            return;
+        }
+        var vendor = m[1];
+        m = match(/^([-\w]+)\s*/);
+        if (!m) {
+            return error('@keyframes missing name');
+        }
+        var name = m[1];
+        if (!open()) {
+            return error("@keyframes missing '{'");
+        }
+        var frame;
+        var frames = comments();
+        while ((frame = keyframe())) {
+            frames.push(frame);
+            frames = frames.concat(comments());
+        }
+        if (!close()) {
+            return error("@keyframes missing '}'");
+        }
+        return pos({
+            type: 'keyframes',
+            name: name,
+            vendor: vendor,
+            keyframes: frames
+        });
+    }
+    function atsupports() {
+        var pos = position();
+        var m = match(/^@supports *([^{]+)/);
+        if (!m) {
+            return;
+        }
+        var supports = trim(m[1]);
+        if (!open()) {
+            return error("@supports missing '{'");
+        }
+        var style = comments().concat(rules());
+        if (!close()) {
+            return error("@supports missing '}'");
+        }
+        return pos({
+            type: 'supports',
+            supports: supports,
+            rules: style
+        });
+    }
+    function athost() {
+        var pos = position();
+        var m = match(/^@host\s*/);
+        if (!m) {
+            return;
+        }
+        if (!open()) {
+            return error("@host missing '{'");
+        }
+        var style = comments().concat(rules());
+        if (!close()) {
+            return error("@host missing '}'");
+        }
+        return pos({
+            type: 'host',
+            rules: style
+        });
+    }
+    function atmedia() {
+        var pos = position();
+        var m = match(/^@media *([^{]+)/);
+        if (!m) {
+            return;
+        }
+        var media = trim(m[1]);
+        if (!open()) {
+            return error("@media missing '{'");
+        }
+        var style = comments().concat(rules());
+        if (!close()) {
+            return error("@media missing '}'");
+        }
+        return pos({
+            type: 'media',
+            media: media,
+            rules: style
+        });
+    }
+    function atcustommedia() {
+        var pos = position();
+        var m = match(/^@custom-media\s+(--[^\s]+)\s*([^{;]+);/);
+        if (!m) {
+            return;
+        }
+        return pos({
+            type: 'custom-media',
+            name: trim(m[1]),
+            media: trim(m[2])
+        });
+    }
+    function atpage() {
+        var pos = position();
+        var m = match(/^@page */);
+        if (!m) {
+            return;
+        }
+        var sel = selector() || [];
+        if (!open()) {
+            return error("@page missing '{'");
+        }
+        var decls = comments();
+        var decl;
+        while ((decl = declaration())) {
+            decls.push(decl);
+            decls = decls.concat(comments());
+        }
+        if (!close()) {
+            return error("@page missing '}'");
+        }
+        return pos({
+            type: 'page',
+            selectors: sel,
+            declarations: decls
+        });
+    }
+    function atdocument() {
+        var pos = position();
+        var m = match(/^@([-\w]+)?document *([^{]+)/);
+        if (!m) {
+            return;
+        }
+        var vendor = trim(m[1]);
+        var doc = trim(m[2]);
+        if (!open()) {
+            return error("@document missing '{'");
+        }
+        var style = comments().concat(rules());
+        if (!close()) {
+            return error("@document missing '}'");
+        }
+        return pos({
+            type: 'document',
+            document: doc,
+            vendor: vendor,
+            rules: style
+        });
+    }
+    function atfontface() {
+        var pos = position();
+        var m = match(/^@font-face\s*/);
+        if (!m) {
+            return;
+        }
+        if (!open()) {
+            return error("@font-face missing '{'");
+        }
+        var decls = comments();
+        var decl;
+        while ((decl = declaration())) {
+            decls.push(decl);
+            decls = decls.concat(comments());
+        }
+        if (!close()) {
+            return error("@font-face missing '}'");
+        }
+        return pos({
+            type: 'font-face',
+            declarations: decls
+        });
+    }
+    var atimport = _compileAtrule('import');
+    var atcharset = _compileAtrule('charset');
+    var atnamespace = _compileAtrule('namespace');
+    function _compileAtrule(name) {
+        var re = new RegExp('^@' + name + '\\s*([^;]+);');
+        return function () {
+            var pos = position();
+            var m = match(re);
+            if (!m) {
+                return;
+            }
+            var ret = { type: name };
+            ret[name] = m[1].trim();
+            return pos(ret);
+        };
+    }
+    function atrule() {
+        if (css[0] !== '@') {
+            return;
+        }
+        return (atkeyframes() ||
+            atmedia() ||
+            atcustommedia() ||
+            atsupports() ||
+            atimport() ||
+            atcharset() ||
+            atnamespace() ||
+            atdocument() ||
+            atpage() ||
+            athost() ||
+            atfontface());
+    }
+    function rule() {
+        var pos = position();
+        var sel = selector();
+        if (!sel) {
+            return error('selector missing');
+        }
+        comments();
+        return pos({
+            type: 'rule',
+            selectors: sel,
+            declarations: declarations()
+        });
+    }
+    return addParent(stylesheet());
+}
+function trim(str) {
+    return str ? str.replace(/^\s+|\s+$/g, '') : '';
+}
+function addParent(obj, parent) {
+    var isNode = obj && typeof obj.type === 'string';
+    var childParent = isNode ? obj : parent;
+    for (var _i = 0, _a = Object.keys(obj); _i < _a.length; _i++) {
+        var k = _a[_i];
+        var value = obj[k];
+        if (Array.isArray(value)) {
+            value.forEach(function (v) {
+                addParent(v, childParent);
+            });
+        }
+        else if (value && typeof value === 'object') {
+            addParent(value, childParent);
+        }
+    }
+    if (isNode) {
+        Object.defineProperty(obj, 'parent', {
+            configurable: true,
+            writable: true,
+            enumerable: false,
+            value: parent || null
+        });
+    }
+    return obj;
+}
+
+var tagMap = {
+    script: 'noscript',
+    altglyph: 'altGlyph',
+    altglyphdef: 'altGlyphDef',
+    altglyphitem: 'altGlyphItem',
+    animatecolor: 'animateColor',
+    animatemotion: 'animateMotion',
+    animatetransform: 'animateTransform',
+    clippath: 'clipPath',
+    feblend: 'feBlend',
+    fecolormatrix: 'feColorMatrix',
+    fecomponenttransfer: 'feComponentTransfer',
+    fecomposite: 'feComposite',
+    feconvolvematrix: 'feConvolveMatrix',
+    fediffuselighting: 'feDiffuseLighting',
+    fedisplacementmap: 'feDisplacementMap',
+    fedistantlight: 'feDistantLight',
+    fedropshadow: 'feDropShadow',
+    feflood: 'feFlood',
+    fefunca: 'feFuncA',
+    fefuncb: 'feFuncB',
+    fefuncg: 'feFuncG',
+    fefuncr: 'feFuncR',
+    fegaussianblur: 'feGaussianBlur',
+    feimage: 'feImage',
+    femerge: 'feMerge',
+    femergenode: 'feMergeNode',
+    femorphology: 'feMorphology',
+    feoffset: 'feOffset',
+    fepointlight: 'fePointLight',
+    fespecularlighting: 'feSpecularLighting',
+    fespotlight: 'feSpotLight',
+    fetile: 'feTile',
+    feturbulence: 'feTurbulence',
+    foreignobject: 'foreignObject',
+    glyphref: 'glyphRef',
+    lineargradient: 'linearGradient',
+    radialgradient: 'radialGradient'
+};
+function getTagName(n) {
+    var tagName = tagMap[n.tagName] ? tagMap[n.tagName] : n.tagName;
+    if (tagName === 'link' && n.attributes._cssText) {
+        tagName = 'style';
+    }
+    return tagName;
+}
+function escapeRegExp(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+var HOVER_SELECTOR = /([^\\]):hover/;
+var HOVER_SELECTOR_GLOBAL = new RegExp(HOVER_SELECTOR.source, 'g');
+function addHoverClass(cssText, cache) {
+    var cachedStyle = cache === null || cache === void 0 ? void 0 : cache.stylesWithHoverClass.get(cssText);
+    if (cachedStyle)
+        return cachedStyle;
+    var ast = parse(cssText, {
+        silent: true
+    });
+    if (!ast.stylesheet) {
+        return cssText;
+    }
+    var selectors = [];
+    ast.stylesheet.rules.forEach(function (rule) {
+        if ('selectors' in rule) {
+            (rule.selectors || []).forEach(function (selector) {
+                if (HOVER_SELECTOR.test(selector)) {
+                    selectors.push(selector);
+                }
+            });
+        }
+    });
+    if (selectors.length === 0) {
+        return cssText;
+    }
+    var selectorMatcher = new RegExp(selectors
+        .filter(function (selector, index) { return selectors.indexOf(selector) === index; })
+        .sort(function (a, b) { return b.length - a.length; })
+        .map(function (selector) {
+        return escapeRegExp(selector);
+    })
+        .join('|'), 'g');
+    var result = cssText.replace(selectorMatcher, function (selector) {
+        var newSelector = selector.replace(HOVER_SELECTOR_GLOBAL, '$1.\\:hover');
+        return "".concat(selector, ", ").concat(newSelector);
+    });
+    cache === null || cache === void 0 ? void 0 : cache.stylesWithHoverClass.set(cssText, result);
+    return result;
+}
+function createCache() {
+    var stylesWithHoverClass = new Map();
+    return {
+        stylesWithHoverClass: stylesWithHoverClass
+    };
+}
+function buildNode(n, options) {
+    var doc = options.doc, hackCss = options.hackCss, cache = options.cache;
+    switch (n.type) {
+        case NodeType.Document:
+            return doc.implementation.createDocument(null, '', null);
+        case NodeType.DocumentType:
+            return doc.implementation.createDocumentType(n.name || 'html', n.publicId, n.systemId);
+        case NodeType.Element: {
+            var tagName = getTagName(n);
+            var node_1;
+            if (n.isSVG) {
+                node_1 = doc.createElementNS('http://www.w3.org/2000/svg', tagName);
+            }
+            else {
+                node_1 = doc.createElement(tagName);
+            }
+            var specialAttributes = {};
+            for (var name_1 in n.attributes) {
+                if (!Object.prototype.hasOwnProperty.call(n.attributes, name_1)) {
+                    continue;
+                }
+                var value = n.attributes[name_1];
+                if (tagName === 'option' &&
+                    name_1 === 'selected' &&
+                    value === false) {
+                    continue;
+                }
+                if (value === true)
+                    value = '';
+                if (name_1.startsWith('rr_')) {
+                    specialAttributes[name_1] = value;
+                    continue;
+                }
+                var isTextarea = tagName === 'textarea' && name_1 === 'value';
+                var isRemoteOrDynamicCss = tagName === 'style' && name_1 === '_cssText';
+                if (isRemoteOrDynamicCss && hackCss && typeof value === 'string') {
+                    value = addHoverClass(value, cache);
+                }
+                if ((isTextarea || isRemoteOrDynamicCss) && typeof value === 'string') {
+                    var child = doc.createTextNode(value);
+                    for (var _i = 0, _a = Array.from(node_1.childNodes); _i < _a.length; _i++) {
+                        var c = _a[_i];
+                        if (c.nodeType === node_1.TEXT_NODE) {
+                            node_1.removeChild(c);
+                        }
+                    }
+                    node_1.appendChild(child);
+                    continue;
+                }
+                try {
+                    if (n.isSVG && name_1 === 'xlink:href') {
+                        node_1.setAttributeNS('http://www.w3.org/1999/xlink', name_1, value.toString());
+                    }
+                    else if (name_1 === 'onload' ||
+                        name_1 === 'onclick' ||
+                        name_1.substring(0, 7) === 'onmouse') {
+                        node_1.setAttribute('_' + name_1, value.toString());
+                    }
+                    else if (tagName === 'meta' &&
+                        n.attributes['http-equiv'] === 'Content-Security-Policy' &&
+                        name_1 === 'content') {
+                        node_1.setAttribute('csp-content', value.toString());
+                        continue;
+                    }
+                    else if (tagName === 'link' &&
+                        n.attributes.rel === 'preload' &&
+                        n.attributes.as === 'script') {
+                    }
+                    else if (tagName === 'link' &&
+                        n.attributes.rel === 'prefetch' &&
+                        typeof n.attributes.href === 'string' &&
+                        n.attributes.href.endsWith('.js')) {
+                    }
+                    else if (tagName === 'img' &&
+                        n.attributes.srcset &&
+                        n.attributes.rr_dataURL) {
+                        node_1.setAttribute('rrweb-original-srcset', n.attributes.srcset);
+                    }
+                    else {
+                        node_1.setAttribute(name_1, value.toString());
+                    }
+                }
+                catch (error) {
+                }
+            }
+            var _loop_1 = function (name_2) {
+                var value = specialAttributes[name_2];
+                if (tagName === 'canvas' && name_2 === 'rr_dataURL') {
+                    var image_1 = document.createElement('img');
+                    image_1.onload = function () {
+                        var ctx = node_1.getContext('2d');
+                        if (ctx) {
+                            ctx.drawImage(image_1, 0, 0, image_1.width, image_1.height);
+                        }
+                    };
+                    image_1.src = value.toString();
+                    if (node_1.RRNodeType)
+                        node_1.rr_dataURL = value.toString();
+                }
+                else if (tagName === 'img' && name_2 === 'rr_dataURL') {
+                    var image = node_1;
+                    if (!image.currentSrc.startsWith('data:')) {
+                        image.setAttribute('rrweb-original-src', n.attributes.src);
+                        image.src = value.toString();
+                    }
+                }
+                if (name_2 === 'rr_width') {
+                    node_1.style.width = value.toString();
+                }
+                else if (name_2 === 'rr_height') {
+                    node_1.style.height = value.toString();
+                }
+                else if (name_2 === 'rr_mediaCurrentTime' &&
+                    typeof value === 'number') {
+                    node_1.currentTime = value;
+                }
+                else if (name_2 === 'rr_mediaState') {
+                    switch (value) {
+                        case 'played':
+                            node_1
+                                .play()["catch"](function (e) { return console.warn('media playback error', e); });
+                            break;
+                        case 'paused':
+                            node_1.pause();
+                            break;
+                    }
+                }
+            };
+            for (var name_2 in specialAttributes) {
+                _loop_1(name_2);
+            }
+            if (n.isShadowHost) {
+                if (!node_1.shadowRoot) {
+                    node_1.attachShadow({ mode: 'open' });
+                }
+                else {
+                    while (node_1.shadowRoot.firstChild) {
+                        node_1.shadowRoot.removeChild(node_1.shadowRoot.firstChild);
+                    }
+                }
+            }
+            return node_1;
+        }
+        case NodeType.Text:
+            return doc.createTextNode(n.isStyle && hackCss
+                ? addHoverClass(n.textContent, cache)
+                : n.textContent);
+        case NodeType.CDATA:
+            return doc.createCDATASection(n.textContent);
+        case NodeType.Comment:
+            return doc.createComment(n.textContent);
+        default:
+            return null;
+    }
+}
+function buildNodeWithSN(n, options) {
+    var doc = options.doc, mirror = options.mirror, _a = options.skipChild, skipChild = _a === void 0 ? false : _a, _b = options.hackCss, hackCss = _b === void 0 ? true : _b, afterAppend = options.afterAppend, cache = options.cache;
+    var node = buildNode(n, { doc: doc, hackCss: hackCss, cache: cache });
+    if (!node) {
+        return null;
+    }
+    if (n.rootId && mirror.getNode(n.rootId) !== doc) {
+        mirror.replace(n.rootId, doc);
+    }
+    if (n.type === NodeType.Document) {
+        doc.close();
+        doc.open();
+        if (n.compatMode === 'BackCompat' &&
+            n.childNodes &&
+            n.childNodes[0].type !== NodeType.DocumentType) {
+            if (n.childNodes[0].type === NodeType.Element &&
+                'xmlns' in n.childNodes[0].attributes &&
+                n.childNodes[0].attributes.xmlns === 'http://www.w3.org/1999/xhtml') {
+                doc.write('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "">');
+            }
+            else {
+                doc.write('<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "">');
+            }
+        }
+        node = doc;
+    }
+    mirror.add(node, n);
+    if ((n.type === NodeType.Document || n.type === NodeType.Element) &&
+        !skipChild) {
+        for (var _i = 0, _c = n.childNodes; _i < _c.length; _i++) {
+            var childN = _c[_i];
+            var childNode = buildNodeWithSN(childN, {
+                doc: doc,
+                mirror: mirror,
+                skipChild: false,
+                hackCss: hackCss,
+                afterAppend: afterAppend,
+                cache: cache
+            });
+            if (!childNode) {
+                console.warn('Failed to rebuild', childN);
+                continue;
+            }
+            if (childN.isShadow && isElement(node) && node.shadowRoot) {
+                node.shadowRoot.appendChild(childNode);
+            }
+            else {
+                node.appendChild(childNode);
+            }
+            if (afterAppend) {
+                afterAppend(childNode, childN.id);
+            }
+        }
+    }
+    return node;
+}
+function visit(mirror, onVisit) {
+    function walk(node) {
+        onVisit(node);
+    }
+    for (var _i = 0, _a = mirror.getIds(); _i < _a.length; _i++) {
+        var id = _a[_i];
+        if (mirror.has(id)) {
+            walk(mirror.getNode(id));
+        }
+    }
+}
+function handleScroll(node, mirror) {
+    var n = mirror.getMeta(node);
+    if ((n === null || n === void 0 ? void 0 : n.type) !== NodeType.Element) {
+        return;
+    }
+    var el = node;
+    for (var name_3 in n.attributes) {
+        if (!(Object.prototype.hasOwnProperty.call(n.attributes, name_3) &&
+            name_3.startsWith('rr_'))) {
+            continue;
+        }
+        var value = n.attributes[name_3];
+        if (name_3 === 'rr_scrollLeft') {
+            el.scrollLeft = value;
+        }
+        if (name_3 === 'rr_scrollTop') {
+            el.scrollTop = value;
+        }
+    }
+}
+function rebuild(n, options) {
+    var doc = options.doc, onVisit = options.onVisit, _a = options.hackCss, hackCss = _a === void 0 ? true : _a, afterAppend = options.afterAppend, cache = options.cache, _b = options.mirror, mirror = _b === void 0 ? new Mirror() : _b;
+    var node = buildNodeWithSN(n, {
+        doc: doc,
+        mirror: mirror,
+        skipChild: false,
+        hackCss: hackCss,
+        afterAppend: afterAppend,
+        cache: cache
+    });
+    visit(mirror, function (visitedNode) {
+        if (onVisit) {
+            onVisit(visitedNode);
+        }
+        handleScroll(visitedNode, mirror);
+    });
+    return node;
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb/src/utils.js
+
+
+function on(type, fn, target = document) {
+    const options = { capture: true, passive: true };
+    target.addEventListener(type, fn, options);
+    return () => target.removeEventListener(type, fn, options);
+}
+const DEPARTED_MIRROR_ACCESS_WARNING = 'Please stop import mirror directly. Instead of that,' +
+    '\r\n' +
+    'now you can use replayer.getMirror() to access the mirror instance of a replayer,' +
+    '\r\n' +
+    'or you can use record.mirror to access the mirror instance during recording.';
+let _mirror = {
+    map: {},
+    getId() {
+        console.error(DEPARTED_MIRROR_ACCESS_WARNING);
+        return -1;
+    },
+    getNode() {
+        console.error(DEPARTED_MIRROR_ACCESS_WARNING);
+        return null;
+    },
+    removeNodeFromMap() {
+        console.error(DEPARTED_MIRROR_ACCESS_WARNING);
+    },
+    has() {
+        console.error(DEPARTED_MIRROR_ACCESS_WARNING);
+        return false;
+    },
+    reset() {
+        console.error(DEPARTED_MIRROR_ACCESS_WARNING);
+    },
+};
+if (typeof window !== 'undefined' && window.Proxy && window.Reflect) {
+    _mirror = new Proxy(_mirror, {
+        get(target, prop, receiver) {
+            if (prop === 'map') {
+                console.error(DEPARTED_MIRROR_ACCESS_WARNING);
+            }
+            return Reflect.get(target, prop, receiver);
+        },
+    });
+}
+function throttle(func, wait, options = {}) {
+    let timeout = null;
+    let previous = 0;
+    return function (...args) {
+        const now = Date.now();
+        if (!previous && options.leading === false) {
+            previous = now;
+        }
+        const remaining = wait - (now - previous);
+        const context = this;
+        if (remaining <= 0 || remaining > wait) {
+            if (timeout) {
+                clearTimeout(timeout);
+                timeout = null;
+            }
+            previous = now;
+            func.apply(context, args);
+        }
+        else if (!timeout && options.trailing !== false) {
+            timeout = setTimeout(() => {
+                previous = options.leading === false ? 0 : Date.now();
+                timeout = null;
+                func.apply(context, args);
+            }, remaining);
+        }
+    };
+}
+function hookSetter(target, key, d, isRevoked, win = window) {
+    const original = win.Object.getOwnPropertyDescriptor(target, key);
+    win.Object.defineProperty(target, key, isRevoked
+        ? d
+        : {
+            set(value) {
+                setTimeout(() => {
+                    d.set.call(this, value);
+                }, 0);
+                if (original && original.set) {
+                    original.set.call(this, value);
+                }
+            },
+        });
+    return () => hookSetter(target, key, original || {}, true);
+}
+function patch(source, name, replacement) {
+    try {
+        if (!(name in source)) {
+            return () => {
+            };
+        }
+        const original = source[name];
+        const wrapped = replacement(original);
+        if (typeof wrapped === 'function') {
+            wrapped.prototype = wrapped.prototype || {};
+            Object.defineProperties(wrapped, {
+                __rrweb_original__: {
+                    enumerable: false,
+                    value: original,
+                },
+            });
+        }
+        source[name] = wrapped;
+        return () => {
+            source[name] = original;
+        };
+    }
+    catch (_a) {
+        return () => {
+        };
+    }
+}
+function getWindowHeight() {
+    return (window.innerHeight ||
+        (document.documentElement && document.documentElement.clientHeight) ||
+        (document.body && document.body.clientHeight));
+}
+function getWindowWidth() {
+    return (window.innerWidth ||
+        (document.documentElement && document.documentElement.clientWidth) ||
+        (document.body && document.body.clientWidth));
+}
+function isBlocked(node, blockClass, blockSelector, checkAncestors) {
+    if (!node) {
+        return false;
+    }
+    const el = node.nodeType === node.ELEMENT_NODE
+        ? node
+        : node.parentElement;
+    if (!el)
+        return false;
+    if (typeof blockClass === 'string') {
+        if (el.classList.contains(blockClass))
+            return true;
+        if (checkAncestors && el.closest('.' + blockClass) !== null)
+            return true;
+    }
+    else {
+        if (classMatchesRegex(el, blockClass, checkAncestors))
+            return true;
+    }
+    if (blockSelector) {
+        if (node.matches(blockSelector))
+            return true;
+        if (checkAncestors && el.closest(blockSelector) !== null)
+            return true;
+    }
+    return false;
+}
+function isSerialized(n, mirror) {
+    return mirror.getId(n) !== -1;
+}
+function isIgnored(n, mirror) {
+    return mirror.getId(n) === IGNORED_NODE;
+}
+function isAncestorRemoved(target, mirror) {
+    if (isShadowRoot(target)) {
+        return false;
+    }
+    const id = mirror.getId(target);
+    if (!mirror.has(id)) {
+        return true;
+    }
+    if (target.parentNode &&
+        target.parentNode.nodeType === target.DOCUMENT_NODE) {
+        return false;
+    }
+    if (!target.parentNode) {
+        return true;
+    }
+    return isAncestorRemoved(target.parentNode, mirror);
+}
+function isTouchEvent(event) {
+    return Boolean(event.changedTouches);
+}
+function polyfill(win = window) {
+    if ('NodeList' in win && !win.NodeList.prototype.forEach) {
+        win.NodeList.prototype.forEach = Array.prototype
+            .forEach;
+    }
+    if ('DOMTokenList' in win && !win.DOMTokenList.prototype.forEach) {
+        win.DOMTokenList.prototype.forEach = Array.prototype
+            .forEach;
+    }
+    if (!Node.prototype.contains) {
+        Node.prototype.contains = (...args) => {
+            let node = args[0];
+            if (!(0 in args)) {
+                throw new TypeError('1 argument is required');
+            }
+            do {
+                if (this === node) {
+                    return true;
+                }
+            } while ((node = node && node.parentNode));
+            return false;
+        };
+    }
+}
+function queueToResolveTrees(queue) {
+    const queueNodeMap = {};
+    const putIntoMap = (m, parent) => {
+        const nodeInTree = {
+            value: m,
+            parent,
+            children: [],
+        };
+        queueNodeMap[m.node.id] = nodeInTree;
+        return nodeInTree;
+    };
+    const queueNodeTrees = [];
+    for (const mutation of queue) {
+        const { nextId, parentId } = mutation;
+        if (nextId && nextId in queueNodeMap) {
+            const nextInTree = queueNodeMap[nextId];
+            if (nextInTree.parent) {
+                const idx = nextInTree.parent.children.indexOf(nextInTree);
+                nextInTree.parent.children.splice(idx, 0, putIntoMap(mutation, nextInTree.parent));
+            }
+            else {
+                const idx = queueNodeTrees.indexOf(nextInTree);
+                queueNodeTrees.splice(idx, 0, putIntoMap(mutation, null));
+            }
+            continue;
+        }
+        if (parentId in queueNodeMap) {
+            const parentInTree = queueNodeMap[parentId];
+            parentInTree.children.push(putIntoMap(mutation, parentInTree));
+            continue;
+        }
+        queueNodeTrees.push(putIntoMap(mutation, null));
+    }
+    return queueNodeTrees;
+}
+function iterateResolveTree(tree, cb) {
+    cb(tree.value);
+    for (let i = tree.children.length - 1; i >= 0; i--) {
+        iterateResolveTree(tree.children[i], cb);
+    }
+}
+function isSerializedIframe(n, mirror) {
+    return Boolean(n.nodeName === 'IFRAME' && mirror.getMeta(n));
+}
+function isSerializedStylesheet(n, mirror) {
+    return Boolean(n.nodeName === 'LINK' &&
+        n.nodeType === n.ELEMENT_NODE &&
+        n.getAttribute &&
+        n.getAttribute('rel') === 'stylesheet' &&
+        mirror.getMeta(n));
+}
+function getBaseDimension(node, rootIframe) {
+    var _a, _b;
+    const frameElement = (_b = (_a = node.ownerDocument) === null || _a === void 0 ? void 0 : _a.defaultView) === null || _b === void 0 ? void 0 : _b.frameElement;
+    if (!frameElement || frameElement === rootIframe) {
+        return {
+            x: 0,
+            y: 0,
+            relativeScale: 1,
+            absoluteScale: 1,
+        };
+    }
+    const frameDimension = frameElement.getBoundingClientRect();
+    const frameBaseDimension = getBaseDimension(frameElement, rootIframe);
+    const relativeScale = frameDimension.height / frameElement.clientHeight;
+    return {
+        x: frameDimension.x * frameBaseDimension.relativeScale +
+            frameBaseDimension.x,
+        y: frameDimension.y * frameBaseDimension.relativeScale +
+            frameBaseDimension.y,
+        relativeScale,
+        absoluteScale: frameBaseDimension.absoluteScale * relativeScale,
+    };
+}
+function hasShadowRoot(n) {
+    return Boolean(n === null || n === void 0 ? void 0 : n.shadowRoot);
+}
+function getNestedRule(rules, position) {
+    const rule = rules[position[0]];
+    if (position.length === 1) {
+        return rule;
+    }
+    else {
+        return getNestedRule(rule.cssRules[position[1]].cssRules, position.slice(2));
+    }
+}
+function getPositionsAndIndex(nestedIndex) {
+    const positions = [...nestedIndex];
+    const index = positions.pop();
+    return { positions, index };
+}
+function uniqueTextMutations(mutations) {
+    const idSet = new Set();
+    const uniqueMutations = [];
+    for (let i = mutations.length; i--;) {
+        const mutation = mutations[i];
+        if (!idSet.has(mutation.id)) {
+            uniqueMutations.push(mutation);
+            idSet.add(mutation.id);
+        }
+    }
+    return uniqueMutations;
+}
+class StyleSheetMirror {
+    constructor() {
+        this.id = 1;
+        this.styleIDMap = new WeakMap();
+        this.idStyleMap = new Map();
+    }
+    getId(stylesheet) {
+        var _a;
+        return (_a = this.styleIDMap.get(stylesheet)) !== null && _a !== void 0 ? _a : -1;
+    }
+    has(stylesheet) {
+        return this.styleIDMap.has(stylesheet);
+    }
+    add(stylesheet, id) {
+        if (this.has(stylesheet))
+            return this.getId(stylesheet);
+        let newId;
+        if (id === undefined) {
+            newId = this.id++;
+        }
+        else
+            newId = id;
+        this.styleIDMap.set(stylesheet, newId);
+        this.idStyleMap.set(newId, stylesheet);
+        return newId;
+    }
+    getStyle(id) {
+        return this.idStyleMap.get(id) || null;
+    }
+    reset() {
+        this.styleIDMap = new WeakMap();
+        this.idStyleMap = new Map();
+        this.id = 1;
+    }
+    generateId() {
+        return this.id++;
+    }
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/types/dist/types.js
+var EventType = /* @__PURE__ */ ((EventType2) => {
+  EventType2[EventType2["DomContentLoaded"] = 0] = "DomContentLoaded";
+  EventType2[EventType2["Load"] = 1] = "Load";
+  EventType2[EventType2["FullSnapshot"] = 2] = "FullSnapshot";
+  EventType2[EventType2["IncrementalSnapshot"] = 3] = "IncrementalSnapshot";
+  EventType2[EventType2["Meta"] = 4] = "Meta";
+  EventType2[EventType2["Custom"] = 5] = "Custom";
+  EventType2[EventType2["Plugin"] = 6] = "Plugin";
+  return EventType2;
+})(EventType || {});
+var IncrementalSource = /* @__PURE__ */ ((IncrementalSource2) => {
+  IncrementalSource2[IncrementalSource2["Mutation"] = 0] = "Mutation";
+  IncrementalSource2[IncrementalSource2["MouseMove"] = 1] = "MouseMove";
+  IncrementalSource2[IncrementalSource2["MouseInteraction"] = 2] = "MouseInteraction";
+  IncrementalSource2[IncrementalSource2["Scroll"] = 3] = "Scroll";
+  IncrementalSource2[IncrementalSource2["ViewportResize"] = 4] = "ViewportResize";
+  IncrementalSource2[IncrementalSource2["Input"] = 5] = "Input";
+  IncrementalSource2[IncrementalSource2["TouchMove"] = 6] = "TouchMove";
+  IncrementalSource2[IncrementalSource2["MediaInteraction"] = 7] = "MediaInteraction";
+  IncrementalSource2[IncrementalSource2["StyleSheetRule"] = 8] = "StyleSheetRule";
+  IncrementalSource2[IncrementalSource2["CanvasMutation"] = 9] = "CanvasMutation";
+  IncrementalSource2[IncrementalSource2["Font"] = 10] = "Font";
+  IncrementalSource2[IncrementalSource2["Log"] = 11] = "Log";
+  IncrementalSource2[IncrementalSource2["Drag"] = 12] = "Drag";
+  IncrementalSource2[IncrementalSource2["StyleDeclaration"] = 13] = "StyleDeclaration";
+  IncrementalSource2[IncrementalSource2["Selection"] = 14] = "Selection";
+  IncrementalSource2[IncrementalSource2["AdoptedStyleSheet"] = 15] = "AdoptedStyleSheet";
+  return IncrementalSource2;
+})(IncrementalSource || {});
+var MouseInteractions = /* @__PURE__ */ ((MouseInteractions2) => {
+  MouseInteractions2[MouseInteractions2["MouseUp"] = 0] = "MouseUp";
+  MouseInteractions2[MouseInteractions2["MouseDown"] = 1] = "MouseDown";
+  MouseInteractions2[MouseInteractions2["Click"] = 2] = "Click";
+  MouseInteractions2[MouseInteractions2["ContextMenu"] = 3] = "ContextMenu";
+  MouseInteractions2[MouseInteractions2["DblClick"] = 4] = "DblClick";
+  MouseInteractions2[MouseInteractions2["Focus"] = 5] = "Focus";
+  MouseInteractions2[MouseInteractions2["Blur"] = 6] = "Blur";
+  MouseInteractions2[MouseInteractions2["TouchStart"] = 7] = "TouchStart";
+  MouseInteractions2[MouseInteractions2["TouchMove_Departed"] = 8] = "TouchMove_Departed";
+  MouseInteractions2[MouseInteractions2["TouchEnd"] = 9] = "TouchEnd";
+  MouseInteractions2[MouseInteractions2["TouchCancel"] = 10] = "TouchCancel";
+  return MouseInteractions2;
+})(MouseInteractions || {});
+var CanvasContext = /* @__PURE__ */ ((CanvasContext2) => {
+  CanvasContext2[CanvasContext2["2D"] = 0] = "2D";
+  CanvasContext2[CanvasContext2["WebGL"] = 1] = "WebGL";
+  CanvasContext2[CanvasContext2["WebGL2"] = 2] = "WebGL2";
+  return CanvasContext2;
+})(CanvasContext || {});
+var ReplayerEvents = /* @__PURE__ */ ((ReplayerEvents2) => {
+  ReplayerEvents2["Start"] = "start";
+  ReplayerEvents2["Pause"] = "pause";
+  ReplayerEvents2["Resume"] = "resume";
+  ReplayerEvents2["Resize"] = "resize";
+  ReplayerEvents2["Finish"] = "finish";
+  ReplayerEvents2["FullsnapshotRebuilded"] = "fullsnapshot-rebuilded";
+  ReplayerEvents2["LoadStylesheetStart"] = "load-stylesheet-start";
+  ReplayerEvents2["LoadStylesheetEnd"] = "load-stylesheet-end";
+  ReplayerEvents2["SkipStart"] = "skip-start";
+  ReplayerEvents2["SkipEnd"] = "skip-end";
+  ReplayerEvents2["MouseInteraction"] = "mouse-interaction";
+  ReplayerEvents2["EventCast"] = "event-cast";
+  ReplayerEvents2["CustomEvent"] = "custom-event";
+  ReplayerEvents2["Flush"] = "flush";
+  ReplayerEvents2["StateChange"] = "state-change";
+  ReplayerEvents2["PlayBack"] = "play-back";
+  ReplayerEvents2["Destroy"] = "destroy";
+  return ReplayerEvents2;
+})(ReplayerEvents || {});
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb/src/record/mutation.js
+
+
+
+function isNodeInLinkedList(n) {
+    return '__ln' in n;
+}
+class DoubleLinkedList {
+    constructor() {
+        this.length = 0;
+        this.head = null;
+    }
+    get(position) {
+        if (position >= this.length) {
+            throw new Error('Position outside of list range');
+        }
+        let current = this.head;
+        for (let index = 0; index < position; index++) {
+            current = (current === null || current === void 0 ? void 0 : current.next) || null;
+        }
+        return current;
+    }
+    addNode(n) {
+        const node = {
+            value: n,
+            previous: null,
+            next: null,
+        };
+        n.__ln = node;
+        if (n.previousSibling && isNodeInLinkedList(n.previousSibling)) {
+            const current = n.previousSibling.__ln.next;
+            node.next = current;
+            node.previous = n.previousSibling.__ln;
+            n.previousSibling.__ln.next = node;
+            if (current) {
+                current.previous = node;
+            }
+        }
+        else if (n.nextSibling &&
+            isNodeInLinkedList(n.nextSibling) &&
+            n.nextSibling.__ln.previous) {
+            const current = n.nextSibling.__ln.previous;
+            node.previous = current;
+            node.next = n.nextSibling.__ln;
+            n.nextSibling.__ln.previous = node;
+            if (current) {
+                current.next = node;
+            }
+        }
+        else {
+            if (this.head) {
+                this.head.previous = node;
+            }
+            node.next = this.head;
+            this.head = node;
+        }
+        this.length++;
+    }
+    removeNode(n) {
+        const current = n.__ln;
+        if (!this.head) {
+            return;
+        }
+        if (!current.previous) {
+            this.head = current.next;
+            if (this.head) {
+                this.head.previous = null;
+            }
+        }
+        else {
+            current.previous.next = current.next;
+            if (current.next) {
+                current.next.previous = current.previous;
+            }
+        }
+        if (n.__ln) {
+            delete n.__ln;
+        }
+        this.length--;
+    }
+}
+const moveKey = (id, parentId) => `${id}@${parentId}`;
+class MutationBuffer {
+    constructor() {
+        this.frozen = false;
+        this.locked = false;
+        this.texts = [];
+        this.attributes = [];
+        this.removes = [];
+        this.mapRemoves = [];
+        this.movedMap = {};
+        this.addedSet = new Set();
+        this.movedSet = new Set();
+        this.droppedSet = new Set();
+        this.processMutations = (mutations) => {
+            mutations.forEach(this.processMutation);
+            this.emit();
+        };
+        this.emit = () => {
+            if (this.frozen || this.locked) {
+                return;
+            }
+            const adds = [];
+            const addList = new DoubleLinkedList();
+            const getNextId = (n) => {
+                let ns = n;
+                let nextId = IGNORED_NODE;
+                while (nextId === IGNORED_NODE) {
+                    ns = ns && ns.nextSibling;
+                    nextId = ns && this.mirror.getId(ns);
+                }
+                return nextId;
+            };
+            const pushAdd = (n) => {
+                var _a, _b, _c, _d;
+                let shadowHost = null;
+                if (((_b = (_a = n.getRootNode) === null || _a === void 0 ? void 0 : _a.call(n)) === null || _b === void 0 ? void 0 : _b.nodeType) === Node.DOCUMENT_FRAGMENT_NODE &&
+                    n.getRootNode().host)
+                    shadowHost = n.getRootNode().host;
+                let rootShadowHost = shadowHost;
+                while (((_d = (_c = rootShadowHost === null || rootShadowHost === void 0 ? void 0 : rootShadowHost.getRootNode) === null || _c === void 0 ? void 0 : _c.call(rootShadowHost)) === null || _d === void 0 ? void 0 : _d.nodeType) ===
+                    Node.DOCUMENT_FRAGMENT_NODE &&
+                    rootShadowHost.getRootNode().host)
+                    rootShadowHost = rootShadowHost.getRootNode().host;
+                const notInDoc = !this.doc.contains(n) &&
+                    (!rootShadowHost || !this.doc.contains(rootShadowHost));
+                if (!n.parentNode || notInDoc) {
+                    return;
+                }
+                const parentId = isShadowRoot(n.parentNode)
+                    ? this.mirror.getId(shadowHost)
+                    : this.mirror.getId(n.parentNode);
+                const nextId = getNextId(n);
+                if (parentId === -1 || nextId === -1) {
+                    return addList.addNode(n);
+                }
+                const sn = serializeNodeWithId(n, {
+                    doc: this.doc,
+                    mirror: this.mirror,
+                    blockClass: this.blockClass,
+                    blockSelector: this.blockSelector,
+                    maskTextClass: this.maskTextClass,
+                    maskTextSelector: this.maskTextSelector,
+                    skipChild: true,
+                    newlyAddedElement: true,
+                    inlineStylesheet: this.inlineStylesheet,
+                    maskInputOptions: this.maskInputOptions,
+                    maskTextFn: this.maskTextFn,
+                    maskInputFn: this.maskInputFn,
+                    slimDOMOptions: this.slimDOMOptions,
+                    dataURLOptions: this.dataURLOptions,
+                    recordCanvas: this.recordCanvas,
+                    inlineImages: this.inlineImages,
+                    onSerialize: (currentN) => {
+                        if (isSerializedIframe(currentN, this.mirror)) {
+                            this.iframeManager.addIframe(currentN);
+                        }
+                        if (isSerializedStylesheet(currentN, this.mirror)) {
+                            this.stylesheetManager.trackLinkElement(currentN);
+                        }
+                        if (hasShadowRoot(n)) {
+                            this.shadowDomManager.addShadowRoot(n.shadowRoot, this.doc);
+                        }
+                    },
+                    onIframeLoad: (iframe, childSn) => {
+                        this.iframeManager.attachIframe(iframe, childSn);
+                        this.shadowDomManager.observeAttachShadow(iframe);
+                    },
+                    onStylesheetLoad: (link, childSn) => {
+                        this.stylesheetManager.attachLinkElement(link, childSn);
+                    },
+                });
+                if (sn) {
+                    adds.push({
+                        parentId,
+                        nextId,
+                        node: sn,
+                    });
+                }
+            };
+            while (this.mapRemoves.length) {
+                this.mirror.removeNodeFromMap(this.mapRemoves.shift());
+            }
+            for (const n of Array.from(this.movedSet.values())) {
+                if (isParentRemoved(this.removes, n, this.mirror) &&
+                    !this.movedSet.has(n.parentNode)) {
+                    continue;
+                }
+                pushAdd(n);
+            }
+            for (const n of Array.from(this.addedSet.values())) {
+                if (!isAncestorInSet(this.droppedSet, n) &&
+                    !isParentRemoved(this.removes, n, this.mirror)) {
+                    pushAdd(n);
+                }
+                else if (isAncestorInSet(this.movedSet, n)) {
+                    pushAdd(n);
+                }
+                else {
+                    this.droppedSet.add(n);
+                }
+            }
+            let candidate = null;
+            while (addList.length) {
+                let node = null;
+                if (candidate) {
+                    const parentId = this.mirror.getId(candidate.value.parentNode);
+                    const nextId = getNextId(candidate.value);
+                    if (parentId !== -1 && nextId !== -1) {
+                        node = candidate;
+                    }
+                }
+                if (!node) {
+                    for (let index = addList.length - 1; index >= 0; index--) {
+                        const _node = addList.get(index);
+                        if (_node) {
+                            const parentId = this.mirror.getId(_node.value.parentNode);
+                            const nextId = getNextId(_node.value);
+                            if (nextId === -1)
+                                continue;
+                            else if (parentId !== -1) {
+                                node = _node;
+                                break;
+                            }
+                            else {
+                                const unhandledNode = _node.value;
+                                if (unhandledNode.parentNode &&
+                                    unhandledNode.parentNode.nodeType ===
+                                        Node.DOCUMENT_FRAGMENT_NODE) {
+                                    const shadowHost = unhandledNode.parentNode
+                                        .host;
+                                    const parentId = this.mirror.getId(shadowHost);
+                                    if (parentId !== -1) {
+                                        node = _node;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (!node) {
+                    while (addList.head) {
+                        addList.removeNode(addList.head.value);
+                    }
+                    break;
+                }
+                candidate = node.previous;
+                addList.removeNode(node.value);
+                pushAdd(node.value);
+            }
+            const payload = {
+                texts: this.texts
+                    .map((text) => ({
+                    id: this.mirror.getId(text.node),
+                    value: text.value,
+                }))
+                    .filter((text) => this.mirror.has(text.id)),
+                attributes: this.attributes
+                    .map((attribute) => ({
+                    id: this.mirror.getId(attribute.node),
+                    attributes: attribute.attributes,
+                }))
+                    .filter((attribute) => this.mirror.has(attribute.id)),
+                removes: this.removes,
+                adds,
+            };
+            if (!payload.texts.length &&
+                !payload.attributes.length &&
+                !payload.removes.length &&
+                !payload.adds.length) {
+                return;
+            }
+            this.texts = [];
+            this.attributes = [];
+            this.removes = [];
+            this.addedSet = new Set();
+            this.movedSet = new Set();
+            this.droppedSet = new Set();
+            this.movedMap = {};
+            this.mutationCb(payload);
+        };
+        this.processMutation = (m) => {
+            if (isIgnored(m.target, this.mirror)) {
+                return;
+            }
+            switch (m.type) {
+                case 'characterData': {
+                    const value = m.target.textContent;
+                    if (!isBlocked(m.target, this.blockClass, this.blockSelector, false) &&
+                        value !== m.oldValue) {
+                        this.texts.push({
+                            value: needMaskingText(m.target, this.maskTextClass, this.maskTextSelector) && value
+                                ? this.maskTextFn
+                                    ? this.maskTextFn(value)
+                                    : value.replace(/[\S]/g, '*')
+                                : value,
+                            node: m.target,
+                        });
+                    }
+                    break;
+                }
+                case 'attributes': {
+                    const target = m.target;
+                    let value = m.target.getAttribute(m.attributeName);
+                    if (m.attributeName === 'value') {
+                        value = maskInputValue({
+                            maskInputOptions: this.maskInputOptions,
+                            tagName: m.target.tagName,
+                            type: m.target.getAttribute('type'),
+                            value,
+                            maskInputFn: this.maskInputFn,
+                        });
+                    }
+                    if (isBlocked(m.target, this.blockClass, this.blockSelector, false) ||
+                        value === m.oldValue) {
+                        return;
+                    }
+                    let item = this.attributes.find((a) => a.node === m.target);
+                    if (target.tagName === 'IFRAME' &&
+                        m.attributeName === 'src' &&
+                        !this.keepIframeSrcFn(value)) {
+                        if (!target.contentDocument) {
+                            m.attributeName = 'rr_src';
+                        }
+                        else {
+                            return;
+                        }
+                    }
+                    if (!item) {
+                        item = {
+                            node: m.target,
+                            attributes: {},
+                        };
+                        this.attributes.push(item);
+                    }
+                    if (m.attributeName === 'style') {
+                        const old = this.doc.createElement('span');
+                        if (m.oldValue) {
+                            old.setAttribute('style', m.oldValue);
+                        }
+                        if (item.attributes.style === undefined ||
+                            item.attributes.style === null) {
+                            item.attributes.style = {};
+                        }
+                        const styleObj = item.attributes.style;
+                        for (const pname of Array.from(target.style)) {
+                            const newValue = target.style.getPropertyValue(pname);
+                            const newPriority = target.style.getPropertyPriority(pname);
+                            if (newValue !== old.style.getPropertyValue(pname) ||
+                                newPriority !== old.style.getPropertyPriority(pname)) {
+                                if (newPriority === '') {
+                                    styleObj[pname] = newValue;
+                                }
+                                else {
+                                    styleObj[pname] = [newValue, newPriority];
+                                }
+                            }
+                        }
+                        for (const pname of Array.from(old.style)) {
+                            if (target.style.getPropertyValue(pname) === '') {
+                                styleObj[pname] = false;
+                            }
+                        }
+                    }
+                    else {
+                        item.attributes[m.attributeName] = transformAttribute(this.doc, target.tagName, m.attributeName, value);
+                    }
+                    break;
+                }
+                case 'childList': {
+                    if (isBlocked(m.target, this.blockClass, this.blockSelector, true))
+                        return;
+                    m.addedNodes.forEach((n) => this.genAdds(n, m.target));
+                    m.removedNodes.forEach((n) => {
+                        const nodeId = this.mirror.getId(n);
+                        const parentId = isShadowRoot(m.target)
+                            ? this.mirror.getId(m.target.host)
+                            : this.mirror.getId(m.target);
+                        if (isBlocked(m.target, this.blockClass, this.blockSelector, false) ||
+                            isIgnored(n, this.mirror) ||
+                            !isSerialized(n, this.mirror)) {
+                            return;
+                        }
+                        if (this.addedSet.has(n)) {
+                            deepDelete(this.addedSet, n);
+                            this.droppedSet.add(n);
+                        }
+                        else if (this.addedSet.has(m.target) && nodeId === -1) ;
+                        else if (isAncestorRemoved(m.target, this.mirror)) ;
+                        else if (this.movedSet.has(n) &&
+                            this.movedMap[moveKey(nodeId, parentId)]) {
+                            deepDelete(this.movedSet, n);
+                        }
+                        else {
+                            this.removes.push({
+                                parentId,
+                                id: nodeId,
+                                isShadow: isShadowRoot(m.target) && isNativeShadowDom(m.target)
+                                    ? true
+                                    : undefined,
+                            });
+                        }
+                        this.mapRemoves.push(n);
+                    });
+                    break;
+                }
+            }
+        };
+        this.genAdds = (n, target) => {
+            if (this.mirror.hasNode(n)) {
+                if (isIgnored(n, this.mirror)) {
+                    return;
+                }
+                this.movedSet.add(n);
+                let targetId = null;
+                if (target && this.mirror.hasNode(target)) {
+                    targetId = this.mirror.getId(target);
+                }
+                if (targetId && targetId !== -1) {
+                    this.movedMap[moveKey(this.mirror.getId(n), targetId)] = true;
+                }
+            }
+            else {
+                this.addedSet.add(n);
+                this.droppedSet.delete(n);
+            }
+            if (!isBlocked(n, this.blockClass, this.blockSelector, false))
+                n.childNodes.forEach((childN) => this.genAdds(childN));
+        };
+    }
+    init(options) {
+        [
+            'mutationCb',
+            'blockClass',
+            'blockSelector',
+            'maskTextClass',
+            'maskTextSelector',
+            'inlineStylesheet',
+            'maskInputOptions',
+            'maskTextFn',
+            'maskInputFn',
+            'keepIframeSrcFn',
+            'recordCanvas',
+            'inlineImages',
+            'slimDOMOptions',
+            'dataURLOptions',
+            'doc',
+            'mirror',
+            'iframeManager',
+            'stylesheetManager',
+            'shadowDomManager',
+            'canvasManager',
+        ].forEach((key) => {
+            this[key] = options[key];
+        });
+    }
+    freeze() {
+        this.frozen = true;
+        this.canvasManager.freeze();
+    }
+    unfreeze() {
+        this.frozen = false;
+        this.canvasManager.unfreeze();
+        this.emit();
+    }
+    isFrozen() {
+        return this.frozen;
+    }
+    lock() {
+        this.locked = true;
+        this.canvasManager.lock();
+    }
+    unlock() {
+        this.locked = false;
+        this.canvasManager.unlock();
+        this.emit();
+    }
+    reset() {
+        this.shadowDomManager.reset();
+        this.canvasManager.reset();
+    }
+}
+function deepDelete(addsSet, n) {
+    addsSet.delete(n);
+    n.childNodes.forEach((childN) => deepDelete(addsSet, childN));
+}
+function isParentRemoved(removes, n, mirror) {
+    if (removes.length === 0)
+        return false;
+    return _isParentRemoved(removes, n, mirror);
+}
+function _isParentRemoved(removes, n, mirror) {
+    const { parentNode } = n;
+    if (!parentNode) {
+        return false;
+    }
+    const parentId = mirror.getId(parentNode);
+    if (removes.some((r) => r.id === parentId)) {
+        return true;
+    }
+    return _isParentRemoved(removes, parentNode, mirror);
+}
+function isAncestorInSet(set, n) {
+    if (set.size === 0)
+        return false;
+    return _isAncestorInSet(set, n);
+}
+function _isAncestorInSet(set, n) {
+    const { parentNode } = n;
+    if (!parentNode) {
+        return false;
+    }
+    if (set.has(parentNode)) {
+        return true;
+    }
+    return _isAncestorInSet(set, parentNode);
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb/src/record/observer.js
+
+
+
+
+
+const mutationBuffers = [];
+const isCSSGroupingRuleSupported = typeof CSSGroupingRule !== 'undefined';
+const isCSSMediaRuleSupported = typeof CSSMediaRule !== 'undefined';
+const isCSSSupportsRuleSupported = typeof CSSSupportsRule !== 'undefined';
+const isCSSConditionRuleSupported = typeof CSSConditionRule !== 'undefined';
+function getEventTarget(event) {
+    try {
+        if ('composedPath' in event) {
+            const path = event.composedPath();
+            if (path.length) {
+                return path[0];
+            }
+        }
+        else if ('path' in event && event.path.length) {
+            return event.path[0];
+        }
+        return event.target;
+    }
+    catch (_a) {
+        return event.target;
+    }
+}
+function initMutationObserver(options, rootEl) {
+    var _a, _b;
+    const mutationBuffer = new MutationBuffer();
+    mutationBuffers.push(mutationBuffer);
+    mutationBuffer.init(options);
+    let mutationObserverCtor = window.MutationObserver ||
+        window.__rrMutationObserver;
+    const angularZoneSymbol = (_b = (_a = window === null || window === void 0 ? void 0 : window.Zone) === null || _a === void 0 ? void 0 : _a.__symbol__) === null || _b === void 0 ? void 0 : _b.call(_a, 'MutationObserver');
+    if (angularZoneSymbol &&
+        window[angularZoneSymbol]) {
+        mutationObserverCtor = window[angularZoneSymbol];
+    }
+    const observer = new mutationObserverCtor(mutationBuffer.processMutations.bind(mutationBuffer));
+    observer.observe(rootEl, {
+        attributes: true,
+        attributeOldValue: true,
+        characterData: true,
+        characterDataOldValue: true,
+        childList: true,
+        subtree: true,
+    });
+    return observer;
+}
+function initMoveObserver({ mousemoveCb, sampling, doc, mirror, }) {
+    if (sampling.mousemove === false) {
+        return () => {
+        };
+    }
+    const threshold = typeof sampling.mousemove === 'number' ? sampling.mousemove : 50;
+    const callbackThreshold = typeof sampling.mousemoveCallback === 'number'
+        ? sampling.mousemoveCallback
+        : 500;
+    let positions = [];
+    let timeBaseline;
+    const wrappedCb = throttle((source) => {
+        const totalOffset = Date.now() - timeBaseline;
+        mousemoveCb(positions.map((p) => {
+            p.timeOffset -= totalOffset;
+            return p;
+        }), source);
+        positions = [];
+        timeBaseline = null;
+    }, callbackThreshold);
+    const updatePosition = throttle((evt) => {
+        const target = getEventTarget(evt);
+        const { clientX, clientY } = isTouchEvent(evt)
+            ? evt.changedTouches[0]
+            : evt;
+        if (!timeBaseline) {
+            timeBaseline = Date.now();
+        }
+        positions.push({
+            x: clientX,
+            y: clientY,
+            id: mirror.getId(target),
+            timeOffset: Date.now() - timeBaseline,
+        });
+        wrappedCb(typeof DragEvent !== 'undefined' && evt instanceof DragEvent
+            ? IncrementalSource.Drag
+            : evt instanceof MouseEvent
+                ? IncrementalSource.MouseMove
+                : IncrementalSource.TouchMove);
+    }, threshold, {
+        trailing: false,
+    });
+    const handlers = [
+        on('mousemove', updatePosition, doc),
+        on('touchmove', updatePosition, doc),
+        on('drag', updatePosition, doc),
+    ];
+    return () => {
+        handlers.forEach((h) => h());
+    };
+}
+function initMouseInteractionObserver({ mouseInteractionCb, doc, mirror, blockClass, blockSelector, sampling, }) {
+    if (sampling.mouseInteraction === false) {
+        return () => {
+        };
+    }
+    const disableMap = sampling.mouseInteraction === true ||
+        sampling.mouseInteraction === undefined
+        ? {}
+        : sampling.mouseInteraction;
+    const handlers = [];
+    const getHandler = (eventKey) => {
+        return (event) => {
+            const target = getEventTarget(event);
+            if (isBlocked(target, blockClass, blockSelector, true)) {
+                return;
+            }
+            const e = isTouchEvent(event) ? event.changedTouches[0] : event;
+            if (!e) {
+                return;
+            }
+            const id = mirror.getId(target);
+            const { clientX, clientY } = e;
+            mouseInteractionCb({
+                type: MouseInteractions[eventKey],
+                id,
+                x: clientX,
+                y: clientY,
+            });
+        };
+    };
+    Object.keys(MouseInteractions)
+        .filter((key) => Number.isNaN(Number(key)) &&
+        !key.endsWith('_Departed') &&
+        disableMap[key] !== false)
+        .forEach((eventKey) => {
+        const eventName = eventKey.toLowerCase();
+        const handler = getHandler(eventKey);
+        handlers.push(on(eventName, handler, doc));
+    });
+    return () => {
+        handlers.forEach((h) => h());
+    };
+}
+function initScrollObserver({ scrollCb, doc, mirror, blockClass, blockSelector, sampling, }) {
+    const updatePosition = throttle((evt) => {
+        const target = getEventTarget(evt);
+        if (!target || isBlocked(target, blockClass, blockSelector, true)) {
+            return;
+        }
+        const id = mirror.getId(target);
+        if (target === doc) {
+            const scrollEl = (doc.scrollingElement || doc.documentElement);
+            scrollCb({
+                id,
+                x: scrollEl.scrollLeft,
+                y: scrollEl.scrollTop,
+            });
+        }
+        else {
+            scrollCb({
+                id,
+                x: target.scrollLeft,
+                y: target.scrollTop,
+            });
+        }
+    }, sampling.scroll || 100);
+    return on('scroll', updatePosition, doc);
+}
+function initViewportResizeObserver({ viewportResizeCb, }) {
+    let lastH = -1;
+    let lastW = -1;
+    const updateDimension = throttle(() => {
+        const height = getWindowHeight();
+        const width = getWindowWidth();
+        if (lastH !== height || lastW !== width) {
+            viewportResizeCb({
+                width: Number(width),
+                height: Number(height),
+            });
+            lastH = height;
+            lastW = width;
+        }
+    }, 200);
+    return on('resize', updateDimension, window);
+}
+function wrapEventWithUserTriggeredFlag(v, enable) {
+    const value = Object.assign({}, v);
+    if (!enable)
+        delete value.userTriggered;
+    return value;
+}
+const INPUT_TAGS = ['INPUT', 'TEXTAREA', 'SELECT'];
+const lastInputValueMap = new WeakMap();
+function initInputObserver({ inputCb, doc, mirror, blockClass, blockSelector, ignoreClass, maskInputOptions, maskInputFn, sampling, userTriggeredOnInput, }) {
+    function eventHandler(event) {
+        let target = getEventTarget(event);
+        const userTriggered = event.isTrusted;
+        if (target && target.tagName === 'OPTION')
+            target = target.parentElement;
+        if (!target ||
+            !target.tagName ||
+            INPUT_TAGS.indexOf(target.tagName) < 0 ||
+            isBlocked(target, blockClass, blockSelector, true)) {
+            return;
+        }
+        const type = target.type;
+        if (target.classList.contains(ignoreClass)) {
+            return;
+        }
+        let text = target.value;
+        let isChecked = false;
+        if (type === 'radio' || type === 'checkbox') {
+            isChecked = target.checked;
+        }
+        else if (maskInputOptions[target.tagName.toLowerCase()] ||
+            maskInputOptions[type]) {
+            text = maskInputValue({
+                maskInputOptions,
+                tagName: target.tagName,
+                type,
+                value: text,
+                maskInputFn,
+            });
+        }
+        cbWithDedup(target, wrapEventWithUserTriggeredFlag({ text, isChecked, userTriggered }, userTriggeredOnInput));
+        const name = target.name;
+        if (type === 'radio' && name && isChecked) {
+            doc
+                .querySelectorAll(`input[type="radio"][name="${name}"]`)
+                .forEach((el) => {
+                if (el !== target) {
+                    cbWithDedup(el, wrapEventWithUserTriggeredFlag({
+                        text: el.value,
+                        isChecked: !isChecked,
+                        userTriggered: false,
+                    }, userTriggeredOnInput));
+                }
+            });
+        }
+    }
+    function cbWithDedup(target, v) {
+        const lastInputValue = lastInputValueMap.get(target);
+        if (!lastInputValue ||
+            lastInputValue.text !== v.text ||
+            lastInputValue.isChecked !== v.isChecked) {
+            lastInputValueMap.set(target, v);
+            const id = mirror.getId(target);
+            inputCb(Object.assign(Object.assign({}, v), { id }));
+        }
+    }
+    const events = sampling.input === 'last' ? ['change'] : ['input', 'change'];
+    const handlers = events.map((eventName) => on(eventName, eventHandler, doc));
+    const currentWindow = doc.defaultView;
+    if (!currentWindow) {
+        return () => {
+            handlers.forEach((h) => h());
+        };
+    }
+    const propertyDescriptor = currentWindow.Object.getOwnPropertyDescriptor(currentWindow.HTMLInputElement.prototype, 'value');
+    const hookProperties = [
+        [currentWindow.HTMLInputElement.prototype, 'value'],
+        [currentWindow.HTMLInputElement.prototype, 'checked'],
+        [currentWindow.HTMLSelectElement.prototype, 'value'],
+        [currentWindow.HTMLTextAreaElement.prototype, 'value'],
+        [currentWindow.HTMLSelectElement.prototype, 'selectedIndex'],
+        [currentWindow.HTMLOptionElement.prototype, 'selected'],
+    ];
+    if (propertyDescriptor && propertyDescriptor.set) {
+        handlers.push(...hookProperties.map((p) => hookSetter(p[0], p[1], {
+            set() {
+                eventHandler({ target: this });
+            },
+        }, false, currentWindow)));
+    }
+    return () => {
+        handlers.forEach((h) => h());
+    };
+}
+function getNestedCSSRulePositions(rule) {
+    const positions = [];
+    function recurse(childRule, pos) {
+        if ((isCSSGroupingRuleSupported &&
+            childRule.parentRule instanceof CSSGroupingRule) ||
+            (isCSSMediaRuleSupported &&
+                childRule.parentRule instanceof CSSMediaRule) ||
+            (isCSSSupportsRuleSupported &&
+                childRule.parentRule instanceof CSSSupportsRule) ||
+            (isCSSConditionRuleSupported &&
+                childRule.parentRule instanceof CSSConditionRule)) {
+            const rules = Array.from(childRule.parentRule.cssRules);
+            const index = rules.indexOf(childRule);
+            pos.unshift(index);
+        }
+        else if (childRule.parentStyleSheet) {
+            const rules = Array.from(childRule.parentStyleSheet.cssRules);
+            const index = rules.indexOf(childRule);
+            pos.unshift(index);
+        }
+        return pos;
+    }
+    return recurse(rule, positions);
+}
+function getIdAndStyleId(sheet, mirror, styleMirror) {
+    let id, styleId;
+    if (!sheet)
+        return {};
+    if (sheet.ownerNode)
+        id = mirror.getId(sheet.ownerNode);
+    else
+        styleId = styleMirror.getId(sheet);
+    return {
+        styleId,
+        id,
+    };
+}
+function initStyleSheetObserver({ styleSheetRuleCb, mirror, stylesheetManager }, { win }) {
+    const insertRule = win.CSSStyleSheet.prototype.insertRule;
+    win.CSSStyleSheet.prototype.insertRule = function (rule, index) {
+        const { id, styleId } = getIdAndStyleId(this, mirror, stylesheetManager.styleMirror);
+        if ((id && id !== -1) || (styleId && styleId !== -1)) {
+            styleSheetRuleCb({
+                id,
+                styleId,
+                adds: [{ rule, index }],
+            });
+        }
+        return insertRule.apply(this, [rule, index]);
+    };
+    const deleteRule = win.CSSStyleSheet.prototype.deleteRule;
+    win.CSSStyleSheet.prototype.deleteRule = function (index) {
+        const { id, styleId } = getIdAndStyleId(this, mirror, stylesheetManager.styleMirror);
+        if ((id && id !== -1) || (styleId && styleId !== -1)) {
+            styleSheetRuleCb({
+                id,
+                styleId,
+                removes: [{ index }],
+            });
+        }
+        return deleteRule.apply(this, [index]);
+    };
+    let replace;
+    if (win.CSSStyleSheet.prototype.replace) {
+        replace = win.CSSStyleSheet.prototype.replace;
+        win.CSSStyleSheet.prototype.replace = function (text) {
+            const { id, styleId } = getIdAndStyleId(this, mirror, stylesheetManager.styleMirror);
+            if ((id && id !== -1) || (styleId && styleId !== -1)) {
+                styleSheetRuleCb({
+                    id,
+                    styleId,
+                    replace: text,
+                });
+            }
+            return replace.apply(this, [text]);
+        };
+    }
+    let replaceSync;
+    if (win.CSSStyleSheet.prototype.replaceSync) {
+        replaceSync = win.CSSStyleSheet.prototype.replaceSync;
+        win.CSSStyleSheet.prototype.replaceSync = function (text) {
+            const { id, styleId } = getIdAndStyleId(this, mirror, stylesheetManager.styleMirror);
+            if ((id && id !== -1) || (styleId && styleId !== -1)) {
+                styleSheetRuleCb({
+                    id,
+                    styleId,
+                    replaceSync: text,
+                });
+            }
+            return replaceSync.apply(this, [text]);
+        };
+    }
+    const supportedNestedCSSRuleTypes = {};
+    if (isCSSGroupingRuleSupported) {
+        supportedNestedCSSRuleTypes.CSSGroupingRule = win.CSSGroupingRule;
+    }
+    else {
+        if (isCSSMediaRuleSupported) {
+            supportedNestedCSSRuleTypes.CSSMediaRule = win.CSSMediaRule;
+        }
+        if (isCSSConditionRuleSupported) {
+            supportedNestedCSSRuleTypes.CSSConditionRule = win.CSSConditionRule;
+        }
+        if (isCSSSupportsRuleSupported) {
+            supportedNestedCSSRuleTypes.CSSSupportsRule = win.CSSSupportsRule;
+        }
+    }
+    const unmodifiedFunctions = {};
+    Object.entries(supportedNestedCSSRuleTypes).forEach(([typeKey, type]) => {
+        unmodifiedFunctions[typeKey] = {
+            insertRule: type.prototype.insertRule,
+            deleteRule: type.prototype.deleteRule,
+        };
+        type.prototype.insertRule = function (rule, index) {
+            const { id, styleId } = getIdAndStyleId(this.parentStyleSheet, mirror, stylesheetManager.styleMirror);
+            if ((id && id !== -1) || (styleId && styleId !== -1)) {
+                styleSheetRuleCb({
+                    id,
+                    styleId,
+                    adds: [
+                        {
+                            rule,
+                            index: [
+                                ...getNestedCSSRulePositions(this),
+                                index || 0,
+                            ],
+                        },
+                    ],
+                });
+            }
+            return unmodifiedFunctions[typeKey].insertRule.apply(this, [rule, index]);
+        };
+        type.prototype.deleteRule = function (index) {
+            const { id, styleId } = getIdAndStyleId(this.parentStyleSheet, mirror, stylesheetManager.styleMirror);
+            if ((id && id !== -1) || (styleId && styleId !== -1)) {
+                styleSheetRuleCb({
+                    id,
+                    styleId,
+                    removes: [
+                        { index: [...getNestedCSSRulePositions(this), index] },
+                    ],
+                });
+            }
+            return unmodifiedFunctions[typeKey].deleteRule.apply(this, [index]);
+        };
+    });
+    return () => {
+        win.CSSStyleSheet.prototype.insertRule = insertRule;
+        win.CSSStyleSheet.prototype.deleteRule = deleteRule;
+        replace && (win.CSSStyleSheet.prototype.replace = replace);
+        replaceSync && (win.CSSStyleSheet.prototype.replaceSync = replaceSync);
+        Object.entries(supportedNestedCSSRuleTypes).forEach(([typeKey, type]) => {
+            type.prototype.insertRule = unmodifiedFunctions[typeKey].insertRule;
+            type.prototype.deleteRule = unmodifiedFunctions[typeKey].deleteRule;
+        });
+    };
+}
+function initAdoptedStyleSheetObserver({ mirror, stylesheetManager, }, host) {
+    var _a, _b, _c;
+    let hostId = null;
+    if (host.nodeName === '#document')
+        hostId = mirror.getId(host);
+    else
+        hostId = mirror.getId(host.host);
+    const patchTarget = host.nodeName === '#document'
+        ? (_a = host.defaultView) === null || _a === void 0 ? void 0 : _a.Document
+        : (_c = (_b = host.ownerDocument) === null || _b === void 0 ? void 0 : _b.defaultView) === null || _c === void 0 ? void 0 : _c.ShadowRoot;
+    const originalPropertyDescriptor = Object.getOwnPropertyDescriptor(patchTarget === null || patchTarget === void 0 ? void 0 : patchTarget.prototype, 'adoptedStyleSheets');
+    if (hostId === null ||
+        hostId === -1 ||
+        !patchTarget ||
+        !originalPropertyDescriptor)
+        return () => {
+        };
+    Object.defineProperty(host, 'adoptedStyleSheets', {
+        configurable: originalPropertyDescriptor.configurable,
+        enumerable: originalPropertyDescriptor.enumerable,
+        get() {
+            var _a;
+            return (_a = originalPropertyDescriptor.get) === null || _a === void 0 ? void 0 : _a.call(this);
+        },
+        set(sheets) {
+            var _a;
+            const result = (_a = originalPropertyDescriptor.set) === null || _a === void 0 ? void 0 : _a.call(this, sheets);
+            if (hostId !== null && hostId !== -1) {
+                try {
+                    stylesheetManager.adoptStyleSheets(sheets, hostId);
+                }
+                catch (e) {
+                }
+            }
+            return result;
+        },
+    });
+    return () => {
+        Object.defineProperty(host, 'adoptedStyleSheets', {
+            configurable: originalPropertyDescriptor.configurable,
+            enumerable: originalPropertyDescriptor.enumerable,
+            get: originalPropertyDescriptor.get,
+            set: originalPropertyDescriptor.set,
+        });
+    };
+}
+function initStyleDeclarationObserver({ styleDeclarationCb, mirror, ignoreCSSAttributes, stylesheetManager, }, { win }) {
+    const setProperty = win.CSSStyleDeclaration.prototype.setProperty;
+    win.CSSStyleDeclaration.prototype.setProperty = function (property, value, priority) {
+        var _a;
+        if (ignoreCSSAttributes.has(property)) {
+            return setProperty.apply(this, [property, value, priority]);
+        }
+        const { id, styleId } = getIdAndStyleId((_a = this.parentRule) === null || _a === void 0 ? void 0 : _a.parentStyleSheet, mirror, stylesheetManager.styleMirror);
+        if ((id && id !== -1) || (styleId && styleId !== -1)) {
+            styleDeclarationCb({
+                id,
+                styleId,
+                set: {
+                    property,
+                    value,
+                    priority,
+                },
+                index: getNestedCSSRulePositions(this.parentRule),
+            });
+        }
+        return setProperty.apply(this, [property, value, priority]);
+    };
+    const removeProperty = win.CSSStyleDeclaration.prototype.removeProperty;
+    win.CSSStyleDeclaration.prototype.removeProperty = function (property) {
+        var _a;
+        if (ignoreCSSAttributes.has(property)) {
+            return removeProperty.apply(this, [property]);
+        }
+        const { id, styleId } = getIdAndStyleId((_a = this.parentRule) === null || _a === void 0 ? void 0 : _a.parentStyleSheet, mirror, stylesheetManager.styleMirror);
+        if ((id && id !== -1) || (styleId && styleId !== -1)) {
+            styleDeclarationCb({
+                id,
+                styleId,
+                remove: {
+                    property,
+                },
+                index: getNestedCSSRulePositions(this.parentRule),
+            });
+        }
+        return removeProperty.apply(this, [property]);
+    };
+    return () => {
+        win.CSSStyleDeclaration.prototype.setProperty = setProperty;
+        win.CSSStyleDeclaration.prototype.removeProperty = removeProperty;
+    };
+}
+function initMediaInteractionObserver({ mediaInteractionCb, blockClass, blockSelector, mirror, sampling, }) {
+    const handler = (type) => throttle((event) => {
+        const target = getEventTarget(event);
+        if (!target ||
+            isBlocked(target, blockClass, blockSelector, true)) {
+            return;
+        }
+        const { currentTime, volume, muted, playbackRate, } = target;
+        mediaInteractionCb({
+            type,
+            id: mirror.getId(target),
+            currentTime,
+            volume,
+            muted,
+            playbackRate,
+        });
+    }, sampling.media || 500);
+    const handlers = [
+        on('play', handler(0)),
+        on('pause', handler(1)),
+        on('seeked', handler(2)),
+        on('volumechange', handler(3)),
+        on('ratechange', handler(4)),
+    ];
+    return () => {
+        handlers.forEach((h) => h());
+    };
+}
+function initFontObserver({ fontCb, doc }) {
+    const win = doc.defaultView;
+    if (!win) {
+        return () => {
+        };
+    }
+    const handlers = [];
+    const fontMap = new WeakMap();
+    const originalFontFace = win.FontFace;
+    win.FontFace = function FontFace(family, source, descriptors) {
+        const fontFace = new originalFontFace(family, source, descriptors);
+        fontMap.set(fontFace, {
+            family,
+            buffer: typeof source !== 'string',
+            descriptors,
+            fontSource: typeof source === 'string'
+                ? source
+                : JSON.stringify(Array.from(new Uint8Array(source))),
+        });
+        return fontFace;
+    };
+    const restoreHandler = patch(doc.fonts, 'add', function (original) {
+        return function (fontFace) {
+            setTimeout(() => {
+                const p = fontMap.get(fontFace);
+                if (p) {
+                    fontCb(p);
+                    fontMap.delete(fontFace);
+                }
+            }, 0);
+            return original.apply(this, [fontFace]);
+        };
+    });
+    handlers.push(() => {
+        win.FontFace = originalFontFace;
+    });
+    handlers.push(restoreHandler);
+    return () => {
+        handlers.forEach((h) => h());
+    };
+}
+function initSelectionObserver(param) {
+    const { doc, mirror, blockClass, blockSelector, selectionCb } = param;
+    let collapsed = true;
+    const updateSelection = () => {
+        const selection = doc.getSelection();
+        if (!selection || (collapsed && (selection === null || selection === void 0 ? void 0 : selection.isCollapsed)))
+            return;
+        collapsed = selection.isCollapsed || false;
+        const ranges = [];
+        const count = selection.rangeCount || 0;
+        for (let i = 0; i < count; i++) {
+            const range = selection.getRangeAt(i);
+            const { startContainer, startOffset, endContainer, endOffset } = range;
+            const blocked = isBlocked(startContainer, blockClass, blockSelector, true) ||
+                isBlocked(endContainer, blockClass, blockSelector, true);
+            if (blocked)
+                continue;
+            ranges.push({
+                start: mirror.getId(startContainer),
+                startOffset,
+                end: mirror.getId(endContainer),
+                endOffset,
+            });
+        }
+        selectionCb({ ranges });
+    };
+    updateSelection();
+    return on('selectionchange', updateSelection);
+}
+function mergeHooks(o, hooks) {
+    const { mutationCb, mousemoveCb, mouseInteractionCb, scrollCb, viewportResizeCb, inputCb, mediaInteractionCb, styleSheetRuleCb, styleDeclarationCb, canvasMutationCb, fontCb, selectionCb, } = o;
+    o.mutationCb = (...p) => {
+        if (hooks.mutation) {
+            hooks.mutation(...p);
+        }
+        mutationCb(...p);
+    };
+    o.mousemoveCb = (...p) => {
+        if (hooks.mousemove) {
+            hooks.mousemove(...p);
+        }
+        mousemoveCb(...p);
+    };
+    o.mouseInteractionCb = (...p) => {
+        if (hooks.mouseInteraction) {
+            hooks.mouseInteraction(...p);
+        }
+        mouseInteractionCb(...p);
+    };
+    o.scrollCb = (...p) => {
+        if (hooks.scroll) {
+            hooks.scroll(...p);
+        }
+        scrollCb(...p);
+    };
+    o.viewportResizeCb = (...p) => {
+        if (hooks.viewportResize) {
+            hooks.viewportResize(...p);
+        }
+        viewportResizeCb(...p);
+    };
+    o.inputCb = (...p) => {
+        if (hooks.input) {
+            hooks.input(...p);
+        }
+        inputCb(...p);
+    };
+    o.mediaInteractionCb = (...p) => {
+        if (hooks.mediaInteaction) {
+            hooks.mediaInteaction(...p);
+        }
+        mediaInteractionCb(...p);
+    };
+    o.styleSheetRuleCb = (...p) => {
+        if (hooks.styleSheetRule) {
+            hooks.styleSheetRule(...p);
+        }
+        styleSheetRuleCb(...p);
+    };
+    o.styleDeclarationCb = (...p) => {
+        if (hooks.styleDeclaration) {
+            hooks.styleDeclaration(...p);
+        }
+        styleDeclarationCb(...p);
+    };
+    o.canvasMutationCb = (...p) => {
+        if (hooks.canvasMutation) {
+            hooks.canvasMutation(...p);
+        }
+        canvasMutationCb(...p);
+    };
+    o.fontCb = (...p) => {
+        if (hooks.font) {
+            hooks.font(...p);
+        }
+        fontCb(...p);
+    };
+    o.selectionCb = (...p) => {
+        if (hooks.selection) {
+            hooks.selection(...p);
+        }
+        selectionCb(...p);
+    };
+}
+function initObservers(o, hooks = {}) {
+    const currentWindow = o.doc.defaultView;
+    if (!currentWindow) {
+        return () => {
+        };
+    }
+    mergeHooks(o, hooks);
+    const mutationObserver = initMutationObserver(o, o.doc);
+    const mousemoveHandler = initMoveObserver(o);
+    const mouseInteractionHandler = initMouseInteractionObserver(o);
+    const scrollHandler = initScrollObserver(o);
+    const viewportResizeHandler = initViewportResizeObserver(o);
+    const inputHandler = initInputObserver(o);
+    const mediaInteractionHandler = initMediaInteractionObserver(o);
+    const styleSheetObserver = initStyleSheetObserver(o, { win: currentWindow });
+    const adoptedStyleSheetObserver = initAdoptedStyleSheetObserver(o, o.doc);
+    const styleDeclarationObserver = initStyleDeclarationObserver(o, {
+        win: currentWindow,
+    });
+    const fontObserver = o.collectFonts
+        ? initFontObserver(o)
+        : () => {
+        };
+    const selectionObserver = initSelectionObserver(o);
+    const pluginHandlers = [];
+    for (const plugin of o.plugins) {
+        pluginHandlers.push(plugin.observer(plugin.callback, currentWindow, plugin.options));
+    }
+    return () => {
+        mutationBuffers.forEach((b) => b.reset());
+        mutationObserver.disconnect();
+        mousemoveHandler();
+        mouseInteractionHandler();
+        scrollHandler();
+        viewportResizeHandler();
+        inputHandler();
+        mediaInteractionHandler();
+        styleSheetObserver();
+        adoptedStyleSheetObserver();
+        styleDeclarationObserver();
+        fontObserver();
+        selectionObserver();
+        pluginHandlers.forEach((h) => h());
+    };
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb/src/record/cross-origin-iframe-mirror.js
+class CrossOriginIframeMirror {
+    constructor(generateIdFn) {
+        this.generateIdFn = generateIdFn;
+        this.iframeIdToRemoteIdMap = new WeakMap();
+        this.iframeRemoteIdToIdMap = new WeakMap();
+    }
+    getId(iframe, remoteId, idToRemoteMap, remoteToIdMap) {
+        const idToRemoteIdMap = idToRemoteMap || this.getIdToRemoteIdMap(iframe);
+        const remoteIdToIdMap = remoteToIdMap || this.getRemoteIdToIdMap(iframe);
+        let id = idToRemoteIdMap.get(remoteId);
+        if (!id) {
+            id = this.generateIdFn();
+            idToRemoteIdMap.set(remoteId, id);
+            remoteIdToIdMap.set(id, remoteId);
+        }
+        return id;
+    }
+    getIds(iframe, remoteId) {
+        const idToRemoteIdMap = this.getIdToRemoteIdMap(iframe);
+        const remoteIdToIdMap = this.getRemoteIdToIdMap(iframe);
+        return remoteId.map((id) => this.getId(iframe, id, idToRemoteIdMap, remoteIdToIdMap));
+    }
+    getRemoteId(iframe, id, map) {
+        const remoteIdToIdMap = map || this.getRemoteIdToIdMap(iframe);
+        if (typeof id !== 'number')
+            return id;
+        const remoteId = remoteIdToIdMap.get(id);
+        if (!remoteId)
+            return -1;
+        return remoteId;
+    }
+    getRemoteIds(iframe, ids) {
+        const remoteIdToIdMap = this.getRemoteIdToIdMap(iframe);
+        return ids.map((id) => this.getRemoteId(iframe, id, remoteIdToIdMap));
+    }
+    reset(iframe) {
+        if (!iframe) {
+            this.iframeIdToRemoteIdMap = new WeakMap();
+            this.iframeRemoteIdToIdMap = new WeakMap();
+            return;
+        }
+        this.iframeIdToRemoteIdMap.delete(iframe);
+        this.iframeRemoteIdToIdMap.delete(iframe);
+    }
+    getIdToRemoteIdMap(iframe) {
+        let idToRemoteIdMap = this.iframeIdToRemoteIdMap.get(iframe);
+        if (!idToRemoteIdMap) {
+            idToRemoteIdMap = new Map();
+            this.iframeIdToRemoteIdMap.set(iframe, idToRemoteIdMap);
+        }
+        return idToRemoteIdMap;
+    }
+    getRemoteIdToIdMap(iframe) {
+        let remoteIdToIdMap = this.iframeRemoteIdToIdMap.get(iframe);
+        if (!remoteIdToIdMap) {
+            remoteIdToIdMap = new Map();
+            this.iframeRemoteIdToIdMap.set(iframe, remoteIdToIdMap);
+        }
+        return remoteIdToIdMap;
+    }
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb/src/record/iframe-manager.js
+
+
+
+
+class IframeManager {
+    constructor(options) {
+        this.iframes = new WeakMap();
+        this.crossOriginIframeMap = new WeakMap();
+        this.crossOriginIframeMirror = new CrossOriginIframeMirror(genId);
+        this.mutationCb = options.mutationCb;
+        this.wrappedEmit = options.wrappedEmit;
+        this.stylesheetManager = options.stylesheetManager;
+        this.recordCrossOriginIframes = options.recordCrossOriginIframes;
+        this.crossOriginIframeStyleMirror = new CrossOriginIframeMirror(this.stylesheetManager.styleMirror.generateId.bind(this.stylesheetManager.styleMirror));
+        this.mirror = options.mirror;
+        if (this.recordCrossOriginIframes) {
+            window.addEventListener('message', this.handleMessage.bind(this));
+        }
+    }
+    addIframe(iframeEl) {
+        this.iframes.set(iframeEl, true);
+        if (iframeEl.contentWindow)
+            this.crossOriginIframeMap.set(iframeEl.contentWindow, iframeEl);
+    }
+    addLoadListener(cb) {
+        this.loadListener = cb;
+    }
+    attachIframe(iframeEl, childSn) {
+        var _a;
+        this.mutationCb({
+            adds: [
+                {
+                    parentId: this.mirror.getId(iframeEl),
+                    nextId: null,
+                    node: childSn,
+                },
+            ],
+            removes: [],
+            texts: [],
+            attributes: [],
+            isAttachIframe: true,
+        });
+        (_a = this.loadListener) === null || _a === void 0 ? void 0 : _a.call(this, iframeEl);
+        if (iframeEl.contentDocument &&
+            iframeEl.contentDocument.adoptedStyleSheets &&
+            iframeEl.contentDocument.adoptedStyleSheets.length > 0)
+            this.stylesheetManager.adoptStyleSheets(iframeEl.contentDocument.adoptedStyleSheets, this.mirror.getId(iframeEl.contentDocument));
+    }
+    handleMessage(message) {
+        if (message.data.type === 'rrweb') {
+            const iframeSourceWindow = message.source;
+            if (!iframeSourceWindow)
+                return;
+            const iframeEl = this.crossOriginIframeMap.get(message.source);
+            if (!iframeEl)
+                return;
+            const transformedEvent = this.transformCrossOriginEvent(iframeEl, message.data.event);
+            if (transformedEvent)
+                this.wrappedEmit(transformedEvent, message.data.isCheckout);
+        }
+    }
+    transformCrossOriginEvent(iframeEl, e) {
+        var _a;
+        switch (e.type) {
+            case EventType.FullSnapshot: {
+                this.crossOriginIframeMirror.reset(iframeEl);
+                this.crossOriginIframeStyleMirror.reset(iframeEl);
+                this.replaceIdOnNode(e.data.node, iframeEl);
+                return {
+                    timestamp: e.timestamp,
+                    type: EventType.IncrementalSnapshot,
+                    data: {
+                        source: IncrementalSource.Mutation,
+                        adds: [
+                            {
+                                parentId: this.mirror.getId(iframeEl),
+                                nextId: null,
+                                node: e.data.node,
+                            },
+                        ],
+                        removes: [],
+                        texts: [],
+                        attributes: [],
+                        isAttachIframe: true,
+                    },
+                };
+            }
+            case EventType.Meta:
+            case EventType.Load:
+            case EventType.DomContentLoaded: {
+                return false;
+            }
+            case EventType.Plugin: {
+                return e;
+            }
+            case EventType.Custom: {
+                this.replaceIds(e.data.payload, iframeEl, ['id', 'parentId', 'previousId', 'nextId']);
+                return e;
+            }
+            case EventType.IncrementalSnapshot: {
+                switch (e.data.source) {
+                    case IncrementalSource.Mutation: {
+                        e.data.adds.forEach((n) => {
+                            this.replaceIds(n, iframeEl, [
+                                'parentId',
+                                'nextId',
+                                'previousId',
+                            ]);
+                            this.replaceIdOnNode(n.node, iframeEl);
+                        });
+                        e.data.removes.forEach((n) => {
+                            this.replaceIds(n, iframeEl, ['parentId', 'id']);
+                        });
+                        e.data.attributes.forEach((n) => {
+                            this.replaceIds(n, iframeEl, ['id']);
+                        });
+                        e.data.texts.forEach((n) => {
+                            this.replaceIds(n, iframeEl, ['id']);
+                        });
+                        return e;
+                    }
+                    case IncrementalSource.Drag:
+                    case IncrementalSource.TouchMove:
+                    case IncrementalSource.MouseMove: {
+                        e.data.positions.forEach((p) => {
+                            this.replaceIds(p, iframeEl, ['id']);
+                        });
+                        return e;
+                    }
+                    case IncrementalSource.ViewportResize: {
+                        return false;
+                    }
+                    case IncrementalSource.MediaInteraction:
+                    case IncrementalSource.MouseInteraction:
+                    case IncrementalSource.Scroll:
+                    case IncrementalSource.CanvasMutation:
+                    case IncrementalSource.Input: {
+                        this.replaceIds(e.data, iframeEl, ['id']);
+                        return e;
+                    }
+                    case IncrementalSource.StyleSheetRule:
+                    case IncrementalSource.StyleDeclaration: {
+                        this.replaceIds(e.data, iframeEl, ['id']);
+                        this.replaceStyleIds(e.data, iframeEl, ['styleId']);
+                        return e;
+                    }
+                    case IncrementalSource.Font: {
+                        return e;
+                    }
+                    case IncrementalSource.Selection: {
+                        e.data.ranges.forEach((range) => {
+                            this.replaceIds(range, iframeEl, ['start', 'end']);
+                        });
+                        return e;
+                    }
+                    case IncrementalSource.AdoptedStyleSheet: {
+                        this.replaceIds(e.data, iframeEl, ['id']);
+                        this.replaceStyleIds(e.data, iframeEl, ['styleIds']);
+                        (_a = e.data.styles) === null || _a === void 0 ? void 0 : _a.forEach((style) => {
+                            this.replaceStyleIds(style, iframeEl, ['styleId']);
+                        });
+                        return e;
+                    }
+                }
+            }
+        }
+    }
+    replace(iframeMirror, obj, iframeEl, keys) {
+        for (const key of keys) {
+            if (!Array.isArray(obj[key]) && typeof obj[key] !== 'number')
+                continue;
+            if (Array.isArray(obj[key])) {
+                obj[key] = iframeMirror.getIds(iframeEl, obj[key]);
+            }
+            else {
+                obj[key] = iframeMirror.getId(iframeEl, obj[key]);
+            }
+        }
+        return obj;
+    }
+    replaceIds(obj, iframeEl, keys) {
+        return this.replace(this.crossOriginIframeMirror, obj, iframeEl, keys);
+    }
+    replaceStyleIds(obj, iframeEl, keys) {
+        return this.replace(this.crossOriginIframeStyleMirror, obj, iframeEl, keys);
+    }
+    replaceIdOnNode(node, iframeEl) {
+        this.replaceIds(node, iframeEl, ['id']);
+        if ('childNodes' in node) {
+            node.childNodes.forEach((child) => {
+                this.replaceIdOnNode(child, iframeEl);
+            });
+        }
+    }
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb/src/record/shadow-dom-manager.js
+
+
+
+
+class ShadowDomManager {
+    constructor(options) {
+        this.shadowDoms = new WeakSet();
+        this.restorePatches = [];
+        this.mutationCb = options.mutationCb;
+        this.scrollCb = options.scrollCb;
+        this.bypassOptions = options.bypassOptions;
+        this.mirror = options.mirror;
+        const manager = this;
+        this.restorePatches.push(patch(Element.prototype, 'attachShadow', function (original) {
+            return function (option) {
+                const shadowRoot = original.call(this, option);
+                if (this.shadowRoot)
+                    manager.addShadowRoot(this.shadowRoot, this.ownerDocument);
+                return shadowRoot;
+            };
+        }));
+    }
+    addShadowRoot(shadowRoot, doc) {
+        if (!isNativeShadowDom(shadowRoot))
+            return;
+        if (this.shadowDoms.has(shadowRoot))
+            return;
+        this.shadowDoms.add(shadowRoot);
+        initMutationObserver(Object.assign(Object.assign({}, this.bypassOptions), { doc, mutationCb: this.mutationCb, mirror: this.mirror, shadowDomManager: this }), shadowRoot);
+        initScrollObserver(Object.assign(Object.assign({}, this.bypassOptions), { scrollCb: this.scrollCb, doc: shadowRoot, mirror: this.mirror }));
+        setTimeout(() => {
+            if (shadowRoot.adoptedStyleSheets &&
+                shadowRoot.adoptedStyleSheets.length > 0)
+                this.bypassOptions.stylesheetManager.adoptStyleSheets(shadowRoot.adoptedStyleSheets, this.mirror.getId(shadowRoot.host));
+            initAdoptedStyleSheetObserver({
+                mirror: this.mirror,
+                stylesheetManager: this.bypassOptions.stylesheetManager,
+            }, shadowRoot);
+        }, 0);
+    }
+    observeAttachShadow(iframeElement) {
+        if (iframeElement.contentWindow) {
+            const manager = this;
+            this.restorePatches.push(patch(iframeElement.contentWindow.HTMLElement.prototype, 'attachShadow', function (original) {
+                return function (option) {
+                    const shadowRoot = original.call(this, option);
+                    if (this.shadowRoot)
+                        manager.addShadowRoot(this.shadowRoot, iframeElement.contentDocument);
+                    return shadowRoot;
+                };
+            }));
+        }
+    }
+    reset() {
+        this.restorePatches.forEach((restorePatch) => restorePatch());
+        this.shadowDoms = new WeakSet();
+    }
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/ext/tslib/tslib.es6.js
+/*! *****************************************************************************
+Copyright (c) Microsoft Corporation.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+***************************************************************************** */
+
+function __rest(s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+}
+
+function __awaiter(thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/ext/base64-arraybuffer/dist/base64-arraybuffer.es5.js
+/*
+ * base64-arraybuffer 1.0.1 <https://github.com/niklasvh/base64-arraybuffer>
+ * Copyright (c) 2021 Niklas von Hertzen <https://hertzen.com>
+ * Released under MIT License
+ */
+var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+// Use a lookup table to find the index.
+var lookup = typeof Uint8Array === 'undefined' ? [] : new Uint8Array(256);
+for (var i = 0; i < chars.length; i++) {
+    lookup[chars.charCodeAt(i)] = i;
+}
+var encode = function (arraybuffer) {
+    var bytes = new Uint8Array(arraybuffer), i, len = bytes.length, base64 = '';
+    for (i = 0; i < len; i += 3) {
+        base64 += chars[bytes[i] >> 2];
+        base64 += chars[((bytes[i] & 3) << 4) | (bytes[i + 1] >> 4)];
+        base64 += chars[((bytes[i + 1] & 15) << 2) | (bytes[i + 2] >> 6)];
+        base64 += chars[bytes[i + 2] & 63];
+    }
+    if (len % 3 === 2) {
+        base64 = base64.substring(0, base64.length - 1) + '=';
+    }
+    else if (len % 3 === 1) {
+        base64 = base64.substring(0, base64.length - 2) + '==';
+    }
+    return base64;
+};
+var decode = function (base64) {
+    var bufferLength = base64.length * 0.75, len = base64.length, i, p = 0, encoded1, encoded2, encoded3, encoded4;
+    if (base64[base64.length - 1] === '=') {
+        bufferLength--;
+        if (base64[base64.length - 2] === '=') {
+            bufferLength--;
+        }
+    }
+    var arraybuffer = new ArrayBuffer(bufferLength), bytes = new Uint8Array(arraybuffer);
+    for (i = 0; i < len; i += 4) {
+        encoded1 = lookup[base64.charCodeAt(i)];
+        encoded2 = lookup[base64.charCodeAt(i + 1)];
+        encoded3 = lookup[base64.charCodeAt(i + 2)];
+        encoded4 = lookup[base64.charCodeAt(i + 3)];
+        bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+        bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+        bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+    }
+    return arraybuffer;
+};
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb/src/record/observers/canvas/serialize-args.js
+
+
+const canvasVarMap = new Map();
+function variableListFor(ctx, ctor) {
+    let contextMap = canvasVarMap.get(ctx);
+    if (!contextMap) {
+        contextMap = new Map();
+        canvasVarMap.set(ctx, contextMap);
+    }
+    if (!contextMap.has(ctor)) {
+        contextMap.set(ctor, []);
+    }
+    return contextMap.get(ctor);
+}
+const saveWebGLVar = (value, win, ctx) => {
+    if (!value ||
+        !(isInstanceOfWebGLObject(value, win) || typeof value === 'object'))
+        return;
+    const name = value.constructor.name;
+    const list = variableListFor(ctx, name);
+    let index = list.indexOf(value);
+    if (index === -1) {
+        index = list.length;
+        list.push(value);
+    }
+    return index;
+};
+function serializeArg(value, win, ctx) {
+    if (value instanceof Array) {
+        return value.map((arg) => serializeArg(arg, win, ctx));
+    }
+    else if (value === null) {
+        return value;
+    }
+    else if (value instanceof Float32Array ||
+        value instanceof Float64Array ||
+        value instanceof Int32Array ||
+        value instanceof Uint32Array ||
+        value instanceof Uint8Array ||
+        value instanceof Uint16Array ||
+        value instanceof Int16Array ||
+        value instanceof Int8Array ||
+        value instanceof Uint8ClampedArray) {
+        const name = value.constructor.name;
+        return {
+            rr_type: name,
+            args: [Object.values(value)],
+        };
+    }
+    else if (value instanceof ArrayBuffer) {
+        const name = value.constructor.name;
+        const base64 = encode(value);
+        return {
+            rr_type: name,
+            base64,
+        };
+    }
+    else if (value instanceof DataView) {
+        const name = value.constructor.name;
+        return {
+            rr_type: name,
+            args: [
+                serializeArg(value.buffer, win, ctx),
+                value.byteOffset,
+                value.byteLength,
+            ],
+        };
+    }
+    else if (value instanceof HTMLImageElement) {
+        const name = value.constructor.name;
+        const { src } = value;
+        return {
+            rr_type: name,
+            src,
+        };
+    }
+    else if (value instanceof HTMLCanvasElement) {
+        const name = 'HTMLImageElement';
+        const src = value.toDataURL();
+        return {
+            rr_type: name,
+            src,
+        };
+    }
+    else if (value instanceof ImageData) {
+        const name = value.constructor.name;
+        return {
+            rr_type: name,
+            args: [serializeArg(value.data, win, ctx), value.width, value.height],
+        };
+    }
+    else if (isInstanceOfWebGLObject(value, win) || typeof value === 'object') {
+        const name = value.constructor.name;
+        const index = saveWebGLVar(value, win, ctx);
+        return {
+            rr_type: name,
+            index: index,
+        };
+    }
+    return value;
+}
+const serializeArgs = (args, win, ctx) => {
+    return [...args].map((arg) => serializeArg(arg, win, ctx));
+};
+const isInstanceOfWebGLObject = (value, win) => {
+    const webGLConstructorNames = [
+        'WebGLActiveInfo',
+        'WebGLBuffer',
+        'WebGLFramebuffer',
+        'WebGLProgram',
+        'WebGLRenderbuffer',
+        'WebGLShader',
+        'WebGLShaderPrecisionFormat',
+        'WebGLTexture',
+        'WebGLUniformLocation',
+        'WebGLVertexArrayObject',
+        'WebGLVertexArrayObjectOES',
+    ];
+    const supportedWebGLConstructorNames = webGLConstructorNames.filter((name) => typeof win[name] === 'function');
+    return Boolean(supportedWebGLConstructorNames.find((name) => value instanceof win[name]));
+};
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb/src/record/observers/canvas/2d.js
+
+
+
+
+function initCanvas2DMutationObserver(cb, win, blockClass, blockSelector) {
+    const handlers = [];
+    const props2D = Object.getOwnPropertyNames(win.CanvasRenderingContext2D.prototype);
+    for (const prop of props2D) {
+        try {
+            if (typeof win.CanvasRenderingContext2D.prototype[prop] !== 'function') {
+                continue;
+            }
+            const restoreHandler = patch(win.CanvasRenderingContext2D.prototype, prop, function (original) {
+                return function (...args) {
+                    if (!isBlocked(this.canvas, blockClass, blockSelector, true)) {
+                        setTimeout(() => {
+                            const recordArgs = serializeArgs([...args], win, this);
+                            cb(this.canvas, {
+                                type: CanvasContext['2D'],
+                                property: prop,
+                                args: recordArgs,
+                            });
+                        }, 0);
+                    }
+                    return original.apply(this, args);
+                };
+            });
+            handlers.push(restoreHandler);
+        }
+        catch (_a) {
+            const hookHandler = hookSetter(win.CanvasRenderingContext2D.prototype, prop, {
+                set(v) {
+                    cb(this.canvas, {
+                        type: CanvasContext['2D'],
+                        property: prop,
+                        args: [v],
+                        setter: true,
+                    });
+                },
+            });
+            handlers.push(hookHandler);
+        }
+    }
+    return () => {
+        handlers.forEach((h) => h());
+    };
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb/src/record/observers/canvas/canvas.js
+
+
+function initCanvasContextObserver(win, blockClass, blockSelector) {
+    const handlers = [];
+    try {
+        const restoreHandler = patch(win.HTMLCanvasElement.prototype, 'getContext', function (original) {
+            return function (contextType, ...args) {
+                if (!isBlocked(this, blockClass, blockSelector, true)) {
+                    if (!('__context' in this))
+                        this.__context = contextType;
+                }
+                return original.apply(this, [contextType, ...args]);
+            };
+        });
+        handlers.push(restoreHandler);
+    }
+    catch (_a) {
+        console.error('failed to patch HTMLCanvasElement.prototype.getContext');
+    }
+    return () => {
+        handlers.forEach((h) => h());
+    };
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb/src/record/observers/canvas/webgl.js
+
+
+
+
+function patchGLPrototype(prototype, type, cb, blockClass, blockSelector, mirror, win) {
+    const handlers = [];
+    const props = Object.getOwnPropertyNames(prototype);
+    for (const prop of props) {
+        if ([
+            'isContextLost',
+            'canvas',
+            'drawingBufferWidth',
+            'drawingBufferHeight',
+        ].includes(prop)) {
+            continue;
+        }
+        try {
+            if (typeof prototype[prop] !== 'function') {
+                continue;
+            }
+            const restoreHandler = patch(prototype, prop, function (original) {
+                return function (...args) {
+                    const result = original.apply(this, args);
+                    saveWebGLVar(result, win, this);
+                    if (!isBlocked(this.canvas, blockClass, blockSelector, true)) {
+                        const recordArgs = serializeArgs([...args], win, this);
+                        const mutation = {
+                            type,
+                            property: prop,
+                            args: recordArgs,
+                        };
+                        cb(this.canvas, mutation);
+                    }
+                    return result;
+                };
+            });
+            handlers.push(restoreHandler);
+        }
+        catch (_a) {
+            const hookHandler = hookSetter(prototype, prop, {
+                set(v) {
+                    cb(this.canvas, {
+                        type,
+                        property: prop,
+                        args: [v],
+                        setter: true,
+                    });
+                },
+            });
+            handlers.push(hookHandler);
+        }
+    }
+    return handlers;
+}
+function initCanvasWebGLMutationObserver(cb, win, blockClass, blockSelector, mirror) {
+    const handlers = [];
+    handlers.push(...patchGLPrototype(win.WebGLRenderingContext.prototype, CanvasContext.WebGL, cb, blockClass, blockSelector, mirror, win));
+    if (typeof win.WebGL2RenderingContext !== 'undefined') {
+        handlers.push(...patchGLPrototype(win.WebGL2RenderingContext.prototype, CanvasContext.WebGL2, cb, blockClass, blockSelector, mirror, win));
+    }
+    return () => {
+        handlers.forEach((h) => h());
+    };
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/_virtual/_rollup-plugin-web-worker-loader__helper__node__WorkerClass.js
+var WorkerClass = null;
+
+try {
+    var WorkerThreads =
+        typeof module !== 'undefined' && typeof module.require === 'function' && module.require('worker_threads') ||
+        typeof require === 'function' && require('worker_threads') ||
+        typeof require === 'function' && require('worker_threads');
+    WorkerClass = WorkerThreads.Worker;
+} catch(e) {} // eslint-disable-line
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/_virtual/_rollup-plugin-web-worker-loader__helper__node__createBase64WorkerFactory.js
+
+
+function decodeBase64(base64, enableUnicode) {
+    return Buffer.from(base64, 'base64').toString(enableUnicode ? 'utf16' : 'utf8');
+}
+
+function createBase64WorkerFactory(base64, sourcemapArg, enableUnicodeArg) {
+    var sourcemap = sourcemapArg === undefined ? null : sourcemapArg;
+    var enableUnicode = enableUnicodeArg === undefined ? false : enableUnicodeArg;
+    var source = decodeBase64(base64, enableUnicode);
+    var start = source.indexOf('\n', 10) + 1;
+    var body = source.substring(start) + (sourcemap ? '\/\/# sourceMappingURL=' + sourcemap : '');
+    return function WorkerFactory(options) {
+        return new WorkerClass(body, Object.assign({}, options, { eval: true }));
+    };
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/_virtual/_rollup-plugin-web-worker-loader__helper__browser__createBase64WorkerFactory.js
+function _rollup_plugin_web_worker_loader_helper_browser_createBase64WorkerFactory_decodeBase64(base64, enableUnicode) {
+    var binaryString = atob(base64);
+    if (enableUnicode) {
+        var binaryView = new Uint8Array(binaryString.length);
+        for (var i = 0, n = binaryString.length; i < n; ++i) {
+            binaryView[i] = binaryString.charCodeAt(i);
+        }
+        return String.fromCharCode.apply(null, new Uint16Array(binaryView.buffer));
+    }
+    return binaryString;
+}
+
+function createURL(base64, sourcemapArg, enableUnicodeArg) {
+    var sourcemap = sourcemapArg === undefined ? null : sourcemapArg;
+    var enableUnicode = enableUnicodeArg === undefined ? false : enableUnicodeArg;
+    var source = _rollup_plugin_web_worker_loader_helper_browser_createBase64WorkerFactory_decodeBase64(base64, enableUnicode);
+    var start = source.indexOf('\n', 10) + 1;
+    var body = source.substring(start) + (sourcemap ? '\/\/# sourceMappingURL=' + sourcemap : '');
+    var blob = new Blob([body], { type: 'application/javascript' });
+    return URL.createObjectURL(blob);
+}
+
+function _rollup_plugin_web_worker_loader_helper_browser_createBase64WorkerFactory_createBase64WorkerFactory(base64, sourcemapArg, enableUnicodeArg) {
+    var url;
+    return function WorkerFactory(options) {
+        url = url || createURL(base64, sourcemapArg, enableUnicodeArg);
+        return new Worker(url, options);
+    };
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/_virtual/_rollup-plugin-web-worker-loader__helper__auto__isNodeJS.js
+var kIsNodeJS = Object.prototype.toString.call(typeof process !== 'undefined' ? process : 0) === '[object process]';
+
+function isNodeJS() {
+    return kIsNodeJS;
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/_virtual/_rollup-plugin-web-worker-loader__helper__auto__createBase64WorkerFactory.js
+
+
+
+
+function _rollup_plugin_web_worker_loader_helper_auto_createBase64WorkerFactory_createBase64WorkerFactory(base64, sourcemapArg, enableUnicodeArg) {
+    if (isNodeJS()) {
+        return createBase64WorkerFactory(base64, sourcemapArg, enableUnicodeArg);
+    }
+    return _rollup_plugin_web_worker_loader_helper_browser_createBase64WorkerFactory_createBase64WorkerFactory(base64, sourcemapArg, enableUnicodeArg);
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/_virtual/image-bitmap-data-url-worker.js
+
+
+var WorkerFactory = _rollup_plugin_web_worker_loader_helper_auto_createBase64WorkerFactory_createBase64WorkerFactory('Lyogcm9sbHVwLXBsdWdpbi13ZWItd29ya2VyLWxvYWRlciAqLwooZnVuY3Rpb24gKCkgewogICAgJ3VzZSBzdHJpY3QnOwoKICAgIC8qISAqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKg0KICAgIENvcHlyaWdodCAoYykgTWljcm9zb2Z0IENvcnBvcmF0aW9uLg0KDQogICAgUGVybWlzc2lvbiB0byB1c2UsIGNvcHksIG1vZGlmeSwgYW5kL29yIGRpc3RyaWJ1dGUgdGhpcyBzb2Z0d2FyZSBmb3IgYW55DQogICAgcHVycG9zZSB3aXRoIG9yIHdpdGhvdXQgZmVlIGlzIGhlcmVieSBncmFudGVkLg0KDQogICAgVEhFIFNPRlRXQVJFIElTIFBST1ZJREVEICJBUyBJUyIgQU5EIFRIRSBBVVRIT1IgRElTQ0xBSU1TIEFMTCBXQVJSQU5USUVTIFdJVEgNCiAgICBSRUdBUkQgVE8gVEhJUyBTT0ZUV0FSRSBJTkNMVURJTkcgQUxMIElNUExJRUQgV0FSUkFOVElFUyBPRiBNRVJDSEFOVEFCSUxJVFkNCiAgICBBTkQgRklUTkVTUy4gSU4gTk8gRVZFTlQgU0hBTEwgVEhFIEFVVEhPUiBCRSBMSUFCTEUgRk9SIEFOWSBTUEVDSUFMLCBESVJFQ1QsDQogICAgSU5ESVJFQ1QsIE9SIENPTlNFUVVFTlRJQUwgREFNQUdFUyBPUiBBTlkgREFNQUdFUyBXSEFUU09FVkVSIFJFU1VMVElORyBGUk9NDQogICAgTE9TUyBPRiBVU0UsIERBVEEgT1IgUFJPRklUUywgV0hFVEhFUiBJTiBBTiBBQ1RJT04gT0YgQ09OVFJBQ1QsIE5FR0xJR0VOQ0UgT1INCiAgICBPVEhFUiBUT1JUSU9VUyBBQ1RJT04sIEFSSVNJTkcgT1VUIE9GIE9SIElOIENPTk5FQ1RJT04gV0lUSCBUSEUgVVNFIE9SDQogICAgUEVSRk9STUFOQ0UgT0YgVEhJUyBTT0ZUV0FSRS4NCiAgICAqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKiAqLw0KDQogICAgZnVuY3Rpb24gX19hd2FpdGVyKHRoaXNBcmcsIF9hcmd1bWVudHMsIFAsIGdlbmVyYXRvcikgew0KICAgICAgICBmdW5jdGlvbiBhZG9wdCh2YWx1ZSkgeyByZXR1cm4gdmFsdWUgaW5zdGFuY2VvZiBQID8gdmFsdWUgOiBuZXcgUChmdW5jdGlvbiAocmVzb2x2ZSkgeyByZXNvbHZlKHZhbHVlKTsgfSk7IH0NCiAgICAgICAgcmV0dXJuIG5ldyAoUCB8fCAoUCA9IFByb21pc2UpKShmdW5jdGlvbiAocmVzb2x2ZSwgcmVqZWN0KSB7DQogICAgICAgICAgICBmdW5jdGlvbiBmdWxmaWxsZWQodmFsdWUpIHsgdHJ5IHsgc3RlcChnZW5lcmF0b3IubmV4dCh2YWx1ZSkpOyB9IGNhdGNoIChlKSB7IHJlamVjdChlKTsgfSB9DQogICAgICAgICAgICBmdW5jdGlvbiByZWplY3RlZCh2YWx1ZSkgeyB0cnkgeyBzdGVwKGdlbmVyYXRvclsidGhyb3ciXSh2YWx1ZSkpOyB9IGNhdGNoIChlKSB7IHJlamVjdChlKTsgfSB9DQogICAgICAgICAgICBmdW5jdGlvbiBzdGVwKHJlc3VsdCkgeyByZXN1bHQuZG9uZSA/IHJlc29sdmUocmVzdWx0LnZhbHVlKSA6IGFkb3B0KHJlc3VsdC52YWx1ZSkudGhlbihmdWxmaWxsZWQsIHJlamVjdGVkKTsgfQ0KICAgICAgICAgICAgc3RlcCgoZ2VuZXJhdG9yID0gZ2VuZXJhdG9yLmFwcGx5KHRoaXNBcmcsIF9hcmd1bWVudHMgfHwgW10pKS5uZXh0KCkpOw0KICAgICAgICB9KTsNCiAgICB9CgogICAgLyoKICAgICAqIGJhc2U2NC1hcnJheWJ1ZmZlciAxLjAuMSA8aHR0cHM6Ly9naXRodWIuY29tL25pa2xhc3ZoL2Jhc2U2NC1hcnJheWJ1ZmZlcj4KICAgICAqIENvcHlyaWdodCAoYykgMjAyMSBOaWtsYXMgdm9uIEhlcnR6ZW4gPGh0dHBzOi8vaGVydHplbi5jb20+CiAgICAgKiBSZWxlYXNlZCB1bmRlciBNSVQgTGljZW5zZQogICAgICovCiAgICB2YXIgY2hhcnMgPSAnQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejAxMjM0NTY3ODkrLyc7CiAgICAvLyBVc2UgYSBsb29rdXAgdGFibGUgdG8gZmluZCB0aGUgaW5kZXguCiAgICB2YXIgbG9va3VwID0gdHlwZW9mIFVpbnQ4QXJyYXkgPT09ICd1bmRlZmluZWQnID8gW10gOiBuZXcgVWludDhBcnJheSgyNTYpOwogICAgZm9yICh2YXIgaSA9IDA7IGkgPCBjaGFycy5sZW5ndGg7IGkrKykgewogICAgICAgIGxvb2t1cFtjaGFycy5jaGFyQ29kZUF0KGkpXSA9IGk7CiAgICB9CiAgICB2YXIgZW5jb2RlID0gZnVuY3Rpb24gKGFycmF5YnVmZmVyKSB7CiAgICAgICAgdmFyIGJ5dGVzID0gbmV3IFVpbnQ4QXJyYXkoYXJyYXlidWZmZXIpLCBpLCBsZW4gPSBieXRlcy5sZW5ndGgsIGJhc2U2NCA9ICcnOwogICAgICAgIGZvciAoaSA9IDA7IGkgPCBsZW47IGkgKz0gMykgewogICAgICAgICAgICBiYXNlNjQgKz0gY2hhcnNbYnl0ZXNbaV0gPj4gMl07CiAgICAgICAgICAgIGJhc2U2NCArPSBjaGFyc1soKGJ5dGVzW2ldICYgMykgPDwgNCkgfCAoYnl0ZXNbaSArIDFdID4+IDQpXTsKICAgICAgICAgICAgYmFzZTY0ICs9IGNoYXJzWygoYnl0ZXNbaSArIDFdICYgMTUpIDw8IDIpIHwgKGJ5dGVzW2kgKyAyXSA+PiA2KV07CiAgICAgICAgICAgIGJhc2U2NCArPSBjaGFyc1tieXRlc1tpICsgMl0gJiA2M107CiAgICAgICAgfQogICAgICAgIGlmIChsZW4gJSAzID09PSAyKSB7CiAgICAgICAgICAgIGJhc2U2NCA9IGJhc2U2NC5zdWJzdHJpbmcoMCwgYmFzZTY0Lmxlbmd0aCAtIDEpICsgJz0nOwogICAgICAgIH0KICAgICAgICBlbHNlIGlmIChsZW4gJSAzID09PSAxKSB7CiAgICAgICAgICAgIGJhc2U2NCA9IGJhc2U2NC5zdWJzdHJpbmcoMCwgYmFzZTY0Lmxlbmd0aCAtIDIpICsgJz09JzsKICAgICAgICB9CiAgICAgICAgcmV0dXJuIGJhc2U2NDsKICAgIH07CgogICAgY29uc3QgbGFzdEJsb2JNYXAgPSBuZXcgTWFwKCk7DQogICAgY29uc3QgdHJhbnNwYXJlbnRCbG9iTWFwID0gbmV3IE1hcCgpOw0KICAgIGZ1bmN0aW9uIGdldFRyYW5zcGFyZW50QmxvYkZvcih3aWR0aCwgaGVpZ2h0LCBkYXRhVVJMT3B0aW9ucykgew0KICAgICAgICByZXR1cm4gX19hd2FpdGVyKHRoaXMsIHZvaWQgMCwgdm9pZCAwLCBmdW5jdGlvbiogKCkgew0KICAgICAgICAgICAgY29uc3QgaWQgPSBgJHt3aWR0aH0tJHtoZWlnaHR9YDsNCiAgICAgICAgICAgIGlmICgnT2Zmc2NyZWVuQ2FudmFzJyBpbiBnbG9iYWxUaGlzKSB7DQogICAgICAgICAgICAgICAgaWYgKHRyYW5zcGFyZW50QmxvYk1hcC5oYXMoaWQpKQ0KICAgICAgICAgICAgICAgICAgICByZXR1cm4gdHJhbnNwYXJlbnRCbG9iTWFwLmdldChpZCk7DQogICAgICAgICAgICAgICAgY29uc3Qgb2Zmc2NyZWVuID0gbmV3IE9mZnNjcmVlbkNhbnZhcyh3aWR0aCwgaGVpZ2h0KTsNCiAgICAgICAgICAgICAgICBvZmZzY3JlZW4uZ2V0Q29udGV4dCgnMmQnKTsNCiAgICAgICAgICAgICAgICBjb25zdCBibG9iID0geWllbGQgb2Zmc2NyZWVuLmNvbnZlcnRUb0Jsb2IoZGF0YVVSTE9wdGlvbnMpOw0KICAgICAgICAgICAgICAgIGNvbnN0IGFycmF5QnVmZmVyID0geWllbGQgYmxvYi5hcnJheUJ1ZmZlcigpOw0KICAgICAgICAgICAgICAgIGNvbnN0IGJhc2U2NCA9IGVuY29kZShhcnJheUJ1ZmZlcik7DQogICAgICAgICAgICAgICAgdHJhbnNwYXJlbnRCbG9iTWFwLnNldChpZCwgYmFzZTY0KTsNCiAgICAgICAgICAgICAgICByZXR1cm4gYmFzZTY0Ow0KICAgICAgICAgICAgfQ0KICAgICAgICAgICAgZWxzZSB7DQogICAgICAgICAgICAgICAgcmV0dXJuICcnOw0KICAgICAgICAgICAgfQ0KICAgICAgICB9KTsNCiAgICB9DQogICAgY29uc3Qgd29ya2VyID0gc2VsZjsNCiAgICB3b3JrZXIub25tZXNzYWdlID0gZnVuY3Rpb24gKGUpIHsNCiAgICAgICAgcmV0dXJuIF9fYXdhaXRlcih0aGlzLCB2b2lkIDAsIHZvaWQgMCwgZnVuY3Rpb24qICgpIHsNCiAgICAgICAgICAgIGlmICgnT2Zmc2NyZWVuQ2FudmFzJyBpbiBnbG9iYWxUaGlzKSB7DQogICAgICAgICAgICAgICAgY29uc3QgeyBpZCwgYml0bWFwLCB3aWR0aCwgaGVpZ2h0LCBkYXRhVVJMT3B0aW9ucyB9ID0gZS5kYXRhOw0KICAgICAgICAgICAgICAgIGNvbnN0IHRyYW5zcGFyZW50QmFzZTY0ID0gZ2V0VHJhbnNwYXJlbnRCbG9iRm9yKHdpZHRoLCBoZWlnaHQsIGRhdGFVUkxPcHRpb25zKTsNCiAgICAgICAgICAgICAgICBjb25zdCBvZmZzY3JlZW4gPSBuZXcgT2Zmc2NyZWVuQ2FudmFzKHdpZHRoLCBoZWlnaHQpOw0KICAgICAgICAgICAgICAgIGNvbnN0IGN0eCA9IG9mZnNjcmVlbi5nZXRDb250ZXh0KCcyZCcpOw0KICAgICAgICAgICAgICAgIGN0eC5kcmF3SW1hZ2UoYml0bWFwLCAwLCAwKTsNCiAgICAgICAgICAgICAgICBiaXRtYXAuY2xvc2UoKTsNCiAgICAgICAgICAgICAgICBjb25zdCBibG9iID0geWllbGQgb2Zmc2NyZWVuLmNvbnZlcnRUb0Jsb2IoZGF0YVVSTE9wdGlvbnMpOw0KICAgICAgICAgICAgICAgIGNvbnN0IHR5cGUgPSBibG9iLnR5cGU7DQogICAgICAgICAgICAgICAgY29uc3QgYXJyYXlCdWZmZXIgPSB5aWVsZCBibG9iLmFycmF5QnVmZmVyKCk7DQogICAgICAgICAgICAgICAgY29uc3QgYmFzZTY0ID0gZW5jb2RlKGFycmF5QnVmZmVyKTsNCiAgICAgICAgICAgICAgICBpZiAoIWxhc3RCbG9iTWFwLmhhcyhpZCkgJiYgKHlpZWxkIHRyYW5zcGFyZW50QmFzZTY0KSA9PT0gYmFzZTY0KSB7DQogICAgICAgICAgICAgICAgICAgIGxhc3RCbG9iTWFwLnNldChpZCwgYmFzZTY0KTsNCiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIHdvcmtlci5wb3N0TWVzc2FnZSh7IGlkIH0pOw0KICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICBpZiAobGFzdEJsb2JNYXAuZ2V0KGlkKSA9PT0gYmFzZTY0KQ0KICAgICAgICAgICAgICAgICAgICByZXR1cm4gd29ya2VyLnBvc3RNZXNzYWdlKHsgaWQgfSk7DQogICAgICAgICAgICAgICAgd29ya2VyLnBvc3RNZXNzYWdlKHsNCiAgICAgICAgICAgICAgICAgICAgaWQsDQogICAgICAgICAgICAgICAgICAgIHR5cGUsDQogICAgICAgICAgICAgICAgICAgIGJhc2U2NCwNCiAgICAgICAgICAgICAgICAgICAgd2lkdGgsDQogICAgICAgICAgICAgICAgICAgIGhlaWdodCwNCiAgICAgICAgICAgICAgICB9KTsNCiAgICAgICAgICAgICAgICBsYXN0QmxvYk1hcC5zZXQoaWQsIGJhc2U2NCk7DQogICAgICAgICAgICB9DQogICAgICAgICAgICBlbHNlIHsNCiAgICAgICAgICAgICAgICByZXR1cm4gd29ya2VyLnBvc3RNZXNzYWdlKHsgaWQ6IGUuZGF0YS5pZCB9KTsNCiAgICAgICAgICAgIH0NCiAgICAgICAgfSk7DQogICAgfTsKCn0pKCk7Cgo=', null, false);
+/* eslint-enable */
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb/src/record/observers/canvas/canvas-manager.js
+
+
+
+
+
+
+
+
+class CanvasManager {
+    constructor(options) {
+        this.pendingCanvasMutations = new Map();
+        this.rafStamps = { latestId: 0, invokeId: null };
+        this.frozen = false;
+        this.locked = false;
+        this.processMutation = (target, mutation) => {
+            const newFrame = this.rafStamps.invokeId &&
+                this.rafStamps.latestId !== this.rafStamps.invokeId;
+            if (newFrame || !this.rafStamps.invokeId)
+                this.rafStamps.invokeId = this.rafStamps.latestId;
+            if (!this.pendingCanvasMutations.has(target)) {
+                this.pendingCanvasMutations.set(target, []);
+            }
+            this.pendingCanvasMutations.get(target).push(mutation);
+        };
+        const { sampling = 'all', win, blockClass, blockSelector, recordCanvas, dataURLOptions, } = options;
+        this.mutationCb = options.mutationCb;
+        this.mirror = options.mirror;
+        if (recordCanvas && sampling === 'all')
+            this.initCanvasMutationObserver(win, blockClass, blockSelector);
+        if (recordCanvas && typeof sampling === 'number')
+            this.initCanvasFPSObserver(sampling, win, blockClass, blockSelector, {
+                dataURLOptions,
+            });
+    }
+    reset() {
+        this.pendingCanvasMutations.clear();
+        this.resetObservers && this.resetObservers();
+    }
+    freeze() {
+        this.frozen = true;
+    }
+    unfreeze() {
+        this.frozen = false;
+    }
+    lock() {
+        this.locked = true;
+    }
+    unlock() {
+        this.locked = false;
+    }
+    initCanvasFPSObserver(fps, win, blockClass, blockSelector, options) {
+        const canvasContextReset = initCanvasContextObserver(win, blockClass, blockSelector);
+        const snapshotInProgressMap = new Map();
+        const worker = new WorkerFactory();
+        worker.onmessage = (e) => {
+            const { id } = e.data;
+            snapshotInProgressMap.set(id, false);
+            if (!('base64' in e.data))
+                return;
+            const { base64, type, width, height } = e.data;
+            this.mutationCb({
+                id,
+                type: CanvasContext['2D'],
+                commands: [
+                    {
+                        property: 'clearRect',
+                        args: [0, 0, width, height],
+                    },
+                    {
+                        property: 'drawImage',
+                        args: [
+                            {
+                                rr_type: 'ImageBitmap',
+                                args: [
+                                    {
+                                        rr_type: 'Blob',
+                                        data: [{ rr_type: 'ArrayBuffer', base64 }],
+                                        type,
+                                    },
+                                ],
+                            },
+                            0,
+                            0,
+                        ],
+                    },
+                ],
+            });
+        };
+        const timeBetweenSnapshots = 1000 / fps;
+        let lastSnapshotTime = 0;
+        let rafId;
+        const getCanvas = () => {
+            const matchedCanvas = [];
+            win.document.querySelectorAll('canvas').forEach((canvas) => {
+                if (!isBlocked(canvas, blockClass, blockSelector, true)) {
+                    matchedCanvas.push(canvas);
+                }
+            });
+            return matchedCanvas;
+        };
+        const takeCanvasSnapshots = (timestamp) => {
+            if (lastSnapshotTime &&
+                timestamp - lastSnapshotTime < timeBetweenSnapshots) {
+                rafId = requestAnimationFrame(takeCanvasSnapshots);
+                return;
+            }
+            lastSnapshotTime = timestamp;
+            getCanvas()
+                .forEach((canvas) => __awaiter(this, void 0, void 0, function* () {
+                var _a;
+                const id = this.mirror.getId(canvas);
+                if (snapshotInProgressMap.get(id))
+                    return;
+                snapshotInProgressMap.set(id, true);
+                if (['webgl', 'webgl2'].includes(canvas.__context)) {
+                    const context = canvas.getContext(canvas.__context);
+                    if (((_a = context === null || context === void 0 ? void 0 : context.getContextAttributes()) === null || _a === void 0 ? void 0 : _a.preserveDrawingBuffer) === false) {
+                        context === null || context === void 0 ? void 0 : context.clear(context.COLOR_BUFFER_BIT);
+                    }
+                }
+                const bitmap = yield createImageBitmap(canvas);
+                worker.postMessage({
+                    id,
+                    bitmap,
+                    width: canvas.width,
+                    height: canvas.height,
+                    dataURLOptions: options.dataURLOptions,
+                }, [bitmap]);
+            }));
+            rafId = requestAnimationFrame(takeCanvasSnapshots);
+        };
+        rafId = requestAnimationFrame(takeCanvasSnapshots);
+        this.resetObservers = () => {
+            canvasContextReset();
+            cancelAnimationFrame(rafId);
+        };
+    }
+    initCanvasMutationObserver(win, blockClass, blockSelector) {
+        this.startRAFTimestamping();
+        this.startPendingCanvasMutationFlusher();
+        const canvasContextReset = initCanvasContextObserver(win, blockClass, blockSelector);
+        const canvas2DReset = initCanvas2DMutationObserver(this.processMutation.bind(this), win, blockClass, blockSelector);
+        const canvasWebGL1and2Reset = initCanvasWebGLMutationObserver(this.processMutation.bind(this), win, blockClass, blockSelector, this.mirror);
+        this.resetObservers = () => {
+            canvasContextReset();
+            canvas2DReset();
+            canvasWebGL1and2Reset();
+        };
+    }
+    startPendingCanvasMutationFlusher() {
+        requestAnimationFrame(() => this.flushPendingCanvasMutations());
+    }
+    startRAFTimestamping() {
+        const setLatestRAFTimestamp = (timestamp) => {
+            this.rafStamps.latestId = timestamp;
+            requestAnimationFrame(setLatestRAFTimestamp);
+        };
+        requestAnimationFrame(setLatestRAFTimestamp);
+    }
+    flushPendingCanvasMutations() {
+        this.pendingCanvasMutations.forEach((values, canvas) => {
+            const id = this.mirror.getId(canvas);
+            this.flushPendingCanvasMutationFor(canvas, id);
+        });
+        requestAnimationFrame(() => this.flushPendingCanvasMutations());
+    }
+    flushPendingCanvasMutationFor(canvas, id) {
+        if (this.frozen || this.locked) {
+            return;
+        }
+        const valuesWithType = this.pendingCanvasMutations.get(canvas);
+        if (!valuesWithType || id === -1)
+            return;
+        const values = valuesWithType.map((value) => {
+            const rest = __rest(value, ["type"]);
+            return rest;
+        });
+        const { type } = valuesWithType[0];
+        this.mutationCb({ id, type, commands: values });
+        this.pendingCanvasMutations.delete(canvas);
+    }
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb/src/record/stylesheet-manager.js
+
+
+
+class StylesheetManager {
+    constructor(options) {
+        this.trackedLinkElements = new WeakSet();
+        this.styleMirror = new StyleSheetMirror();
+        this.mutationCb = options.mutationCb;
+        this.adoptedStyleSheetCb = options.adoptedStyleSheetCb;
+    }
+    attachLinkElement(linkEl, childSn) {
+        if ('_cssText' in childSn.attributes)
+            this.mutationCb({
+                adds: [],
+                removes: [],
+                texts: [],
+                attributes: [
+                    {
+                        id: childSn.id,
+                        attributes: childSn
+                            .attributes,
+                    },
+                ],
+            });
+        this.trackLinkElement(linkEl);
+    }
+    trackLinkElement(linkEl) {
+        if (this.trackedLinkElements.has(linkEl))
+            return;
+        this.trackedLinkElements.add(linkEl);
+        this.trackStylesheetInLinkElement(linkEl);
+    }
+    adoptStyleSheets(sheets, hostId) {
+        if (sheets.length === 0)
+            return;
+        const adoptedStyleSheetData = {
+            id: hostId,
+            styleIds: [],
+        };
+        const styles = [];
+        for (const sheet of sheets) {
+            let styleId;
+            if (!this.styleMirror.has(sheet)) {
+                styleId = this.styleMirror.add(sheet);
+                const rules = Array.from(sheet.rules || CSSRule);
+                styles.push({
+                    styleId,
+                    rules: rules.map((r, index) => {
+                        return {
+                            rule: getCssRuleString(r),
+                            index,
+                        };
+                    }),
+                });
+            }
+            else
+                styleId = this.styleMirror.getId(sheet);
+            adoptedStyleSheetData.styleIds.push(styleId);
+        }
+        if (styles.length > 0)
+            adoptedStyleSheetData.styles = styles;
+        this.adoptedStyleSheetCb(adoptedStyleSheetData);
+    }
+    reset() {
+        this.styleMirror.reset();
+        this.trackedLinkElements = new WeakSet();
+    }
+    trackStylesheetInLinkElement(linkEl) {
+    }
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/packages/rrweb/src/record/index.js
+
+
+
+
+
+
+
+
+
+function wrapEvent(e) {
+    return Object.assign(Object.assign({}, e), { timestamp: Date.now() });
+}
+let wrappedEmit;
+let takeFullSnapshot;
+let canvasManager;
+let recording = false;
+const mirror = createMirror();
+function record(options = {}) {
+    const { emit, checkoutEveryNms, checkoutEveryNth, blockClass = 'rr-block', blockSelector = null, ignoreClass = 'rr-ignore', maskTextClass = 'rr-mask', maskTextSelector = null, inlineStylesheet = true, maskAllInputs, maskInputOptions: _maskInputOptions, slimDOMOptions: _slimDOMOptions, maskInputFn, maskTextFn, hooks, packFn, sampling = {}, dataURLOptions = {}, mousemoveWait, recordCanvas = false, recordCrossOriginIframes = false, userTriggeredOnInput = false, collectFonts = false, inlineImages = false, plugins, keepIframeSrcFn = () => false, ignoreCSSAttributes = new Set([]), } = options;
+    const inEmittingFrame = recordCrossOriginIframes
+        ? window.parent === window
+        : true;
+    let passEmitsToParent = false;
+    if (!inEmittingFrame) {
+        try {
+            window.parent.document;
+            passEmitsToParent = false;
+        }
+        catch (e) {
+            passEmitsToParent = true;
+        }
+    }
+    if (inEmittingFrame && !emit) {
+        throw new Error('emit function is required');
+    }
+    if (mousemoveWait !== undefined && sampling.mousemove === undefined) {
+        sampling.mousemove = mousemoveWait;
+    }
+    mirror.reset();
+    const maskInputOptions = maskAllInputs === true
+        ? {
+            color: true,
+            date: true,
+            'datetime-local': true,
+            email: true,
+            month: true,
+            number: true,
+            range: true,
+            search: true,
+            tel: true,
+            text: true,
+            time: true,
+            url: true,
+            week: true,
+            textarea: true,
+            select: true,
+            password: true,
+        }
+        : _maskInputOptions !== undefined
+            ? _maskInputOptions
+            : { password: true };
+    const slimDOMOptions = _slimDOMOptions === true || _slimDOMOptions === 'all'
+        ? {
+            script: true,
+            comment: true,
+            headFavicon: true,
+            headWhitespace: true,
+            headMetaSocial: true,
+            headMetaRobots: true,
+            headMetaHttpEquiv: true,
+            headMetaVerification: true,
+            headMetaAuthorship: _slimDOMOptions === 'all',
+            headMetaDescKeywords: _slimDOMOptions === 'all',
+        }
+        : _slimDOMOptions
+            ? _slimDOMOptions
+            : {};
+    polyfill();
+    let lastFullSnapshotEvent;
+    let incrementalSnapshotCount = 0;
+    const eventProcessor = (e) => {
+        for (const plugin of plugins || []) {
+            if (plugin.eventProcessor) {
+                e = plugin.eventProcessor(e);
+            }
+        }
+        if (packFn) {
+            e = packFn(e);
+        }
+        return e;
+    };
+    wrappedEmit = (e, isCheckout) => {
+        var _a;
+        if (((_a = mutationBuffers[0]) === null || _a === void 0 ? void 0 : _a.isFrozen()) &&
+            e.type !== EventType.FullSnapshot &&
+            !(e.type === EventType.IncrementalSnapshot &&
+                e.data.source === IncrementalSource.Mutation)) {
+            mutationBuffers.forEach((buf) => buf.unfreeze());
+        }
+        if (inEmittingFrame) {
+            emit === null || emit === void 0 ? void 0 : emit(eventProcessor(e), isCheckout);
+        }
+        else if (passEmitsToParent) {
+            const message = {
+                type: 'rrweb',
+                event: eventProcessor(e),
+                isCheckout,
+            };
+            window.parent.postMessage(message, '*');
+        }
+        if (e.type === EventType.FullSnapshot) {
+            lastFullSnapshotEvent = e;
+            incrementalSnapshotCount = 0;
+        }
+        else if (e.type === EventType.IncrementalSnapshot) {
+            if (e.data.source === IncrementalSource.Mutation &&
+                e.data.isAttachIframe) {
+                return;
+            }
+            incrementalSnapshotCount++;
+            const exceedCount = checkoutEveryNth && incrementalSnapshotCount >= checkoutEveryNth;
+            const exceedTime = checkoutEveryNms &&
+                e.timestamp - lastFullSnapshotEvent.timestamp > checkoutEveryNms;
+            if (exceedCount || exceedTime) {
+                takeFullSnapshot(true);
+            }
+        }
+    };
+    const wrappedMutationEmit = (m) => {
+        wrappedEmit(wrapEvent({
+            type: EventType.IncrementalSnapshot,
+            data: Object.assign({ source: IncrementalSource.Mutation }, m),
+        }));
+    };
+    const wrappedScrollEmit = (p) => wrappedEmit(wrapEvent({
+        type: EventType.IncrementalSnapshot,
+        data: Object.assign({ source: IncrementalSource.Scroll }, p),
+    }));
+    const wrappedCanvasMutationEmit = (p) => wrappedEmit(wrapEvent({
+        type: EventType.IncrementalSnapshot,
+        data: Object.assign({ source: IncrementalSource.CanvasMutation }, p),
+    }));
+    const wrappedAdoptedStyleSheetEmit = (a) => wrappedEmit(wrapEvent({
+        type: EventType.IncrementalSnapshot,
+        data: Object.assign({ source: IncrementalSource.AdoptedStyleSheet }, a),
+    }));
+    const stylesheetManager = new StylesheetManager({
+        mutationCb: wrappedMutationEmit,
+        adoptedStyleSheetCb: wrappedAdoptedStyleSheetEmit,
+    });
+    const iframeManager = new IframeManager({
+        mirror,
+        mutationCb: wrappedMutationEmit,
+        stylesheetManager: stylesheetManager,
+        recordCrossOriginIframes,
+        wrappedEmit,
+    });
+    for (const plugin of plugins || []) {
+        if (plugin.getMirror)
+            plugin.getMirror({
+                nodeMirror: mirror,
+                crossOriginIframeMirror: iframeManager.crossOriginIframeMirror,
+                crossOriginIframeStyleMirror: iframeManager.crossOriginIframeStyleMirror,
+            });
+    }
+    canvasManager = new CanvasManager({
+        recordCanvas,
+        mutationCb: wrappedCanvasMutationEmit,
+        win: window,
+        blockClass,
+        blockSelector,
+        mirror,
+        sampling: sampling.canvas,
+        dataURLOptions,
+    });
+    const shadowDomManager = new ShadowDomManager({
+        mutationCb: wrappedMutationEmit,
+        scrollCb: wrappedScrollEmit,
+        bypassOptions: {
+            blockClass,
+            blockSelector,
+            maskTextClass,
+            maskTextSelector,
+            inlineStylesheet,
+            maskInputOptions,
+            dataURLOptions,
+            maskTextFn,
+            maskInputFn,
+            recordCanvas,
+            inlineImages,
+            sampling,
+            slimDOMOptions,
+            iframeManager,
+            stylesheetManager,
+            canvasManager,
+            keepIframeSrcFn,
+        },
+        mirror,
+    });
+    takeFullSnapshot = (isCheckout = false) => {
+        var _a, _b, _c, _d, _e, _f;
+        wrappedEmit(wrapEvent({
+            type: EventType.Meta,
+            data: {
+                href: window.location.href,
+                width: getWindowWidth(),
+                height: getWindowHeight(),
+            },
+        }), isCheckout);
+        stylesheetManager.reset();
+        mutationBuffers.forEach((buf) => buf.lock());
+        const node = snapshot(document, {
+            mirror,
+            blockClass,
+            blockSelector,
+            maskTextClass,
+            maskTextSelector,
+            inlineStylesheet,
+            maskAllInputs: maskInputOptions,
+            maskTextFn,
+            slimDOM: slimDOMOptions,
+            dataURLOptions,
+            recordCanvas,
+            inlineImages,
+            onSerialize: (n) => {
+                if (isSerializedIframe(n, mirror)) {
+                    iframeManager.addIframe(n);
+                }
+                if (isSerializedStylesheet(n, mirror)) {
+                    stylesheetManager.trackLinkElement(n);
+                }
+                if (hasShadowRoot(n)) {
+                    shadowDomManager.addShadowRoot(n.shadowRoot, document);
+                }
+            },
+            onIframeLoad: (iframe, childSn) => {
+                iframeManager.attachIframe(iframe, childSn);
+                shadowDomManager.observeAttachShadow(iframe);
+            },
+            onStylesheetLoad: (linkEl, childSn) => {
+                stylesheetManager.attachLinkElement(linkEl, childSn);
+            },
+            keepIframeSrcFn,
+        });
+        if (!node) {
+            return console.warn('Failed to snapshot the document');
+        }
+        wrappedEmit(wrapEvent({
+            type: EventType.FullSnapshot,
+            data: {
+                node,
+                initialOffset: {
+                    left: window.pageXOffset !== undefined
+                        ? window.pageXOffset
+                        : (document === null || document === void 0 ? void 0 : document.documentElement.scrollLeft) ||
+                            ((_b = (_a = document === null || document === void 0 ? void 0 : document.body) === null || _a === void 0 ? void 0 : _a.parentElement) === null || _b === void 0 ? void 0 : _b.scrollLeft) ||
+                            ((_c = document === null || document === void 0 ? void 0 : document.body) === null || _c === void 0 ? void 0 : _c.scrollLeft) ||
+                            0,
+                    top: window.pageYOffset !== undefined
+                        ? window.pageYOffset
+                        : (document === null || document === void 0 ? void 0 : document.documentElement.scrollTop) ||
+                            ((_e = (_d = document === null || document === void 0 ? void 0 : document.body) === null || _d === void 0 ? void 0 : _d.parentElement) === null || _e === void 0 ? void 0 : _e.scrollTop) ||
+                            ((_f = document === null || document === void 0 ? void 0 : document.body) === null || _f === void 0 ? void 0 : _f.scrollTop) ||
+                            0,
+                },
+            },
+        }));
+        mutationBuffers.forEach((buf) => buf.unlock());
+        if (document.adoptedStyleSheets && document.adoptedStyleSheets.length > 0)
+            stylesheetManager.adoptStyleSheets(document.adoptedStyleSheets, mirror.getId(document));
+    };
+    try {
+        const handlers = [];
+        handlers.push(on('DOMContentLoaded', () => {
+            wrappedEmit(wrapEvent({
+                type: EventType.DomContentLoaded,
+                data: {},
+            }));
+        }));
+        const observe = (doc) => {
+            var _a;
+            return initObservers({
+                mutationCb: wrappedMutationEmit,
+                mousemoveCb: (positions, source) => wrappedEmit(wrapEvent({
+                    type: EventType.IncrementalSnapshot,
+                    data: {
+                        source,
+                        positions,
+                    },
+                })),
+                mouseInteractionCb: (d) => wrappedEmit(wrapEvent({
+                    type: EventType.IncrementalSnapshot,
+                    data: Object.assign({ source: IncrementalSource.MouseInteraction }, d),
+                })),
+                scrollCb: wrappedScrollEmit,
+                viewportResizeCb: (d) => wrappedEmit(wrapEvent({
+                    type: EventType.IncrementalSnapshot,
+                    data: Object.assign({ source: IncrementalSource.ViewportResize }, d),
+                })),
+                inputCb: (v) => wrappedEmit(wrapEvent({
+                    type: EventType.IncrementalSnapshot,
+                    data: Object.assign({ source: IncrementalSource.Input }, v),
+                })),
+                mediaInteractionCb: (p) => wrappedEmit(wrapEvent({
+                    type: EventType.IncrementalSnapshot,
+                    data: Object.assign({ source: IncrementalSource.MediaInteraction }, p),
+                })),
+                styleSheetRuleCb: (r) => wrappedEmit(wrapEvent({
+                    type: EventType.IncrementalSnapshot,
+                    data: Object.assign({ source: IncrementalSource.StyleSheetRule }, r),
+                })),
+                styleDeclarationCb: (r) => wrappedEmit(wrapEvent({
+                    type: EventType.IncrementalSnapshot,
+                    data: Object.assign({ source: IncrementalSource.StyleDeclaration }, r),
+                })),
+                canvasMutationCb: wrappedCanvasMutationEmit,
+                fontCb: (p) => wrappedEmit(wrapEvent({
+                    type: EventType.IncrementalSnapshot,
+                    data: Object.assign({ source: IncrementalSource.Font }, p),
+                })),
+                selectionCb: (p) => {
+                    wrappedEmit(wrapEvent({
+                        type: EventType.IncrementalSnapshot,
+                        data: Object.assign({ source: IncrementalSource.Selection }, p),
+                    }));
+                },
+                blockClass,
+                ignoreClass,
+                maskTextClass,
+                maskTextSelector,
+                maskInputOptions,
+                inlineStylesheet,
+                sampling,
+                recordCanvas,
+                inlineImages,
+                userTriggeredOnInput,
+                collectFonts,
+                doc,
+                maskInputFn,
+                maskTextFn,
+                keepIframeSrcFn,
+                blockSelector,
+                slimDOMOptions,
+                dataURLOptions,
+                mirror,
+                iframeManager,
+                stylesheetManager,
+                shadowDomManager,
+                canvasManager,
+                ignoreCSSAttributes,
+                plugins: ((_a = plugins === null || plugins === void 0 ? void 0 : plugins.filter((p) => p.observer)) === null || _a === void 0 ? void 0 : _a.map((p) => ({
+                    observer: p.observer,
+                    options: p.options,
+                    callback: (payload) => wrappedEmit(wrapEvent({
+                        type: EventType.Plugin,
+                        data: {
+                            plugin: p.name,
+                            payload,
+                        },
+                    })),
+                }))) || [],
+            }, hooks);
+        };
+        iframeManager.addLoadListener((iframeEl) => {
+            handlers.push(observe(iframeEl.contentDocument));
+        });
+        const init = () => {
+            takeFullSnapshot();
+            handlers.push(observe(document));
+            recording = true;
+        };
+        if (document.readyState === 'interactive' ||
+            document.readyState === 'complete') {
+            init();
+        }
+        else {
+            handlers.push(on('load', () => {
+                wrappedEmit(wrapEvent({
+                    type: EventType.Load,
+                    data: {},
+                }));
+                init();
+            }, window));
+        }
+        return () => {
+            handlers.forEach((h) => h());
+            recording = false;
+        };
+    }
+    catch (error) {
+        console.warn(error);
+    }
+}
+record.addCustomEvent = (tag, payload) => {
+    if (!recording) {
+        throw new Error('please add custom event after start recording');
+    }
+    wrappedEmit(wrapEvent({
+        type: EventType.Custom,
+        data: {
+            tag,
+            payload,
+        },
+    }));
+};
+record.freezePage = () => {
+    mutationBuffers.forEach((buf) => buf.freeze());
+};
+record.takeFullSnapshot = (isCheckout) => {
+    if (!recording) {
+        throw new Error('please take full snapshot after start recording');
+    }
+    takeFullSnapshot(isCheckout);
+};
+record.mirror = mirror;
+
+
+
+;// CONCATENATED MODULE: ./index-ext.mjs
+function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _regeneratorRuntime() { "use strict"; /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */ _regeneratorRuntime = function _regeneratorRuntime() { return e; }; var t, e = {}, r = Object.prototype, n = r.hasOwnProperty, o = Object.defineProperty || function (t, e, r) { t[e] = r.value; }, i = "function" == typeof Symbol ? Symbol : {}, a = i.iterator || "@@iterator", c = i.asyncIterator || "@@asyncIterator", u = i.toStringTag || "@@toStringTag"; function define(t, e, r) { return Object.defineProperty(t, e, { value: r, enumerable: !0, configurable: !0, writable: !0 }), t[e]; } try { define({}, ""); } catch (t) { define = function define(t, e, r) { return t[e] = r; }; } function wrap(t, e, r, n) { var i = e && e.prototype instanceof Generator ? e : Generator, a = Object.create(i.prototype), c = new Context(n || []); return o(a, "_invoke", { value: makeInvokeMethod(t, r, c) }), a; } function tryCatch(t, e, r) { try { return { type: "normal", arg: t.call(e, r) }; } catch (t) { return { type: "throw", arg: t }; } } e.wrap = wrap; var h = "suspendedStart", l = "suspendedYield", f = "executing", s = "completed", y = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} var p = {}; define(p, a, function () { return this; }); var d = Object.getPrototypeOf, v = d && d(d(values([]))); v && v !== r && n.call(v, a) && (p = v); var g = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(p); function defineIteratorMethods(t) { ["next", "throw", "return"].forEach(function (e) { define(t, e, function (t) { return this._invoke(e, t); }); }); } function AsyncIterator(t, e) { function invoke(r, o, i, a) { var c = tryCatch(t[r], t, o); if ("throw" !== c.type) { var u = c.arg, h = u.value; return h && "object" == _typeof(h) && n.call(h, "__await") ? e.resolve(h.__await).then(function (t) { invoke("next", t, i, a); }, function (t) { invoke("throw", t, i, a); }) : e.resolve(h).then(function (t) { u.value = t, i(u); }, function (t) { return invoke("throw", t, i, a); }); } a(c.arg); } var r; o(this, "_invoke", { value: function value(t, n) { function callInvokeWithMethodAndArg() { return new e(function (e, r) { invoke(t, n, e, r); }); } return r = r ? r.then(callInvokeWithMethodAndArg, callInvokeWithMethodAndArg) : callInvokeWithMethodAndArg(); } }); } function makeInvokeMethod(e, r, n) { var o = h; return function (i, a) { if (o === f) throw Error("Generator is already running"); if (o === s) { if ("throw" === i) throw a; return { value: t, done: !0 }; } for (n.method = i, n.arg = a;;) { var c = n.delegate; if (c) { var u = maybeInvokeDelegate(c, n); if (u) { if (u === y) continue; return u; } } if ("next" === n.method) n.sent = n._sent = n.arg;else if ("throw" === n.method) { if (o === h) throw o = s, n.arg; n.dispatchException(n.arg); } else "return" === n.method && n.abrupt("return", n.arg); o = f; var p = tryCatch(e, r, n); if ("normal" === p.type) { if (o = n.done ? s : l, p.arg === y) continue; return { value: p.arg, done: n.done }; } "throw" === p.type && (o = s, n.method = "throw", n.arg = p.arg); } }; } function maybeInvokeDelegate(e, r) { var n = r.method, o = e.iterator[n]; if (o === t) return r.delegate = null, "throw" === n && e.iterator["return"] && (r.method = "return", r.arg = t, maybeInvokeDelegate(e, r), "throw" === r.method) || "return" !== n && (r.method = "throw", r.arg = new TypeError("The iterator does not provide a '" + n + "' method")), y; var i = tryCatch(o, e.iterator, r.arg); if ("throw" === i.type) return r.method = "throw", r.arg = i.arg, r.delegate = null, y; var a = i.arg; return a ? a.done ? (r[e.resultName] = a.value, r.next = e.nextLoc, "return" !== r.method && (r.method = "next", r.arg = t), r.delegate = null, y) : a : (r.method = "throw", r.arg = new TypeError("iterator result is not an object"), r.delegate = null, y); } function pushTryEntry(t) { var e = { tryLoc: t[0] }; 1 in t && (e.catchLoc = t[1]), 2 in t && (e.finallyLoc = t[2], e.afterLoc = t[3]), this.tryEntries.push(e); } function resetTryEntry(t) { var e = t.completion || {}; e.type = "normal", delete e.arg, t.completion = e; } function Context(t) { this.tryEntries = [{ tryLoc: "root" }], t.forEach(pushTryEntry, this), this.reset(!0); } function values(e) { if (e || "" === e) { var r = e[a]; if (r) return r.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) { var o = -1, i = function next() { for (; ++o < e.length;) if (n.call(e, o)) return next.value = e[o], next.done = !1, next; return next.value = t, next.done = !0, next; }; return i.next = i; } } throw new TypeError(_typeof(e) + " is not iterable"); } return GeneratorFunction.prototype = GeneratorFunctionPrototype, o(g, "constructor", { value: GeneratorFunctionPrototype, configurable: !0 }), o(GeneratorFunctionPrototype, "constructor", { value: GeneratorFunction, configurable: !0 }), GeneratorFunction.displayName = define(GeneratorFunctionPrototype, u, "GeneratorFunction"), e.isGeneratorFunction = function (t) { var e = "function" == typeof t && t.constructor; return !!e && (e === GeneratorFunction || "GeneratorFunction" === (e.displayName || e.name)); }, e.mark = function (t) { return Object.setPrototypeOf ? Object.setPrototypeOf(t, GeneratorFunctionPrototype) : (t.__proto__ = GeneratorFunctionPrototype, define(t, u, "GeneratorFunction")), t.prototype = Object.create(g), t; }, e.awrap = function (t) { return { __await: t }; }, defineIteratorMethods(AsyncIterator.prototype), define(AsyncIterator.prototype, c, function () { return this; }), e.AsyncIterator = AsyncIterator, e.async = function (t, r, n, o, i) { void 0 === i && (i = Promise); var a = new AsyncIterator(wrap(t, r, n, o), i); return e.isGeneratorFunction(r) ? a : a.next().then(function (t) { return t.done ? t.value : a.next(); }); }, defineIteratorMethods(g), define(g, u, "Generator"), define(g, a, function () { return this; }), define(g, "toString", function () { return "[object Generator]"; }), e.keys = function (t) { var e = Object(t), r = []; for (var n in e) r.push(n); return r.reverse(), function next() { for (; r.length;) { var t = r.pop(); if (t in e) return next.value = t, next.done = !1, next; } return next.done = !0, next; }; }, e.values = values, Context.prototype = { constructor: Context, reset: function reset(e) { if (this.prev = 0, this.next = 0, this.sent = this._sent = t, this.done = !1, this.delegate = null, this.method = "next", this.arg = t, this.tryEntries.forEach(resetTryEntry), !e) for (var r in this) "t" === r.charAt(0) && n.call(this, r) && !isNaN(+r.slice(1)) && (this[r] = t); }, stop: function stop() { this.done = !0; var t = this.tryEntries[0].completion; if ("throw" === t.type) throw t.arg; return this.rval; }, dispatchException: function dispatchException(e) { if (this.done) throw e; var r = this; function handle(n, o) { return a.type = "throw", a.arg = e, r.next = n, o && (r.method = "next", r.arg = t), !!o; } for (var o = this.tryEntries.length - 1; o >= 0; --o) { var i = this.tryEntries[o], a = i.completion; if ("root" === i.tryLoc) return handle("end"); if (i.tryLoc <= this.prev) { var c = n.call(i, "catchLoc"), u = n.call(i, "finallyLoc"); if (c && u) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } else if (c) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); } else { if (!u) throw Error("try statement without catch or finally"); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } } } }, abrupt: function abrupt(t, e) { for (var r = this.tryEntries.length - 1; r >= 0; --r) { var o = this.tryEntries[r]; if (o.tryLoc <= this.prev && n.call(o, "finallyLoc") && this.prev < o.finallyLoc) { var i = o; break; } } i && ("break" === t || "continue" === t) && i.tryLoc <= e && e <= i.finallyLoc && (i = null); var a = i ? i.completion : {}; return a.type = t, a.arg = e, i ? (this.method = "next", this.next = i.finallyLoc, y) : this.complete(a); }, complete: function complete(t, e) { if ("throw" === t.type) throw t.arg; return "break" === t.type || "continue" === t.type ? this.next = t.arg : "return" === t.type ? (this.rval = this.arg = t.arg, this.method = "return", this.next = "end") : "normal" === t.type && e && (this.next = e), y; }, finish: function finish(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.finallyLoc === t) return this.complete(r.completion, r.afterLoc), resetTryEntry(r), y; } }, "catch": function _catch(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.tryLoc === t) { var n = r.completion; if ("throw" === n.type) { var o = n.arg; resetTryEntry(r); } return o; } } throw Error("illegal catch attempt"); }, delegateYield: function delegateYield(e, r, n) { return this.delegate = { iterator: values(e), resultName: r, nextLoc: n }, "next" === this.method && (this.arg = t), y; } }, e; }
+function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
+function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
+// Inject the external script only once
+if (!window.__scriptInjected) {
+  window.__scriptInjected = true;
+  var script = document.createElement('script');
+  script.src = chrome.runtime.getURL('injectScript.js');
+  script.onload = function () {
+    this.remove();
+  };
+  document.documentElement.appendChild(script);
+}
+window.addEventListener('interceptedResponse', function (event) {
+  var _chrome$runtime;
+  var _event$detail = event.detail,
+    responseHeaders = _event$detail.responseHeaders,
+    responseBody = _event$detail.responseBody,
+    statusCode = _event$detail.statusCode,
+    url = _event$detail.url,
+    requestId = _event$detail.requestId;
+  (_chrome$runtime = chrome.runtime) === null || _chrome$runtime === void 0 || _chrome$runtime.sendMessage({
+    type: 'capturedResponse',
+    requestId: requestId,
+    responseHeaders: responseHeaders,
+    responseBody: responseBody,
+    statusCode: statusCode,
+    url: url
+  });
+});
+
+
+// Buffer to store events for continuous send (when normal recording is enabled)
+var eventBuffer = [];
+var stopFn;
+var sessionStartTime;
+var shouldRecordSession = false;
+var shouldRecordSessionOnError = false;
+var samplingConfig = {
+  // do not record mouse movement
+  mousemove: false,
+  // do not record mouse interaction
+  mouseInteraction: true,
+  // set the interval of scrolling event
+  scroll: 150,
+  // do not emit twice in 150ms
+  // set the interval of media interaction event
+  media: 800,
+  // set the timing of record input
+  input: 'last' // When input multiple characters, only record the final input
+};
+
+// Function to generate a unique session ID
+function generateSessionId() {
+  // Custom UUID generation logic
+  var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16 | 0,
+      v = c === 'x' ? r : r & 0x3 | 0x8;
+    return v.toString(16);
+  });
+  return 'session_' + uuid;
+}
+function log(config, log) {
+  if (config.enableLogging) {
+    console.log(log);
+  }
+}
+function setTrackingIdCookie(sessionId) {
+  return new Promise(function (resolve, reject) {
+    // Check if a value already exists
+    chrome.storage.local.get("testchimp.ext-session-record-tracking-id", function (data) {
+      if (chrome.runtime.lastError) {
+        return reject(new Error(chrome.runtime.lastError));
+      }
+      if (!data["testchimp.ext-session-record-tracking-id"]) {
+        // Set the tracking ID only if it doesn't exist
+        chrome.storage.local.set({
+          "testchimp.ext-session-record-tracking-id": sessionId
+        }, function () {
+          if (chrome.runtime.lastError) {
+            return reject(new Error(chrome.runtime.lastError));
+          }
+          console.log("Setting testchimp tracking id to " + sessionId);
+          resolve(); // Resolve the promise when setting is complete
+        });
+      } else {
+        // If it already exists, resolve immediately
+        resolve();
+      }
+    });
+  });
+}
+function getTrackingIdCookie() {
+  return new Promise(function (resolve, reject) {
+    chrome.storage.local.get("testchimp.ext-session-record-tracking-id", function (data) {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError));
+      } else {
+        resolve(data["testchimp.ext-session-record-tracking-id"] || "");
+      }
+    });
+  });
+}
+function sendPayloadToEndpoint(payload, endpoint) {
+  var body = JSON.stringify(payload);
+  fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    mode: 'no-cors',
+    body: body
+  })["catch"](function (error) {
+    console.error('Error sending payload:', error);
+  });
+}
+
+// Function to send events to the backend and reset the events array
+function sendEvents(endpoint, config, sessionId, events) {
+  if (events.length === 0 || !config.projectId || !config.sessionRecordingApiKey) return;
+  var sessionRecordEvents = events.map(function (event) {
+    return {
+      payload: JSON.stringify(event)
+    };
+  });
+
+  // Clear the event buffer. While sendEvents is used in both onError and normal recording, the eventBuffer is utilized only in normal recording.
+  eventBuffer = [];
+  var body = {
+    tracking_id: sessionId,
+    aware_project_id: config.projectId,
+    aware_session_tracking_api_key: config.sessionRecordingApiKey,
+    event_list: {
+      events: sessionRecordEvents
+    }
+  };
+  var sessionSendEnabled = true;
+  var sessionRecordEndpoint = endpoint + "/session_records";
+  if (sessionSendEnabled) {
+    sendPayloadToEndpoint(body, sessionRecordEndpoint);
+  }
+}
+
+// Function to start sending events in batches every 5 seconds
+function startSendingEvents(endpoint, config, sessionId) {
+  stopFn = record({
+    emit: function emit(event) {
+      eventBuffer.push(event);
+    },
+    sampling: samplingConfig
+  });
+
+  // Save events every 5 seconds
+  var intervalId = setInterval(function () {
+    var sessionDuration = (new Date().getTime() - sessionStartTime) / 1000;
+    if (!config.maxSessionDurationSecs || config.maxSessionDurationSecs && sessionDuration < config.maxSessionDurationSecs) {
+      sendEvents(endpoint, config, sessionId, eventBuffer);
+    } else {
+      clearInterval(intervalId); // Clear the interval
+      if (typeof stopFn === 'function') {
+        stopFn(); // Stop the recording
+        stopFn = null;
+      }
+    }
+  }, 5000);
+}
+
+// Function to stop sending events
+function stopSendingEvents() {
+  try {
+    if (stopFn) {
+      stopFn(); // Stop recording events
+      stopFn = null;
+    }
+  } catch (error) {
+    console.log("Error", error);
+  }
+}
+function initRecording(endpoint, config, sessionId) {
+  // Start sending events
+  if (shouldRecordSession) {
+    startSendingEvents(endpoint, config, sessionId);
+  }
+}
+;
+function clearTrackingIdCookie() {
+  try {
+    chrome.storage.local.set({
+      "testchimp.ext-session-record-tracking-id": ''
+    }, function () {
+      if (chrome.runtime.lastError) {
+        console.error("Error:", chrome.runtime.lastError);
+        return;
+      }
+      console.log("TestChimp tracking id cleared");
+    });
+  } catch (error) {
+    console.error("Security error caught:", error);
+  }
+}
+function endTrackedSession() {
+  return _endTrackedSession.apply(this, arguments);
+} // Function to start recording user sessions
+function _endTrackedSession() {
+  _endTrackedSession = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
+    return _regeneratorRuntime().wrap(function _callee$(_context) {
+      while (1) switch (_context.prev = _context.next) {
+        case 0:
+          console.log("Ending current tracking session");
+          stopSendingEvents();
+          clearTrackingIdCookie();
+        case 3:
+        case "end":
+          return _context.stop();
+      }
+    }, _callee);
+  }));
+  return _endTrackedSession.apply(this, arguments);
+}
+function startRecording(_x) {
+  return _startRecording.apply(this, arguments);
+}
+function _startRecording() {
+  _startRecording = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee2(config) {
+    var endpoint, sessionId, defaultMaxSessionDurationSecs, defaultEventWindowToSaveOnError, defaultUrlRegexToAddTracking, defaultUntracedUrisToTrackRegex, defaultSamplingProbability, defaultSamplingProbabilityOnError, defaultEnvironment;
+    return _regeneratorRuntime().wrap(function _callee2$(_context2) {
+      while (1) switch (_context2.prev = _context2.next) {
+        case 0:
+          console.log("Initializing recording for TestChimp Project: " + config.projectId);
+          // Default endpoint if not provided
+          endpoint = config.endpoint || 'https://ingress.testchimp.io';
+          sessionId = generateSessionId();
+          _context2.next = 5;
+          return setTrackingIdCookie(sessionId);
+        case 5:
+          _context2.next = 7;
+          return getTrackingIdCookie();
+        case 7:
+          sessionId = _context2.sent;
+          console.log("Session id for TC", sessionId);
+          // Record the session start time
+          sessionStartTime = new Date().getTime();
+          defaultMaxSessionDurationSecs = 600; // 10 mins
+          defaultEventWindowToSaveOnError = 200;
+          defaultUrlRegexToAddTracking = ["/^$/"]; // Match no URLs
+          defaultUntracedUrisToTrackRegex = ["/^$/"]; // Match no URLs
+          defaultSamplingProbability = 0.0;
+          defaultSamplingProbabilityOnError = 0.0;
+          defaultEnvironment = "QA";
+          if (config.projectId) {
+            _context2.next = 20;
+            break;
+          }
+          console.error("No project id specified for session capture");
+          return _context2.abrupt("return");
+        case 20:
+          if (config.sessionRecordingApiKey) {
+            _context2.next = 23;
+            break;
+          }
+          console.error("No session recording api key specified for session capture");
+          return _context2.abrupt("return");
+        case 23:
+          config = {
+            enableRecording: config.enableRecording || true,
+            endpoint: endpoint,
+            projectId: config.projectId,
+            sessionRecordingApiKey: config.sessionRecordingApiKey,
+            samplingProbability: config.samplingProbability || defaultSamplingProbability,
+            maxSessionDurationSecs: config.maxSessionDurationSecs || defaultMaxSessionDurationSecs,
+            samplingProbabilityOnError: config.samplingProbabilityOnError || defaultSamplingProbabilityOnError,
+            eventWindowToSaveOnError: config.eventWindowToSaveOnError || defaultEventWindowToSaveOnError,
+            tracedUriRegexListToTrack: config.tracedUriRegexListToTrack || defaultUrlRegexToAddTracking,
+            untracedUriRegexListToTrack: config.untracedUriRegexListToTrack || defaultUntracedUrisToTrackRegex,
+            excludedUriRegexList: config.excludedUriRegexList || [],
+            environment: config.environment || defaultEnvironment,
+            enableLogging: config.enableLogging || true,
+            enableOptionsCallTracking: config.enableOptionsCallTracking || false
+          };
+          console.log("config used for session recording: ", config);
+
+          // Determine whether to record the session based on samplingProbability
+          shouldRecordSession = config.samplingProbability && Math.random() <= config.samplingProbability;
+
+          // Determine the sampling decision for error scenarios
+          shouldRecordSessionOnError = config.samplingProbabilityOnError && Math.random() <= config.samplingProbabilityOnError;
+          initRecording(endpoint, config, sessionId);
+        case 28:
+        case "end":
+          return _context2.stop();
+      }
+    }, _callee2);
+  }));
+  return _startRecording.apply(this, arguments);
+}
+chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
+  if (message.action === 'startTCRecording') {
+    startRecording(message.data);
+  }
+  if (message.action === 'endTCRecording') {
+    endTrackedSession();
+  }
+});
+function checkAndStartRecording() {
+  return _checkAndStartRecording.apply(this, arguments);
+} // Check for the cookie when the page is loaded
+function _checkAndStartRecording() {
+  _checkAndStartRecording = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee3() {
+    var cookie;
+    return _regeneratorRuntime().wrap(function _callee3$(_context3) {
+      while (1) switch (_context3.prev = _context3.next) {
+        case 0:
+          console.log("Content script is loaded.");
+          _context3.next = 3;
+          return getTrackingIdCookie();
+        case 3:
+          cookie = _context3.sent;
+          if (cookie && cookie.trim() !== '') {
+            // Cookie is set, retrieve settings and start recording
+            chrome.storage.sync.get(['projectId', 'sessionRecordingApiKey', 'endpoint', 'maxSessionDurationSecs', 'eventWindowToSaveOnError', 'uriRegexToIntercept'], function (items) {
+              if (chrome.runtime.lastError) {
+                console.error('Error retrieving settings from storage:', chrome.runtime.lastError);
+                return;
+              }
+              startRecording({
+                projectId: items.projectId,
+                sessionRecordingApiKey: items.sessionRecordingApiKey,
+                endpoint: items.endpoint,
+                samplingProbabilityOnError: 0.0,
+                samplingProbability: 1.0,
+                maxSessionDurationSecs: items.maxSessionDurationSecs || 500,
+                eventWindowToSaveOnError: 200,
+                untracedUriRegexListToTrack: items.uriRegexToIntercept || '.*'
+              });
+            });
+          }
+        case 5:
+        case "end":
+          return _context3.stop();
+      }
+    }, _callee3);
+  }));
+  return _checkAndStartRecording.apply(this, arguments);
+}
+document.addEventListener('DOMContentLoaded', checkAndStartRecording);
+/******/ 	return __webpack_exports__;
+/******/ })()
+;
+});

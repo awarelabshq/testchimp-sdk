@@ -30,6 +30,9 @@ module.exports = {
   resolve: {
     extensions: ['.js', '.json'],
   },
+  optimization: {
+    minimize: false, // Disable minification
+  },
   plugins: [
   ],
 };

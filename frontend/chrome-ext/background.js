@@ -495,10 +495,12 @@ chrome.webRequest.onCompleted.addListener(
             }
             const contentLength = details.responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
             const key = `${details.url}|${contentLength}`;
-            urlToRequestIdMap.set(key, details.requestId);
-            if (urlToResponsePayloadMap.has(key)) {
-                responsePayloads[details.requestId] = urlToResponsePayloadMap.get(key);
-                await sendPayloadForRequestId(requestId);
+            if(details.requestId){
+                urlToRequestIdMap.set(key, details.requestId);
+                if (urlToResponsePayloadMap.has(key)) {
+                    responsePayloads[details.requestId] = urlToResponsePayloadMap.get(key);
+                    await sendPayloadForRequestId(requestId);
+                }
             }
         }, {
             urls: ["<all_urls>"]

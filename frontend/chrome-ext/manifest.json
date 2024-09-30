@@ -4,7 +4,6 @@
   "version": "0.18",
   "description": "Capture UI + API activity during testing sessions. Easily convert them to automation tests with no code.",
   "permissions": [
-    "cookies",
     "activeTab",
     "storage",
     "webRequest"
