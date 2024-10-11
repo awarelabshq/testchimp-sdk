@@ -4300,8 +4300,6 @@ function _rollup_plugin_web_worker_loader_helper_auto_createBase64WorkerFactory_
 
 ;// CONCATENATED MODULE: ./node_modules/rrweb/es/rrweb/_virtual/image-bitmap-data-url-worker.js
 
-
-// Your decoded worker code as a string
 const decodedWorkerCode = `
 (function () {
     'use strict';
@@ -4401,7 +4399,9 @@ var arrayBuffer = encoder.encode(decodedWorkerCode).buffer;
 var base64Encoded = encode(arrayBuffer);
 
 // Encode the decoded worker code and pass it to the worker factory function
-var WorkerFactory = _rollup_plugin_web_worker_loader_helper_auto_createBase64WorkerFactory_createBase64WorkerFactory(base64Encoded, null, false);/* eslint-enable */
+var WorkerFactory = _rollup_plugin_web_worker_loader_helper_auto_createBase64WorkerFactory_createBase64WorkerFactory(base64Encoded, null, false);
+
+/* eslint-enable */
 
 
 

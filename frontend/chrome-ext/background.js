@@ -286,9 +286,10 @@ async function checkUrl(url) {
     }
     const config = await getConfig();
     try {
+        const validExcludedUriRegexList = config.excludedUriRegexList.filter(Boolean);
         const matchedTracedUri = config.tracedUriRegexListToTrack.some(regex => url.match(regex));
         const matchedUntracedUri = config.untracedUriRegexListToTrack.some(regex => url.match(regex));
-        const matchedExcludedUri = config.excludedUriRegexList.some(regex => url.match(regex));
+        const matchedExcludedUri = validExcludedUriRegexList.some(regex => url.match(regex));
         if (!matchedExcludedUri) {
             if (matchedTracedUri || matchedUntracedUri) {
                 return true;
@@ -400,7 +401,8 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
 
             const matchedTracedUri = config.tracedUriRegexListToTrack.some(regex => url.match(regex));
             const matchedUntracedUri = config.untracedUriRegexListToTrack.some(regex => url.match(regex));
-            const matchedExcludedUri = config.excludedUriRegexList.some(regex => url.match(regex));
+            const validExcludedUriRegexList = config.excludedUriRegexList.filter(Boolean);
+            const matchedExcludedUri = validExcludedUriRegexList.some(regex => url.match(regex));
 
             if (!matchedExcludedUri) {
                 if (matchedTracedUri) {
