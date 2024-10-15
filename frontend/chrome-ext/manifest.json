@@ -6,6 +6,8 @@
   "permissions": [
     "activeTab",
     "storage",
+    "contextMenus",
+    "scripting",
     "webRequest"
   ],
   "background": {
@@ -34,6 +36,7 @@
     {
       "resources": [
         "injectScript.js"
+        ,"menu-config.json"
       ],
       "matches": [
         "<all_urls>"
