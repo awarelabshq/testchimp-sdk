@@ -207,11 +207,66 @@ function buildContextMenu(config) {
   chrome.contextMenus.create({
     id: "testchimp",
     title: "TestChimp",
-    contexts: ["editable"]
+    contexts: ["editable","selection"]
   });
 
+  chrome.contextMenus.create({
+      id: "testchimp_addToVocab",
+      title: "Add to Vocabulary...",
+      parentId: "testchimp",
+      contexts: ["selection"]  // Only show when text is selected
+  });
+
+    // Listen for when the menu item is clicked
+  chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId === "testchimp_addToVocab" && info.selectionText) {
+        updateVocab(info.selectionText);  // Call your function with the selected text
+    }
+  });
   // Recursively create sub-menus and items
   createSubMenu(config, "testchimp");
+}
+
+function updateVocab(selectedText) {
+    chrome.storage.local.get({ vocabulary: [] }, (result) => {
+        let vocabList = result.vocabulary;
+
+        // Add the selected text if it's not already in the list
+        if (!vocabList.includes(selectedText)) {
+            vocabList.push(selectedText);
+            vocabList.sort();  // Keep it in alphabetical order
+
+            // Store the updated list in chrome.storage.local
+            chrome.storage.local.set({ vocabulary: vocabList }, () => {
+                console.log("Vocabulary updated:", vocabList);
+                recreateVocabMenu(vocabList);  // Update the menu after adding the new word
+            });
+        }
+    });
+}
+
+function recreateVocabMenu(vocabList) {
+    // Remove the old menu
+    chrome.contextMenus.remove("testchimp_custom_vocabs", () => {
+        // Create a new parent menu for custom vocabulary
+        chrome.contextMenus.create({
+            id: "testchimp_custom_vocabs",
+            title: "Custom Vocabulary",
+            parentId: "testchimp",
+            contexts: ["editable"]
+        });
+
+        // Add each vocabulary item as a submenu
+        vocabList.forEach((vocabItem) => {
+            chrome.contextMenus.create({
+                id: "vocab_" + vocabItem,
+                title: vocabItem,
+                parentId: "testchimp_custom_vocabs",
+                contexts: ["editable"]
+            });
+            menuItemValues["vocab_" + vocabItem] = vocabItem;
+        });
+    });
 }
 
 function createSubMenu(config, parentId) {
@@ -258,7 +313,7 @@ function createSubMenu(config, parentId) {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   let value = menuItemValues[info.menuItemId];
 
-  if (value.startsWith('__tc_exec(') && value.endsWith(')')) {
+  if (value && value.startsWith('__tc_exec(') && value.endsWith(')')) {
     const funcName = value.slice(10, -1); // Extract the function name
     value = executeDynamicFunction(funcName); // Get dynamic value
   }

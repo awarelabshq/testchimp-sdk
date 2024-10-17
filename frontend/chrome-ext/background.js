@@ -550,8 +550,5 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     }
 });
 
-// Import the contextMenu.js logic
-importScripts('contextMenu.js');
 
-// Call the function to load the context menu
-loadContextMenu();
+
