@@ -203,6 +203,7 @@ function loadContextMenu() {
 
 // Function to build context menu from JSON config
 function buildContextMenu(config) {
+  console.log("Building context menu for testchimp");
   // Create the main TestChimp context menu
   chrome.contextMenus.create({
     id: "testchimp",
