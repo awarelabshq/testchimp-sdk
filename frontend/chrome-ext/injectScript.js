@@ -24,10 +24,15 @@
     const response = await originalFetch.apply(this, args);
     const clone = response.clone();
 
-    // Collect response headers
-    const responseHeaders = {};
+    // Collect response headers and format them like in XHR
+    const rawHeaders = [];
     clone.headers.forEach((value, name) => {
-      responseHeaders[name] = value;
+        rawHeaders.push(`${name}: ${value}`);
+    });
+
+    const responseHeaders = rawHeaders.map(header => {
+        const [name, value] = header.split(': ');
+        return { name, value };
     });
 
     // Read response body based on content type
@@ -36,13 +41,13 @@
 
     if (contentType.includes('application/json')) {
       body = await clone.json().catch(() => ''); // Default to empty if JSON parsing fails
+      body=JSON.stringify(body);
     } else if (contentType.includes('text/')) {
       body = await clone.text();
     } else {
       body = await clone.blob().then(blob => blob.text()); // Fallback for other types
     }
-
-    const contentLength = responseHeaders['content-length'] || '';
+    const contentLength = responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
     const key = `${url}|${contentLength}`;
     const requestId = requestIdMap.get(key);
 
