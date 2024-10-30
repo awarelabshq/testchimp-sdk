@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         action: 'endTCRecording',
                         data: {}
                     });
-
+                    clearTrackingIdCookie();
                     showStartCapture();
                 });
             });
@@ -168,6 +168,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 });
+
+function clearTrackingIdCookie() {
+    try {
+        chrome.storage.local.set({ "testchimp.ext-session-record-tracking-id": '' }, function() {
+            if (chrome.runtime.lastError) {
+                console.error("Error:", chrome.runtime.lastError);
+                return;
+            }
+            console.log("TestChimp tracking id cleared via popup");
+        });
+    } catch (error) {
+        console.error("Security error caught:", error);
+    }
+}
 
 // Initial call to show recent sessions
 showRecentSessions();
