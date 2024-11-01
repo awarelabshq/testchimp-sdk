@@ -1,5 +1,8 @@
 chrome.runtime.onInstalled.addListener(() => {
     console.log('TestChimp Chrome Extension installed.');
+    chrome.storage.local.set({ "enableRunLocallyForTcRuns": true }, function() {
+        console.log("Enabled run locally for test studio runs.");
+    });
 });
 
 const requestPayloads = {};
@@ -67,7 +70,8 @@ const getConfig = async () => {
             'sessionRecordingApiKey',
             'endpoint',
             'environment',
-            'currentUserId'
+            'currentUserId',
+            'enableRunLocallyForTcRuns'
         ], (result) => {
 
             const untracedUriRegexListToTrack = Array.isArray(result.uriRegexToIntercept) ?
@@ -87,7 +91,8 @@ const getConfig = async () => {
                 sessionRecordingApiKey: result.sessionRecordingApiKey || '',
                 endpoint: result.endpoint || 'https://ingress.testchimp.io',
                 environment: result.environment || 'QA',
-                currentUserId: result.currentUserId || "DEFAULT_TESTER"
+                currentUserId: result.currentUserId || "DEFAULT_TESTER",
+                enableRunLocallyForTcRuns:result.enableRunLocallyForTcRuns,
             });
         });
     });
@@ -336,6 +341,75 @@ chrome.webRequest.onBeforeRequest.addListener(
         ["requestBody"]
 );
 
+async function handleTestChimpRequest(details) {
+    const config = await getConfig();
+    const enableRunLocallyForTcRuns=config.enableRunLocallyForTcRuns;
+
+  if (!enableRunLocallyForTcRuns) {
+    console.log("Run locally disabled");
+    return;
+  }
+
+  const bodyText = details.requestBody?.raw
+    ? details.requestBody.raw.map(part => new TextDecoder().decode(part.bytes)).join('')
+    : '';
+  const parsedBody = JSON.parse(bodyText);
+
+  const requestBody = await parseRequestBody(parsedBody);
+  const response = await makeSUTRequest(
+    parsedBody.rawTestStepExecution,
+    parsedBody.rawTestStepExecution.rawRequest.httpMethod,
+    requestBody
+  );
+
+  const rawResponse = response.rawResponse;
+  return rawResponse;
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "check_extension") {
+    // Use an async function to handle the await
+    (async () => {
+     const config = await getConfig();
+       const enableRunLocallyForTcRuns=config.enableRunLocallyForTcRuns;
+      if (enableRunLocallyForTcRuns) {
+        sendResponse({ success: true });
+      } else {
+        sendResponse({ success: false });
+      }
+    })(); // Immediately invoke the async function
+    return true; // Indicate that the response will be sent asynchronously
+  }
+
+  if (message.type === "run_tests_request") {
+
+   let parsedBody;
+    try {
+      parsedBody = message.raw;
+    } catch (error) {
+      console.log("Error parsing",error);
+      sendResponse({ error: "Invalid request body" });
+      return;
+    }
+
+    (async () => {
+      try {
+        const requestBody = await parseRequestBody(parsedBody);
+        const response = await makeSUTRequest(
+          parsedBody.rawTestStepExecution,
+          parsedBody.rawTestStepExecution.rawRequest.httpMethod,
+          requestBody
+        );
+        sendResponse({ data: response });
+      } catch (error) {
+         console.log("Error during SUT call",error);
+         sendResponse({ error: error.toString() });
+      }
+    })(); // Immediately invoke the async function
+    return true; // Indicate that the response will be sent asynchronously
+  }
+});
+
 const cleanKey = (key) => {
     // Remove any boundary artifacts or extra characters
     return key
@@ -552,7 +626,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
 // Import the contextMenu.js logic
 importScripts('contextMenu.js');
+importScripts('localRun.js');
 
 // Call the function to load the context menu
 loadContextMenu();
-

@@ -12,7 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
     'maxSessionDurationSecs',
     'uriRegexToIntercept',
     'excludedUriRegexList',
-    'currentUserId'
+    'currentUserId',
+    'enableRunLocallyForTcRuns'
   ], function(items) {
     form.projectId.value = items.projectId || '';
     form.sessionRecordingApiKey.value = items.sessionRecordingApiKey || '';
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
     form.uriRegexToIntercept.value = items.uriRegexToIntercept || '';
     form.excludedUriRegexList.value = items.excludedUriRegexList || '';
     form.currentUserId.value = items.currentUserId || '';
+    form.enableRunLocally.checked=items.enableRunLocallyForTcRuns;
   });
 
   // Save settings with validation
@@ -46,7 +48,8 @@ document.addEventListener('DOMContentLoaded', function() {
       eventWindowToSaveOnError: 200,
       uriRegexToIntercept: uriRegexToIntercept,
       excludedUriRegexList: excludedUriRegexList,
-      currentUserId: form.currentUserId.value.trim()
+      currentUserId: form.currentUserId.value.trim(),
+      enableRunLocallyForTcRuns:form.enableRunLocally.checked,
     }, function() {
       alert('Settings saved');
     });
