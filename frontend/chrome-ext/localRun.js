@@ -96,7 +96,7 @@ async function makeSUTRequest(endpointConfig,method,rawRequest) {
     // Handle the body based on its type
     let requestBody;
     const body = rawRequest.body;
-    console.log("RAW body to send",body);
+    console.log("making call to SUT",endpoint);
 
     const response = await fetch(endpoint, {
         method,
