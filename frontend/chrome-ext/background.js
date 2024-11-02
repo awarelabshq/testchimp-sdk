@@ -1,6 +1,6 @@
 chrome.runtime.onInstalled.addListener(() => {
     console.log('TestChimp Chrome Extension installed.');
-    chrome.storage.local.set({ "enableRunLocallyForTcRuns": true }, function() {
+    chrome.storage.sync.set({ "enableRunLocallyForTcRuns": true }, function() {
         console.log("Enabled run locally for test studio runs.");
     });
 });
