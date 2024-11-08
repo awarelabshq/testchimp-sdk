@@ -1,7 +1,23 @@
 chrome.runtime.onInstalled.addListener(() => {
     console.log('TestChimp Chrome Extension installed.');
-    chrome.storage.sync.set({ "enableRunLocallyForTcRuns": true }, function() {
+
+    // Set default value for enableRunLocallyForTcRuns
+    chrome.storage.sync.set({ "enableRunLocallyForTcRuns": true }, () => {
         console.log("Enabled run locally for test studio runs.");
+    });
+
+    // Check if currentUserId is empty, and set a default value if so
+    chrome.storage.sync.get(["currentUserId", "uriRegexToIntercept"], (result) => {
+        if (!result.currentUserId) {
+            chrome.storage.sync.set({ "currentUserId": "default_tester@example.com" }, () => {
+                console.log("Set default currentUserId to 'default_tester@example.com'.");
+            });
+        }
+        if (!result.uriRegexToIntercept) {
+            chrome.storage.sync.set({ "uriRegexToIntercept": ".*" }, () => {
+                console.log("Set default uriRegexToIntercept to '.*'.");
+            });
+        }
     });
 });
 
