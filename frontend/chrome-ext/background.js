@@ -90,13 +90,17 @@ const getConfig = async () => {
             'enableRunLocallyForTcRuns'
         ], (result) => {
 
-            const untracedUriRegexListToTrack = Array.isArray(result.uriRegexToIntercept) ?
-                result.uriRegexToIntercept :
-                typeof result.uriRegexToIntercept === 'string' ? [result.uriRegexToIntercept] : [];
+            const untracedUriRegexListToTrack = Array.isArray(result.uriRegexToIntercept)
+                ? result.uriRegexToIntercept
+                : typeof result.uriRegexToIntercept === 'string'
+                ? result.uriRegexToIntercept.split(',').map(item => item.trim())
+                : [];
 
-            const excludedUriRegexList = Array.isArray(result.excludedUriRegexList) ?
-                result.excludedUriRegexList :
-                typeof result.excludedUriRegexList === 'string' ? [result.excludedUriRegexList] : [];
+            const excludedUriRegexList = Array.isArray(result.excludedUriRegexList)
+                ? result.excludedUriRegexList
+                : typeof result.excludedUriRegexList === 'string'
+                ? result.excludedUriRegexList.split(',').map(item => item.trim())
+                : [];
 
             resolve({
                 tracedUriRegexListToTrack: [],
@@ -637,6 +641,9 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             }
         }
 
+    }else if (message.type === "tc_open_options_page_in_bg") {
+        console.log("Received open options message in bg");
+        chrome.runtime.openOptionsPage();
     }
 });
 

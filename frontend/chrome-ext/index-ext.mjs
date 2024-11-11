@@ -275,40 +275,60 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 window.addEventListener("message", (event) => {
-
   // Ensure the message is from the correct source
   if (event.source !== window) {
     return;
   }
 
   // Check for specific message types
-  if (event.data.type === "check_extension" || event.data.type === "run_tests_request") {
-    // Forward the message to the background script
-    chrome.runtime.sendMessage(event.data, (response) => {
-      if (chrome.runtime.lastError) {
-        // Handle case where the background script is unavailable
-        console.error("Error communicating with background script:", chrome.runtime.lastError.message);
-        if (event.data.type === "check_extension") {
-          window.postMessage({ type: "check_extension_response", success: false }, "*");
-        } else if (event.data.type === "run_tests_request") {
-          window.postMessage({ type: "run_tests_response", error: "Extension error: " + chrome.runtime.lastError.message }, "*");
+  if (event.data.type === "check_extension" || event.data.type === "run_tests_request" || event.data.type === "update_tc_ext_config" || event.data.type === "tc_open_options_page") {
+    // Forward messages to the background script
+    if (event.data.type === "update_tc_ext_config") {
+        console.log("Received extension configuration message:",event.data.payload);
+      // Extract the data to be stored from the message
+      const dataToStore = event.data.payload; // Assuming payload contains the key-value pairs
+
+      // Store the data in chrome.storage.sync
+      chrome.storage.sync.set(dataToStore, () => {
+        if (chrome.runtime.lastError) {
+          console.error("Error storing data:", chrome.runtime.lastError.message);
+          window.postMessage({ type: "update_tc_ext_config_response", success: false, error: chrome.runtime.lastError.message }, "*");
+        } else {
+          window.postMessage({ type: "update_tc_ext_config_response", success: true }, "*");
         }
-      } else if (response.error) {
-        // Handle case where the background script returned an error
-        if (event.data.type === "check_extension") {
-          window.postMessage({ type: "check_extension_response", success: false }, "*");
-        } else if (event.data.type === "run_tests_request") {
-          window.postMessage({ type: "run_tests_response", error: response.error }, "*");
+      });
+    }else if (event.data.type === "tc_open_options_page") {
+           console.log("Received message tc_open_options_page");
+           // Open the options page
+            chrome.runtime.sendMessage({ type: "tc_open_options_page_in_bg" });
+    } else {
+      // Handle check_extension and run_tests_request
+      chrome.runtime.sendMessage(event.data, (response) => {
+        if (chrome.runtime.lastError) {
+          // Error communicating with the background script
+          console.error("Error communicating with background script:", chrome.runtime.lastError.message);
+          if (event.data.type === "check_extension") {
+            window.postMessage({ type: "check_extension_response", success: false }, "*");
+          } else if (event.data.type === "run_tests_request") {
+            window.postMessage({ type: "run_tests_response", error: "Extension error: " + chrome.runtime.lastError.message }, "*");
+          }
+        } else if (response.error) {
+          // Background script returned an error
+          if (event.data.type === "check_extension") {
+            window.postMessage({ type: "check_extension_response", success: false }, "*");
+          } else if (event.data.type === "run_tests_request") {
+            window.postMessage({ type: "run_tests_response", error: response.error }, "*");
+          }
+        } else {
+          // Successful responses
+          if (event.data.type === "check_extension") {
+            window.postMessage({ type: "check_extension_response", success: response.success }, "*");
+          } else if (event.data.type === "run_tests_request") {
+            window.postMessage({ type: "run_tests_response", response: response.data }, "*");
+          }
         }
-      } else {
-        // Handle successful responses
-        if (event.data.type === "check_extension") {
-          window.postMessage({ type: "check_extension_response", success: response.success }, "*");
-        } else if (event.data.type === "run_tests_request") {
-          window.postMessage({ type: "run_tests_response", response: response.data }, "*");
-        }
-      }
-    });
+      });
+    }
   }
 });
 
