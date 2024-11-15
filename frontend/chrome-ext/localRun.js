@@ -82,26 +82,26 @@ function getEndpoint(endpointConfig){
     }
 }
 
-async function makeSUTRequest(endpointConfig,method,rawRequest) {
+async function makeSUTRequest(endpointConfig, method, rawRequest) {
     let endpoint = getEndpoint(endpointConfig); // Resolve any endpoint template params
-   if (rawRequest.queryParams && Object.keys(rawRequest.queryParams).length > 0) {
-       // Create an array of query parameters
-       const queryParams = new URLSearchParams(rawRequest.queryParams).toString();
+    if (rawRequest.queryParams && Object.keys(rawRequest.queryParams).length > 0) {
+        // Create an array of query parameters
+        const queryParams = new URLSearchParams(rawRequest.queryParams).toString();
 
-       // Step 3: Append query parameters to the endpoint
-       endpoint += (endpoint.includes('?') ? '&' : '?') + queryParams;
-   }
+        // Append query parameters to the endpoint
+        endpoint += (endpoint.includes('?') ? '&' : '?') + queryParams;
+    }
     const headers = new Headers(rawRequest.headers); // Works directly for plain objects
 
-    // Handle the body based on its type
-    let requestBody;
-    const body = rawRequest.body;
-    console.log("making call to SUT",endpoint);
+    // Handle the body based on its type, if method is not GET or HEAD
+    const requestBody = (method === 'GET' || method === 'HEAD') ? undefined : rawRequest.body;
+
+    console.log("making call to SUT", endpoint);
 
     const response = await fetch(endpoint, {
         method,
         headers,
-        body: body,
+        body: requestBody,
     });
 
     return handleResponse(response);
