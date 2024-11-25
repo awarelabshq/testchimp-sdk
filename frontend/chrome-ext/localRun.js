@@ -92,6 +92,8 @@ async function makeSUTRequest(endpointConfig, method, rawRequest) {
         endpoint += (endpoint.includes('?') ? '&' : '?') + queryParams;
     }
     const headers = new Headers(rawRequest.headers); // Works directly for plain objects
+    const traceparent = generateTraceparent();
+    headers.set("traceparent", traceparent);
 
     // Handle the body based on its type, if method is not GET or HEAD
     const requestBody = (method === 'GET' || method === 'HEAD') ? undefined : rawRequest.body;
@@ -103,8 +105,28 @@ async function makeSUTRequest(endpointConfig, method, rawRequest) {
         headers,
         body: requestBody,
     });
+    const rawResponse=await handleResponse(response);
+    return {
+        traceId: traceparent.split('-')[1], // Extract the trace ID from traceparent
+        rawResponse:rawResponse,
+    };
+}
 
-    return handleResponse(response);
+function generateTraceparent() {
+    // Generate a valid traceparent header value
+    const version = "00";
+    const traceId = generateRandomHex(32); // 16 bytes as hex (32 characters)
+    const parentId = generateRandomHex(16); // 8 bytes as hex (16 characters)
+    const traceFlags = "01"; // Indicates tracing is enabled
+
+    return `${version}-${traceId}-${parentId}-${traceFlags}`;
+}
+
+function generateRandomHex(length) {
+    // Generate a random hexadecimal string of the given length
+    const array = new Uint8Array(length / 2);
+    crypto.getRandomValues(array);
+    return Array.from(array).map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 function resolveEndpoint(rawRequest) {
@@ -121,7 +143,6 @@ function resolveEndpoint(rawRequest) {
 async function handleResponse(response) {
     const contentType = response.headers.get("content-type") || "";
     const rawResponse = { responseCode: response.status, headers: {}, body: {} };
-
     // Process headers
     response.headers.forEach((value, key) => {
         rawResponse.headers[key.toLowerCase()] = value;
@@ -141,7 +162,7 @@ async function handleResponse(response) {
         rawResponse.body.textBody = await response.text();
     }
 
-    return {rawResponse:rawResponse};
+    return rawResponse;
 }
 
 function isValidJSON(str) {
