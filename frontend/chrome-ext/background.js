@@ -156,7 +156,7 @@ function sendPayloadToEndpoint(payload, endpoint) {
     fetch(endpoint, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'content-type': 'application/json',
         },
         mode: 'no-cors',
         body: body,
@@ -240,7 +240,7 @@ async function populateHttpPayload(config, details) {
     const headers = isRequest ? requestHeaders : responseHeaders;
     if (headers && Array.isArray(headers)) {
         headers.forEach((header) => {
-            httpPayload.headerMap[header.name] = header.value;
+            httpPayload.headerMap[header.name.toLowerCase()] = header.value;
         });
     }
 
