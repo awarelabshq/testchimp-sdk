@@ -271,7 +271,7 @@ async function populateHttpPayload(config, details) {
     const bodyText = isRequest ? requestBody : responseBody;
     if (bodyText) {
         try {
-            if (contentType.includes('application/json')) {
+            if (contentType.includes('application') && contentType.includes('json')) {
                 httpPayload.jsonBody = JSON.stringify(JSON.parse(bodyText));
             } else if (contentType.includes('multipart/form-data')) {
                 const formData = new URLSearchParams(bodyText);
