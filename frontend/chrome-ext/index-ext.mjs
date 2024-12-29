@@ -24,228 +24,10 @@ window.addEventListener('interceptedResponse', (event) => {
 
 import {record} from 'rrweb';
 
-// START OF CUSTOM PLUGIN
-
-/**
- * Playwright Metadata Record Plugin for rrweb
- */
-export function createPlaywrightMetadataPlugin() {
-  // Utility function to extract metadata from an element
-  function extractElementMetadata(element) {
-    if (!(element instanceof Element)) return null;
-
-    const metadata = {};
-
-    // Attributes to extract
-    const attributes = [
-      'role',
-      'data-testid',
-      'aria-label',
-      'placeholder',
-      'name',
-      'id',
-      'class'
-    ];
-
-    attributes.forEach(attr => {
-      const value = element.getAttribute(attr);
-      if (value) {
-        metadata[attr.replace(/^data-/, '').replace(/-/g, '_')] = value;
-      }
-    });
-
-    // Try to extract associated label
-    try {
-      const label = findAssociatedLabel(element);
-      if (label) {
-        metadata.associated_label = label.trim();
-      }
-    } catch (error) {
-      console.error('Error extracting label:', error);
-    }
-
-    // Extract text content for buttons, links, etc.
-    if (['BUTTON', 'A', 'LABEL'].includes(element.tagName)) {
-      const text = element.textContent?.trim();
-      if (text) {
-        metadata.text_content = text;
-      }
-    }
-
-    return Object.keys(metadata).length > 0 ? metadata : null;
-  }
-
-  // Find associated label for form elements
-  function findAssociatedLabel(element) {
-    // Check if element has an id and there's a label with 'for' attribute
-    if (element.id) {
-      const labelElement = document.querySelector(`label[for="${element.id}"]`);
-      if (labelElement) return labelElement.textContent;
-    }
-
-    // Check if element is inside a label
-    const parentLabel = element.closest('label');
-    if (parentLabel) return parentLabel.textContent;
-
-    return null;
-  }
-
-  // Create a set to track processed nodes to avoid duplicate processing
-  const processedNodes = new WeakSet();
-
-  return {
-    name: 'playwright-metadata-plugin',
-
-    // Default options with a safe fallback
-    defaultOptions: {
-      includeElements: ['input', 'button', 'select', 'textarea', 'a', 'label']
-    },
-
-    // Observer function called by rrweb
-    observer: (cb, options = {}) => {
-      // Merge default options with provided options
-      const mergedOptions = {
-        ...createPlaywrightMetadataPlugin().defaultOptions,
-        ...options
-      };
-
-      console.log('[Playwright Metadata Plugin] Observer initialized', mergedOptions);
-
-      // Ensure includeElements is an array
-      const includedSelectors = Array.isArray(mergedOptions.includeElements)
-        ? mergedOptions.includeElements
-        : createPlaywrightMetadataPlugin().defaultOptions.includeElements;
-
-      // Create MutationObserver to track DOM changes
-      const metadataObserver = new MutationObserver((mutations) => {
-        mutations.forEach(mutation => {
-          // Process added nodes
-          if (mutation.type === 'childList') {
-            mutation.addedNodes.forEach(node => {
-              // Only process element nodes
-              if (node.nodeType === Node.ELEMENT_NODE) {
-                processNode(node, cb);
-
-                // Process child elements recursively
-                node.querySelectorAll('*').forEach(child => {
-                  processNode(child, cb);
-                });
-              }
-            });
-          }
-          // Process attribute changes
-          else if (mutation.type === 'attributes') {
-            processNode(mutation.target, cb);
-          }
-        });
-      });
-
-    function generateNodeId(node) {
-      // Prioritize data-testid first
-      if (node.getAttribute('data-testid')) {
-        return node.getAttribute('data-testid');
-      }
-
-      // Fall back to native DOM id
-      if (node.id) {
-        return node.id;
-      }
-
-      // Return null if no useful identifier found
-      return null;
-    }
-
-
-      // Function to process individual nodes
-      function processNode(node, callback) {
-        // Avoid processing the same node multiple times
-        if (processedNodes.has(node)) return;
-
-        // Check if node matches desired elements
-        if (node.matches &&
-            includedSelectors.some(selector => node.matches(selector))) {
-          const metadata = extractElementMetadata(node);
-
-          if (metadata) {
-            console.log('[Playwright Metadata Plugin] Metadata extracted:', metadata);
-            const nodeId = generateNodeId(node);
-
-            // Use callback to send metadata to rrweb
-            callback({
-              type: 'playwright-metadata',
-              data: {
-                nodeId: nodeId,
-                metadata: metadata,
-                tagName: node.tagName,
-              }
-            });
-
-            // Mark node as processed
-            processedNodes.add(node);
-          }
-        }
-      }
-
-      // Utility function to generate XPath
-      function getXPath(element) {
-        if (!(element instanceof Element)) return null;
-        try {
-          let path = '';
-          for ( ; element && element.nodeType == 1; element = element.parentNode ) {
-            let idx = getElementIdx(element);
-            let xname = element.tagName;
-            if (idx > 1) xname += `[${idx}]`;
-            path = '/' + xname + path;
-          }
-          return path;
-        } catch (error) {
-          console.error('XPath generation error:', error);
-          return null;
-        }
-      }
-
-      // Helper to get element index among siblings
-      function getElementIdx(element) {
-        let count = 1;
-        for (let sib = element.previousSibling; sib; sib = sib.previousSibling) {
-          if(sib.nodeType == 1 && sib.tagName == element.tagName) count++;
-        }
-        return count;
-      }
-
-      // Initial processing of existing elements
-      document.querySelectorAll(includedSelectors.join(','))
-        .forEach(el => processNode(el, cb));
-
-      // Start observing the document
-      metadataObserver.observe(document.body, {
-        childList: true,
-        attributes: true,
-        subtree: true,
-        attributeFilter: [
-          'role',
-          'data-testid',
-          'aria-label',
-          'placeholder',
-          'name',
-          'class',
-          'id'
-        ]
-      });
-
-      // Return cleanup function
-      return () => {
-        console.log('[Playwright Metadata Plugin] Stopping observer');
-        metadataObserver.disconnect();
-      };
-    }
-  };
-}
-// END OF CUSTOM PLUGIN
-
 // Buffer to store events for continuous send (when normal recording is enabled)
 var eventBuffer = [];
 var stopFn;
+var sessionManager;
 var sessionStartTime;
 var shouldRecordSession = false;
 var shouldRecordSessionOnError = false;
@@ -370,9 +152,6 @@ function startSendingEvents(endpoint, config, sessionId) {
       eventBuffer.push(event)
     },
     sampling: samplingConfig,
-    plugins: [
-      createPlaywrightMetadataPlugin()
-    ]
   });
 
   // Save events every 5 seconds
@@ -381,33 +160,37 @@ function startSendingEvents(endpoint, config, sessionId) {
     if (!config.maxSessionDurationSecs || (config.maxSessionDurationSecs && sessionDuration < config.maxSessionDurationSecs)) {
       sendEvents(endpoint, config, sessionId, eventBuffer);
     } else {
-      clearInterval(intervalId); // Clear the interval
-      if (typeof stopFn === 'function') {
-        stopFn(); // Stop the recording
-        stopFn = null;
-      }
+      clearInterval(intervalId); // Stop periodic sending
+      stopSendingEvents(endpoint, config, sessionId); // Stop and flush
     }
   }, 5000);
+
+  return {
+    stop: function () {
+      clearInterval(intervalId); // Stop periodic sending
+      stopSendingEvents(endpoint, config, sessionId); // Stop and flush
+    }
+  };
 }
+
 
 // Function to stop sending events
-function stopSendingEvents() {
-try{
-  if (stopFn) {
-    stopFn(); // Stop recording events
-    stopFn = null;
-  }
-  }catch(error){
-    console.log("Error",error);
+function stopSendingEvents(endpoint, config, sessionId) {
+  try {
+    if (stopFn) {
+      stopFn(); // Stop recording events
+      stopFn = null;
+    }
+    // Flush remaining events in the buffer
+    if (eventBuffer.length > 0) {
+      console.log("Sending remaining events of size: ",eventBuffer.length);
+      sendEvents(endpoint, config, sessionId, eventBuffer);
+    }
+  } catch (error) {
+    console.log("Error stopping session:", error);
   }
 }
 
-function initRecording(endpoint,config,sessionId){
-  // Start sending events
-  if (shouldRecordSession) {
-    startSendingEvents(endpoint, config, sessionId);
-  }
-};
 
 function clearTrackingIdCookie() {
     try {
@@ -425,7 +208,9 @@ function clearTrackingIdCookie() {
 
 async function endTrackedSession(){
     console.log("Ending current tracking session");
-    stopSendingEvents()
+    if(sessionManager){
+        sessionManager.stop();
+    }
     clearTrackingIdCookie();
 }
 
@@ -485,8 +270,10 @@ async function startRecording(config) {
   // Determine the sampling decision for error scenarios
   shouldRecordSessionOnError = config.samplingProbabilityOnError && Math.random() <= config.samplingProbabilityOnError;
 
-  initRecording(endpoint, config, sessionId);
-}
+  if (shouldRecordSession) {
+    sessionManager=startSendingEvents(endpoint, config, sessionId);
+  }
+ }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'startTCRecording') {

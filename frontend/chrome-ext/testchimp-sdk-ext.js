@@ -5121,6 +5121,7 @@ window.addEventListener('interceptedResponse', function (event) {
 // Buffer to store events for continuous send (when normal recording is enabled)
 var eventBuffer = [];
 var stopFn;
+var sessionManager;
 var sessionStartTime;
 var shouldRecordSession = false;
 var shouldRecordSessionOnError = false;
@@ -5244,33 +5245,34 @@ function startSendingEvents(endpoint, config, sessionId) {
     if (!config.maxSessionDurationSecs || config.maxSessionDurationSecs && sessionDuration < config.maxSessionDurationSecs) {
       sendEvents(endpoint, config, sessionId, eventBuffer);
     } else {
-      clearInterval(intervalId); // Clear the interval
-      if (typeof stopFn === 'function') {
-        stopFn(); // Stop the recording
-        stopFn = null;
-      }
+      clearInterval(intervalId); // Stop periodic sending
+      stopSendingEvents(endpoint, config, sessionId); // Stop and flush
     }
   }, 5000);
+  return {
+    stop: function stop() {
+      clearInterval(intervalId); // Stop periodic sending
+      stopSendingEvents(endpoint, config, sessionId); // Stop and flush
+    }
+  };
 }
 
 // Function to stop sending events
-function stopSendingEvents() {
+function stopSendingEvents(endpoint, config, sessionId) {
   try {
     if (stopFn) {
       stopFn(); // Stop recording events
       stopFn = null;
     }
+    // Flush remaining events in the buffer
+    if (eventBuffer.length > 0) {
+      console.log("Sending remaining events of size: ", eventBuffer.length);
+      sendEvents(endpoint, config, sessionId, eventBuffer);
+    }
   } catch (error) {
-    console.log("Error", error);
+    console.log("Error stopping session:", error);
   }
 }
-function initRecording(endpoint, config, sessionId) {
-  // Start sending events
-  if (shouldRecordSession) {
-    startSendingEvents(endpoint, config, sessionId);
-  }
-}
-;
 function clearTrackingIdCookie() {
   try {
     chrome.storage.local.set({
@@ -5295,7 +5297,9 @@ function _endTrackedSession() {
       while (1) switch (_context.prev = _context.next) {
         case 0:
           console.log("Ending current tracking session");
-          stopSendingEvents();
+          if (sessionManager) {
+            sessionManager.stop();
+          }
           clearTrackingIdCookie();
         case 3:
         case "end":
@@ -5372,7 +5376,9 @@ function _startRecording() {
 
           // Determine the sampling decision for error scenarios
           shouldRecordSessionOnError = config.samplingProbabilityOnError && Math.random() <= config.samplingProbabilityOnError;
-          initRecording(endpoint, config, sessionId);
+          if (shouldRecordSession) {
+            sessionManager = startSendingEvents(endpoint, config, sessionId);
+          }
         case 28:
         case "end":
           return _context2.stop();

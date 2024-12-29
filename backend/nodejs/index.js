@@ -79,7 +79,7 @@ function createMappings(config) {
             mappings.ignoredUrls = config.global_config.ignored_urls.map(pattern => new RegExp(pattern));
         }
         if(config.global_config.ignored_headers) {
-            config.global_config.ignored_headers.forEach(header => mappings.ignoredHeaders.add(header));
+            config.global_config.ignored_headers?.forEach(header => mappings.ignoredHeaders.add(header));
         }
         if(config.global_config.log_level){
             log_level=config.global_config.log_level;
@@ -95,7 +95,7 @@ function createMappings(config) {
     }
 
     if(config.url_configs) {
-        Object.keys(config.url_configs).forEach(urlPattern => {
+        Object.keys(config.url_configs)?.forEach(urlPattern => {
             const urlConfig = config.url_configs[urlPattern];
             const requestConfig = urlConfig.request || {};
             const responseConfig = urlConfig.response || {};
@@ -135,9 +135,9 @@ function processJsonBody(body, span, config, type) {
     const extractToSpanAttributes = config[type].extractToSpanAttributes;
     const userIdField = config[type].userIdField;
     // Scrub ignored fields
-    ignoredFields.forEach(query => {
+    ignoredFields?.forEach(query => {
         const matches = jsonpath.paths(body, query);
-        matches.forEach(matchPath => {
+        matches?.forEach(matchPath => {
             const lastSegment = matchPath.pop();
             const parentPath = jsonpath.stringify(matchPath);
             const parent = jsonpath.query(body, parentPath)[0];
@@ -148,7 +148,7 @@ function processJsonBody(body, span, config, type) {
     });
 
     // Extract fields to span attributes
-    extractToSpanAttributes.forEach(query => {
+    extractToSpanAttributes?.forEach(query => {
         const matches = jsonpath.query(body, query);
         if(matches.length > 0) {
             const firstMatch = matches[0];
@@ -175,14 +175,14 @@ function processOtherBodyTypes(body, span, config, type) {
     const extractToSpanAttributes = config[type].extractToSpanAttributes;
 
     // Scrub ignored fields
-    ignoredFields.forEach(field => {
+    ignoredFields?.forEach(field => {
         if(field === '$') {
             body = "";
         }
     });
 
     // Extract fields to span attributes
-    extractToSpanAttributes.forEach(field => {
+    extractToSpanAttributes?.forEach(field => {
         if(field === '$' && body) {
           log("Setting attribute: testchimp.extracted.body to " + body + " for " + type,"fine");
           span.setAttribute('testchimp.extracted.body', body);
@@ -291,7 +291,7 @@ function testchimpSdk(configFilePath) {
                     bodyType = 'text_body';
                 }
                 // Process request headers
-                urlConfigEntry.config.request.ignoredHeaders.forEach(header => {
+                urlConfigEntry.config.request.ignoredHeaders?.forEach(header => {
                     delete headers[header];
                 });
 
@@ -303,7 +303,7 @@ function testchimpSdk(configFilePath) {
                 }
 
                 // Extract request headers to span attributes
-                urlConfigEntry.config.request.extractHeadersToSpanAttributes.forEach(header => {
+                urlConfigEntry.config.request.extractHeadersToSpanAttributes?.forEach(header => {
                     const headerValue = headers[header];
                     if(headerValue) {
                         log("Setting attribute: " + `testchimp.extracted.${header}` + " to " + headerValue + " in request","fine");
@@ -336,7 +336,7 @@ function testchimpSdk(configFilePath) {
                 if(span) {
                     let responseBody = args[0] instanceof Buffer ? args[0].toString() : args[0];
                     const responseHeaders = res.getHeaders(); // Get response headers
-                    urlConfigEntry.config.response.ignoredHeaders.forEach(header => {
+                    urlConfigEntry.config.response.ignoredHeaders?.forEach(header => {
                         delete responseHeaders[header];
                     });
 
@@ -370,7 +370,7 @@ function testchimpSdk(configFilePath) {
                         // Process response body
 
                         // Extract response headers to span attributes
-                        urlConfigEntry.config.response.extractHeadersToSpanAttributes.forEach(header => {
+                        urlConfigEntry.config.response.extractHeadersToSpanAttributes?.forEach(header => {
                             const headerValue = responseHeaders[header];
                             if(headerValue) {
                                log("Setting attribute: " + `testchimp.extracted.${header}` + " to " + headerValue + " in response","fine");

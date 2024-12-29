@@ -6,6 +6,7 @@ import { XMLHttpRequestInterceptor } from '@mswjs/interceptors/XMLHttpRequest';
 var eventsMatrix = [[]];
 // Buffer to store events for continuous send (when normal recording is enabled)
 var eventBuffer = [];
+var sessionManager;
 var stopFn;
 var sessionStartTime;
 var shouldRecordSession = false;
@@ -469,20 +470,36 @@ function startSendingEvents(endpoint, config) {
       }
     }
   }, 5000);
+
+    return {
+      stop: function () {
+        clearInterval(intervalId); // Stop periodic sending
+        stopSendingEvents(endpoint, config, sessionId); // Stop and flush
+      }
+    };
 }
 
 // Function to stop sending events
-function stopSendingEvents() {
-  if (stopFn) {
-    stopFn(); // Stop recording events
-    stopFn = null;
+function stopSendingEvents(endpoint, config, sessionId) {
+  try {
+    if (stopFn) {
+      stopFn(); // Stop recording events
+      stopFn = null;
+    }
+    // Flush remaining events in the buffer
+    if (eventBuffer.length > 0) {
+      console.log("Sending remaining events of size: ",eventBuffer.length);
+      sendEvents(endpoint, config, sessionId, eventBuffer);
+    }
+  } catch (error) {
+    console.log("Error stopping session:", error);
   }
 }
 
 function initRecording(endpoint,config){
   // Start sending events
   if (shouldRecordSession) {
-    startSendingEvents(endpoint, config);
+    sessionManager=startSendingEvents(endpoint, config);
   } else {
     if (shouldRecordSessionOnError) {
       startSendingEventsWithCheckout(config);
@@ -496,7 +513,9 @@ function clearTrackingIdCookie(){
 }
 
 function endTrackedSession(){
-    stopSendingEvents()
+    if(sessionManager){
+        sessionManager.stop();
+    }
     clearTrackingIdCookie();
 }
 
@@ -585,7 +604,7 @@ async function startRecording(config) {
 var TestChimpSDK = {
   startRecording: startRecording,
   endTrackedSession:endTrackedSession,
-  stopRecording: stopSendingEvents, // Expose the stopRecording function
+  stopRecording: endTrackedSession, // Expose the stopRecording function
   setCurrentUserId: setCurrentUserId // Expose the setCurrentUserId function
 };
 
