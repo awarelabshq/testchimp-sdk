@@ -474,13 +474,13 @@ function startSendingEvents(endpoint, config) {
     return {
       stop: function () {
         clearInterval(intervalId); // Stop periodic sending
-        stopSendingEvents(endpoint, config, sessionId); // Stop and flush
+        stopSendingEvents(endpoint, config); // Stop and flush
       }
     };
 }
 
 // Function to stop sending events
-function stopSendingEvents(endpoint, config, sessionId) {
+function stopSendingEvents(endpoint, config) {
   try {
     if (stopFn) {
       stopFn(); // Stop recording events
@@ -489,7 +489,7 @@ function stopSendingEvents(endpoint, config, sessionId) {
     // Flush remaining events in the buffer
     if (eventBuffer.length > 0) {
       console.log("Sending remaining events of size: ",eventBuffer.length);
-      sendEvents(endpoint, config, sessionId, eventBuffer);
+      sendEvents(endpoint, config, eventBuffer);
     }
   } catch (error) {
     console.log("Error stopping session:", error);
