@@ -14,12 +14,13 @@
     if (args.length === 1) {
       options = args[0];
       url = options.url || ''; // Default to empty if no URL is provided
-    } else if (args.length === 2) {
+    } else if (args.length === 2 && typeof args[0] === 'string') {
       url = args[0];
       options = args[1];
-    } else {
-
-    }
+    }  else if (args.length === 2 && typeof args[0] != 'string') {
+        options = args[0];
+        url = options.url || ''; // Default to empty if no URL is provided
+     }
 
     const response = await originalFetch.apply(this, args);
     const clone = response.clone();
@@ -52,16 +53,20 @@
     const requestId = requestIdMap.get(key);
 
     // Dispatch interceptedResponse event
-    const event = new CustomEvent('interceptedResponse', {
+  const serializedUrl = url?.toString() || '';
+  window.postMessage(
+    {
+      type: 'interceptedResponse',
       detail: {
-        responseHeaders: responseHeaders,
+        responseHeaders,
         responseBody: body,
         statusCode: clone.status,
-        url: url,
-        requestId: requestId
-      }
-    });
-    window.dispatchEvent(event);
+        url: serializedUrl, // Serialize URL
+        requestId,
+      },
+    },
+    '*'
+  );
 
     if (requestId) {
       requestIdMap.delete(key);
@@ -105,16 +110,20 @@ XMLHttpRequest.prototype.open = function(...args) {
     const key = `${url}|${contentLength}`;
     const requestId = requestIdMap.get(key);
 
-    const event = new CustomEvent('interceptedResponse', {
-      detail: {
-        responseHeaders: responseHeaders,
-        responseBody: this.responseText,
-        statusCode: this.status,
-        url: url,
-        requestId: requestId
-      }
-    });
-    window.dispatchEvent(event);
+      window.postMessage(
+        {
+          type: 'interceptedResponse',
+          detail: {
+            responseHeaders: responseHeaders,
+            responseBody: this.responseText,
+            statusCode: this.status,
+            url: url,
+            requestId: requestId
+          },
+        },
+        '*'
+      );
+
     if (requestId) {
       requestIdMap.delete(key);
     }

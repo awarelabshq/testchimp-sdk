@@ -10,17 +10,6 @@ if (!window.__scriptInjected) {
   document.documentElement.appendChild(script);
 }
 
-window.addEventListener('interceptedResponse', (event) => {
-  const { responseHeaders, responseBody, statusCode, url, requestId } = event.detail;
-  chrome.runtime?.sendMessage({
-    type: 'capturedResponse',
-    requestId: requestId,
-    responseHeaders: responseHeaders,
-    responseBody: responseBody,
-    statusCode: statusCode,
-    url: url
-  });
-});
 
 import {record} from 'rrweb';
 
@@ -288,6 +277,21 @@ window.addEventListener("message", (event) => {
   if (event.source !== window) {
     return;
   }
+
+    if(event.data.type==="interceptedResponse"){
+
+      const { responseHeaders, responseBody, statusCode, url, requestId } = event.data.detail;
+
+      chrome.runtime?.sendMessage({
+        type: 'capturedResponse',
+        requestId: requestId,
+        responseHeaders: responseHeaders,
+        responseBody: responseBody,
+        statusCode: statusCode,
+        url: url?.toString() || ''
+      });
+      return;
+    }
 
   // Check for specific message types
   if (event.data.type === "check_extension" || event.data.type === "run_tests_request" || event.data.type === "update_tc_ext_config" || event.data.type === "tc_open_options_page") {

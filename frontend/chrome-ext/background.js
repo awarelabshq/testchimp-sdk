@@ -523,7 +523,10 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                 } else if (matchedUntracedUri) {
                     const headers = new Map(requestHeaders.map(header => [header.name, header.value]));
                     const requestBodyDetails = requestDetailsMap.get(requestId);
-
+                    if(!requestBodyDetails){
+                        console.log("Request body details not found for " + requestId);
+                        return;
+                    }
                     const parsedUrl = new URL(url);
                     const urlWithoutQueryParams = `${parsedUrl.origin}${parsedUrl.pathname}`;
                     requestUrls.set(requestId, urlWithoutQueryParams);
@@ -583,7 +586,6 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                     }
                     // Remove the processed request details from the map
                     requestDetailsMap.delete(requestId);
-
                 }
             }
 
@@ -609,7 +611,7 @@ chrome.webRequest.onCompleted.addListener(
                 urlToRequestIdMap.set(key, details.requestId);
                 if (urlToResponsePayloadMap.has(key)) {
                     responsePayloads[details.requestId] = urlToResponsePayloadMap.get(key);
-                    await sendPayloadForRequestId(requestId);
+                    await sendPayloadForRequestId(details.requestId);
                 }
             }
         }, {

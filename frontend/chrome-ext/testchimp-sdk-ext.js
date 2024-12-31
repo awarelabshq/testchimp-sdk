@@ -5099,23 +5099,6 @@ if (!window.__scriptInjected) {
   };
   document.documentElement.appendChild(script);
 }
-window.addEventListener('interceptedResponse', function (event) {
-  var _chrome$runtime;
-  var _event$detail = event.detail,
-    responseHeaders = _event$detail.responseHeaders,
-    responseBody = _event$detail.responseBody,
-    statusCode = _event$detail.statusCode,
-    url = _event$detail.url,
-    requestId = _event$detail.requestId;
-  (_chrome$runtime = chrome.runtime) === null || _chrome$runtime === void 0 || _chrome$runtime.sendMessage({
-    type: 'capturedResponse',
-    requestId: requestId,
-    responseHeaders: responseHeaders,
-    responseBody: responseBody,
-    statusCode: statusCode,
-    url: url
-  });
-});
 
 
 // Buffer to store events for continuous send (when normal recording is enabled)
@@ -5398,6 +5381,24 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 window.addEventListener("message", function (event) {
   // Ensure the message is from the correct source
   if (event.source !== window) {
+    return;
+  }
+  if (event.data.type === "interceptedResponse") {
+    var _chrome$runtime;
+    var _event$data$detail = event.data.detail,
+      responseHeaders = _event$data$detail.responseHeaders,
+      responseBody = _event$data$detail.responseBody,
+      statusCode = _event$data$detail.statusCode,
+      url = _event$data$detail.url,
+      requestId = _event$data$detail.requestId;
+    (_chrome$runtime = chrome.runtime) === null || _chrome$runtime === void 0 || _chrome$runtime.sendMessage({
+      type: 'capturedResponse',
+      requestId: requestId,
+      responseHeaders: responseHeaders,
+      responseBody: responseBody,
+      statusCode: statusCode,
+      url: (url === null || url === void 0 ? void 0 : url.toString()) || ''
+    });
     return;
   }
 
