@@ -42,6 +42,7 @@ const requestUrls = new Map();
 const requestDetailsMap = new Map();
 const urlToRequestIdMap = new Map();
 const urlToResponsePayloadMap = new Map();
+const urlToRequestPayloadMap = new Map();
 
 async function getTrackingIdCookie() {
     try {
@@ -181,11 +182,10 @@ async function sendPayloadForRequestId(requestId) {
     }
     const spanId = requestIdToSpanIdMap.get(requestId);
     const requestPayload = requestPayloads[requestId];
+    const responsePayload = responsePayloads[requestId];
     const requestUrl = requestUrls.get(requestId);
 
-    if (requestPayload && requestUrl && spanId) {
-
-        const responsePayload = responsePayloads[requestId];
+    if (requestPayload && responsePayload && requestUrl && spanId) {
 
         const payload = {
             requestPayload: {
@@ -442,6 +442,50 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })(); // Immediately invoke the async function
     return true; // Indicate that the response will be sent asynchronously
   }
+
+   if (message.type === 'interceptedRequest') {
+        const { url, method, responseHeaders, requestId, requestHeaders, requestBody } = message;
+
+        (async () => {
+          try {
+            const isMatchingUrl = await checkUrl(url);
+            if (!isMatchingUrl) {
+              return;
+            }
+
+            const config = await getConfig();
+            const contentLength =
+              (responseHeaders &&
+                responseHeaders.find &&
+                responseHeaders.find((header) => header.name.toLowerCase() === "content-length")?.value) || "";
+            const key = `${url}|${contentLength}`;
+
+            const requestPayload = await populateHttpPayload(config, {
+              method: method,
+              url: url,
+              requestHeaders: requestHeaders,
+              requestBody: requestBody,
+            });
+
+            if (requestId && !requestPayloads[requestId]) {
+              requestPayloads[requestId] = requestPayload;
+              await sendPayloadForRequestId(requestId);
+            } else {
+              if (urlToRequestIdMap.has(key)) {
+                const requestId = urlToRequestIdMap.get(key);
+                if(!requestPayloads[requestId]){
+                    requestPayloads[requestId] = requestPayload;
+                    await sendPayloadForRequestId(requestId);
+                }
+              } else {
+                urlToRequestPayloadMap.set(key, requestPayload);
+              }
+            }
+          } catch (error) {
+            console.error("Error in fallbackRequestBody handling:", error);
+          }
+        })(); // Immediately invoke the async function
+    }
 });
 
 const cleanKey = (key) => {
@@ -572,7 +616,10 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
                                 }
                             }
                         }
-
+                        if(body?.error?.includes("Unknown error.")){
+                            requestDetailsMap.delete(requestId);
+                            return;
+                        }
                         // Create the requestPayload object
                         const requestPayload = await populateHttpPayload(config, {
                             method: details.method,
@@ -609,10 +656,15 @@ chrome.webRequest.onCompleted.addListener(
             const key = `${details.url}|${contentLength}`;
             if(details.requestId){
                 urlToRequestIdMap.set(key, details.requestId);
-                if (urlToResponsePayloadMap.has(key)) {
-                    responsePayloads[details.requestId] = urlToResponsePayloadMap.get(key);
-                    await sendPayloadForRequestId(details.requestId);
+                if (urlToRequestPayloadMap.has(key) && !requestPayloads[details.requestId]) {
+                    requestPayloads[details.requestId] = urlToRequestPayloadMap.get(key);
+                    urlToRequestPayloadMap.delete(key);
                 }
+                if (urlToResponsePayloadMap.has(key) && !responsePayloads[details.requestId]) {
+                    responsePayloads[details.requestId] = urlToResponsePayloadMap.get(key);
+                    urlToResponsePayloadMap.delete(key);
+                }
+                await sendPayloadForRequestId(details.requestId);
             }
         }, {
             urls: ["<all_urls>"]
@@ -657,10 +709,13 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             }
         }
 
-    }else if (message.type === "tc_open_options_page_in_bg") {
+    }
+
+     if (message.type === "tc_open_options_page_in_bg") {
         console.log("Received open options message in bg");
         chrome.runtime.openOptionsPage();
     }
+
 });
 
 // Import the contextMenu.js logic

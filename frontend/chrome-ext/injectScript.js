@@ -22,6 +22,75 @@
         url = options.url || ''; // Default to empty if no URL is provided
      }
 
+    let requestBody = '';
+    let requestHeaders = {};
+    let httpMethod = 'GET'; // Default method
+
+    if (options instanceof Request) {
+        let clonedOptions = options.clone();
+
+        // Extract the HTTP method from the Request object
+        httpMethod = clonedOptions.method || 'GET';
+
+        // Attempt to read the body of the cloned request
+        try {
+            requestBody = await clonedOptions.text();
+        } catch (error) {
+            console.error("Failed to read request body:", error);
+        }
+
+        // Capture headers from the cloned request
+        try {
+            const rawHeaders = [];
+            clonedOptions.headers.forEach((value, name) => {
+                rawHeaders.push(`${name}: ${value}`);
+            });
+
+            requestHeaders = rawHeaders.map(header => {
+                const [name, value] = header.split(': ');
+                return { name, value };
+            });
+
+        } catch (error) {
+            console.error("Failed to read request headers:", error);
+        }
+      } else if (options) {
+            // Extract the HTTP method from options
+            httpMethod = options.method || 'GET';
+
+            // Handle headers if available directly in options
+            if (options.headers) {
+                try {
+                    const rawHeaders = [];
+
+                    if (options.headers instanceof Headers) {
+                        options.headers.forEach((value, name) => {
+                            rawHeaders.push(`${name}: ${value}`);
+                        });
+                    } else if (typeof options.headers === 'object') {
+                        for (const [name, value] of Object.entries(options.headers)) {
+                            rawHeaders.push(`${name}: ${value}`);
+                        }
+                    }
+
+                    requestHeaders = rawHeaders.map(header => {
+                        const [name, value] = header.split(': ');
+                        return { name, value };
+                    });
+
+                } catch (error) {
+                    console.error("Failed to read request headers:", error);
+                }
+            }
+
+        // Read request body if directly present in options
+        try {
+            requestBody = options.body || '';
+        } catch (error) {
+            console.error("Failed to read request body from options:", error);
+        }
+    }
+
     const response = await originalFetch.apply(this, args);
     const clone = response.clone();
 
@@ -51,7 +120,20 @@
     const contentLength = responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
     const key = `${url}|${contentLength}`;
     const requestId = requestIdMap.get(key);
-
+    if (requestBody) {
+        // Send fallback request body to background.js
+        window.postMessage({
+            type: 'fallbackRequestBody',
+            detail: {
+            url,
+            method: httpMethod,
+            responseHeaders,
+            requestId,
+            requestHeaders,
+            requestBody
+            }
+        }, '*');
+    }
     // Dispatch interceptedResponse event
   const serializedUrl = url?.toString() || '';
   window.postMessage(

@@ -293,6 +293,22 @@ window.addEventListener("message", (event) => {
       return;
     }
 
+    if(event.data.type==="fallbackRequestBody"){
+
+      const { url,method,responseHeaders,requestId,requestHeaders,requestBody } = event.data.detail;
+
+      chrome.runtime?.sendMessage({
+        type: 'interceptedRequest',
+        url,
+        method,
+        responseHeaders,
+        requestId,
+        requestHeaders,
+        requestBody
+      });
+      return;
+    }
+
   // Check for specific message types
   if (event.data.type === "check_extension" || event.data.type === "run_tests_request" || event.data.type === "update_tc_ext_config" || event.data.type === "tc_open_options_page") {
     // Forward messages to the background script

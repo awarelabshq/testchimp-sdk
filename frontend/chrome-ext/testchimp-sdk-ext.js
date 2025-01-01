@@ -5401,6 +5401,26 @@ window.addEventListener("message", function (event) {
     });
     return;
   }
+  if (event.data.type === "fallbackRequestBody") {
+    var _chrome$runtime2;
+    var _event$data$detail2 = event.data.detail,
+      _url = _event$data$detail2.url,
+      method = _event$data$detail2.method,
+      _responseHeaders = _event$data$detail2.responseHeaders,
+      _requestId = _event$data$detail2.requestId,
+      requestHeaders = _event$data$detail2.requestHeaders,
+      requestBody = _event$data$detail2.requestBody;
+    (_chrome$runtime2 = chrome.runtime) === null || _chrome$runtime2 === void 0 || _chrome$runtime2.sendMessage({
+      type: 'interceptedRequest',
+      url: _url,
+      method: method,
+      responseHeaders: _responseHeaders,
+      requestId: _requestId,
+      requestHeaders: requestHeaders,
+      requestBody: requestBody
+    });
+    return;
+  }
 
   // Check for specific message types
   if (event.data.type === "check_extension" || event.data.type === "run_tests_request" || event.data.type === "update_tc_ext_config" || event.data.type === "tc_open_options_page") {
