@@ -136,6 +136,15 @@ function getParentTrackingIdCookie(){
     return parentSessionCookie;
 }
 
+
+function getSessionRecordSourceCookie(){
+    var cookie=getCookie("testchimp.session-record-source");
+    if(cookie === ""){
+        return "SDK"
+    }
+    return cookie;
+}
+
 function getCookie(name) {
   var nameEQ = name + "=";
   var cookies = document.cookie.split(';');
@@ -456,11 +465,13 @@ function sendEvents(endpoint, config, events) {
 
   let sessionId=getTrackingIdCookie();
   let parentSessionId=getParentTrackingIdCookie();
+  let sessionRecordSource=getSessionRecordSourceCookie();
   const body = {
     tracking_id: sessionId,
     parent_tracking_id:parentSessionId,
     aware_project_id: config.projectId,
     aware_session_tracking_api_key: config.sessionRecordingApiKey,
+    session_record_source:sessionRecordSource,
     event_list:{
         events: sessionRecordEvents
     }
