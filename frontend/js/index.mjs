@@ -199,22 +199,64 @@ async function populateHttpPayload(config, rawPayloadIn) {
                 httpPayload.jsonBody = "{}";
             }
         } else if (contentType.includes('multipart/form-data')) {
-            try {
-                const formData = await rawPayload.formData();
-                const keyValueMap = {};
-                let formDataSize = 0;
+            const boundaryMatch = contentType.match(/boundary=([^;]+)/);
 
-                for (const [key, value] of formData.entries()) {
-                    formDataSize += value.size;
-                    if (formDataSize > 10 * 1024 * 1024) {
-                        log(config, "Binary data exceeds 10MB. Dropping data.");
-                        break;
+            if (boundaryMatch) {
+                // Process as boundary-based form data
+                try {
+                    const boundary = boundaryMatch[1];
+                    const bodyText = await rawPayload.text();
+
+                    if (bodyText.includes(`--${boundary}`)) {
+                        const parts = bodyText.split(`--${boundary}`);
+                        const keyValueMap = {};
+
+                        for (const part of parts) {
+                            if (part.trim() && !part.includes('--')) {  // Skip empty parts and boundary end
+                                const [headers, ...contentParts] = part.trim().split('\r\n\r\n');
+                                const content = contentParts.join('\r\n\r\n');
+
+                                const nameMatch = headers.match(/name="([^"]+)"/);
+                                if (nameMatch) {
+                                    const name = nameMatch[1];
+                                    const filenameMatch = headers.match(/filename="([^"]+)"/);
+
+                                    if (filenameMatch) {
+                                        // Handle file uploads if needed
+                                        keyValueMap[name] = {
+                                            filename: filenameMatch[1],
+                                            content: content
+                                        };
+                                    } else {
+                                        keyValueMap[name] = content.trim();
+                                    }
+                                }
+                            }
+                        }
+                        httpPayload.httpFormDataBody = { keyValueMap };
                     }
-                    keyValueMap[key] = value;
+                } catch (error) {
+                    console.error('Error processing boundary-based form data:', error);
                 }
-                httpPayload.httpFormDataBody = { keyValueMap };
-            } catch {
-                // Handle error
+            } else {
+                // Process as regular form data
+                try {
+                    const formData = await rawPayload.formData();
+                    const keyValueMap = {};
+                    let formDataSize = 0;
+
+                    for (const [key, value] of formData.entries()) {
+                        formDataSize += value.size || 0;
+                        if (formDataSize > 10 * 1024 * 1024) {
+                            log(config, "Binary data exceeds 10MB. Dropping data.");
+                            break;
+                        }
+                        keyValueMap[key] = value;
+                    }
+                    httpPayload.httpFormDataBody = { keyValueMap };
+                } catch (error) {
+                    console.error('Error processing regular form data:', error);
+                }
             }
         } else if (contentType.includes('application/octet-stream')) {
             try {
