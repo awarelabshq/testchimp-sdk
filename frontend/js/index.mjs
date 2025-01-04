@@ -317,13 +317,13 @@ async function enableRequestIntercept(config) {
   let enableOptionsCallTracking=config.enableOptionsCallTracking;
 
   const parentSessionId = getParentTrackingIdCookie();
-  if (typeof urlRegex === 'string') {
-    urlRegex = [urlRegex];
-  }
+    if (typeof urlRegex === 'string') {
+      urlRegex = urlRegex.split(',').map(item => item.trim());
+    }
 
-  if (typeof untracedUrisToTrackRegex === 'string') {
-    untracedUrisToTrackRegex = [untracedUrisToTrackRegex];
-  }
+    if (typeof untracedUrisToTrackRegex === 'string') {
+      untracedUrisToTrackRegex = untracedUrisToTrackRegex.split(',').map(item => item.trim());
+    }
 
   if (typeof excludedUriRegexList === 'string') {
     excludedUriRegexList = [excludedUriRegexList];

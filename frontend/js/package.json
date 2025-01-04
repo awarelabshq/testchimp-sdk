@@ -1,6 +1,6 @@
 {
   "name": "testchimp-js",
-  "version": "1.0.134",
+  "version": "1.0.135",
   "description": "TestChimp SDK for JS",
   "main": "dist/testchimp-sdk.cjs.js",
   "module": "dist/testchimp-sdk.esm.js",
