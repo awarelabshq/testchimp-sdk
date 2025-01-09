@@ -5202,6 +5202,7 @@ function sendEvents(endpoint, config, sessionId, events) {
     tracking_id: sessionId,
     aware_project_id: config.projectId,
     aware_session_tracking_api_key: config.sessionRecordingApiKey,
+    session_record_source: "EXTENSION",
     event_list: {
       events: sessionRecordEvents
     }

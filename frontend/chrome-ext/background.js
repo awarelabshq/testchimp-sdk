@@ -43,6 +43,8 @@ const requestDetailsMap = new Map();
 const urlToRequestIdMap = new Map();
 const urlToResponsePayloadMap = new Map();
 const urlToRequestPayloadMap = new Map();
+const requestCompletedMap = new Map();
+const captureResponseComplete=new Map();
 
 async function getTrackingIdCookie() {
     try {
@@ -185,8 +187,7 @@ async function sendPayloadForRequestId(requestId) {
     const responsePayload = responsePayloads[requestId];
     const requestUrl = requestUrls.get(requestId);
 
-    if (requestPayload && responsePayload && requestUrl && spanId) {
-
+    if (requestPayload && responsePayload && requestUrl && spanId && requestCompletedMap.get(requestId) && captureResponseComplete.get(requestId)) {
         const payload = {
             requestPayload: {
                 spanId: spanId,
@@ -212,6 +213,8 @@ async function sendPayloadForRequestId(requestId) {
         sendPayloadToEndpoint(insertPayloadRequest, config.endpoint + '/insert_client_recorded_payloads');
         delete requestPayloads[requestId];
         delete responsePayloads[requestId];
+        delete requestCompletedMap[requestId];
+        delete captureResponseComplete[requestId];
         deleteEntriesByRequestId(urlToRequestIdMap, requestId);
     }
 }
@@ -647,7 +650,6 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
 
 chrome.webRequest.onCompleted.addListener(
     async (details) => {
-
             const isMatchingUrl = await checkUrl(details.url);
             if (!isMatchingUrl) {
                 return;
@@ -662,14 +664,30 @@ chrome.webRequest.onCompleted.addListener(
                 }
                 if (urlToResponsePayloadMap.has(key) && !responsePayloads[details.requestId]) {
                     responsePayloads[details.requestId] = urlToResponsePayloadMap.get(key);
+                    captureResponseComplete.set(details.requestId,true);
                     urlToResponsePayloadMap.delete(key);
                 }
+                let responsePayload=responsePayloads[details.requestId];
+                if(!responsePayload){
+                    responsePayload={
+                        headerMap:{}
+                    };
+                }
+                if (details.responseHeaders && Array.isArray(details.responseHeaders)) {
+                  details.responseHeaders.forEach(header => {
+                    responsePayload.headerMap[header.name.toLowerCase()] = header.value;
+                  });
+                }
+                responsePayloads[details.requestId] = responsePayload;
+                requestCompletedMap.set(details.requestId,true);
                 await sendPayloadForRequestId(details.requestId);
+            }else{
+                console.log("No request id found in details of response",details);
             }
         }, {
             urls: ["<all_urls>"]
         },
-        ["responseHeaders"]
+        ["responseHeaders", "extraHeaders"]
 );
 
 
@@ -687,26 +705,45 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             return;
         }
         const config = await getConfig();
+        const contentLength = responseHeaders && responseHeaders.find && responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
+        const key = `${url}|${contentLength}`;
+
+        let updatedRequestId=requestId;
+        if(!updatedRequestId && urlToRequestIdMap.has(key)){
+            updatedRequestId = urlToRequestIdMap.get(key)
+        }
+
+        let mergedResponseHeaders = responseHeaders || [];
+        if (updatedRequestId && responsePayloads[updatedRequestId]?.headerMap) {
+
+            // Convert headerMap to an array of headers (name-value pairs)
+            const headerMap = Object.entries(responsePayloads[updatedRequestId].headerMap).map(([name, value]) => ({ name, value }));
+
+            // Create a map from received responseHeaders for easy merging
+            const responseHeaderMap = new Map(mergedResponseHeaders.map(header => [header.name.toLowerCase(), header.value]));
+
+            // Merge headers from headerMap, giving precedence to the map values
+            for (const { name, value } of headerMap) {
+                responseHeaderMap.set(name.toLowerCase(), value); // Overwrite if a collision occurs
+            }
+
+            // Convert the map back to an array
+            mergedResponseHeaders = Array.from(responseHeaderMap.entries()).map(([name, value]) => ({ name, value }));
+        }
 
         const responsePayload = await populateHttpPayload(config, {
             url: url,
-            responseHeaders: responseHeaders,
+            responseHeaders: mergedResponseHeaders,
             responseBody: responseBody,
             statusCode: statusCode
         });
-        const contentLength = responseHeaders && responseHeaders.find && responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
-        const key = `${url}|${contentLength}`;
-        if (requestId) {
-            responsePayloads[requestId] = responsePayload;
-            await sendPayloadForRequestId(requestId);
+
+        if (updatedRequestId) {
+            responsePayloads[updatedRequestId] = responsePayload;
+            captureResponseComplete.set(updatedRequestId, true);
+            await sendPayloadForRequestId(updatedRequestId);
         } else {
-            if (urlToRequestIdMap.has(key)) {
-                const requestId = urlToRequestIdMap.get(key)
-                responsePayloads[requestId] = responsePayload;
-                await sendPayloadForRequestId(requestId);
-            } else {
-                urlToResponsePayloadMap.set(key, responsePayload);
-            }
+            urlToResponsePayloadMap.set(key, responsePayload);
         }
 
     }
