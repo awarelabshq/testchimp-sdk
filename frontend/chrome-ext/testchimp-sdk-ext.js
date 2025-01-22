@@ -5402,6 +5402,17 @@ window.addEventListener("message", function (event) {
     });
     return;
   }
+  if (event.data.type === "checkUrl") {
+    chrome.runtime.sendMessage({
+      type: "checkUrl",
+      url: event.data.url
+    }, function (response) {
+      window.postMessage({
+        type: "checkUrlResponse",
+        shouldIntercept: (response === null || response === void 0 ? void 0 : response.shouldIntercept) || false
+      }, "*");
+    });
+  }
   if (event.data.type === "fallbackRequestBody") {
     var _chrome$runtime2;
     var _event$data$detail2 = event.data.detail,

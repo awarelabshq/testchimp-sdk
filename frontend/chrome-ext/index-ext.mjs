@@ -294,6 +294,18 @@ window.addEventListener("message", (event) => {
       return;
     }
 
+      if (event.data.type === "checkUrl") {
+        chrome.runtime.sendMessage({ type: "checkUrl", url: event.data.url }, (response) => {
+          window.postMessage(
+            {
+              type: "checkUrlResponse",
+              shouldIntercept: response?.shouldIntercept || false,
+            },
+            "*"
+          );
+        });
+      }
+
     if(event.data.type==="fallbackRequestBody"){
 
       const { url,method,responseHeaders,requestId,requestHeaders,requestBody } = event.data.detail;

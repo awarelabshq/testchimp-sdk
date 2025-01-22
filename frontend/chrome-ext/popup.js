@@ -115,7 +115,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     alert("Error receiving configuration details. Please try refreshing the page.");
                     return;
                 }
-
+                chrome.storage.local.set({ recordingInProgress: true }, function () {
+                    if (chrome.runtime.lastError) {
+                        console.error('Error setting recording flag:', chrome.runtime.lastError);
+                    }
+                });
                 chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
                     chrome.tabs.sendMessage(tabs[0].id, {
                         action: 'startTCRecording',
@@ -153,6 +157,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                     clearTrackingIdCookie();
                     showStartCapture();
+                    chrome.storage.local.set({ recordingInProgress: false }, function () {
+                        if (chrome.runtime.lastError) {
+                            console.error('Error setting recording flag:', chrome.runtime.lastError);
+                        }
+                    });
                 });
             });
         });

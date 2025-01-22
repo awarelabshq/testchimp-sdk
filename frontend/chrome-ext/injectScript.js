@@ -22,6 +22,35 @@
         url = options.url || ''; // Default to empty if no URL is provided
      }
 
+      // Check if the URL should be intercepted
+      let shouldIntercept = false;
+      const checkUrlPromise = new Promise((resolve) => {
+        const listener = (event) => {
+          if (event.source === window && event.data?.type === "checkUrlResponse") {
+            window.removeEventListener("message", listener);
+            resolve(event.data.shouldIntercept);
+          }
+        };
+
+        window.addEventListener("message", listener);
+
+        window.postMessage(
+          { type: "checkUrl", url },
+          "*"
+        );
+      });
+
+      try {
+        shouldIntercept = await checkUrlPromise;
+      } catch (error) {
+        console.error("Error checking URL:", error);
+      }
+
+      if (!shouldIntercept) {
+        console.log("Skipping interception for " + url);
+        return originalFetch.apply(this, args);
+      }
+
     let requestBody = '';
     let requestHeaders = {};
     let httpMethod = 'GET'; // Default method
@@ -34,7 +63,11 @@
 
         // Attempt to read the body of the cloned request
         try {
-            requestBody = await clonedOptions.text();
+            if (clonedOptions.body instanceof URLSearchParams) {
+                requestBody = clonedOptions.body.toString();
+            } else {
+                requestBody = await clonedOptions.text();
+            }
         } catch (error) {
             console.error("Failed to read request body:", error);
         }
@@ -83,16 +116,26 @@
                 }
             }
 
-        // Read request body if directly present in options
-        try {
-            requestBody = options.body || '';
-        } catch (error) {
-            console.error("Failed to read request body from options:", error);
-        }
+            // Read request body if directly present in options
+            try {
+                if (options.body instanceof URLSearchParams) {
+                    requestBody = options.body.toString(); // Convert to string to avoid cloning issues
+                } else {
+                    requestBody = options.body || '';
+                }
+            } catch (error) {
+                console.error("Failed to read request body from options:", error);
+            }
     }
 
     const response = await originalFetch.apply(this, args);
     const clone = response.clone();
+
+    const contentType = clone.headers.get('content-type') || '';
+   // Skip interception if the request is a streaming type
+    if (contentType.includes('text/event-stream') || contentType.includes('application/x-ndjson')) {
+      return response;
+    }
 
     // Collect response headers and format them like in XHR
     const rawHeaders = [];
@@ -107,7 +150,6 @@
 
     // Read response body based on content type
     let body;
-    const contentType = clone.headers.get('content-type') || '';
 
     if (contentType.includes('application/json')) {
       body = await clone.json().catch(() => ''); // Default to empty if JSON parsing fails
@@ -187,6 +229,13 @@ XMLHttpRequest.prototype.open = function(...args) {
       const [name, value] = header.split(': ');
       return { name, value };
     });
+
+     const contentType = responseHeaders?.find(header => header.name.toLowerCase() === 'content-type')?.value || '';
+
+      // Skip interception if it's a streaming response
+      if (contentType.includes('text/event-stream') || contentType.includes('application/x-ndjson')) {
+        return;
+      }
 
     const contentLength = responseHeaders?.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
     const key = `${url}|${contentLength}`;

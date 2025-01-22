@@ -35,6 +35,14 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// List of streaming content types to exclude from interception
+const streamingContentTypes = [
+    'text/event-stream',
+    'application/x-ndjson',
+    'application/json-seq',
+    'multipart/x-mixed-replace'
+];
+
 const requestPayloads = {};
 const responsePayloads = {};
 const requestIdToSpanIdMap = new Map();
@@ -326,6 +334,24 @@ async function checkUrl(url) {
     if (!url) {
         return false;
     }
+
+    // First, check if recording is in progress
+    const recordingStatus = await new Promise((resolve, reject) => {
+        chrome.storage.local.get(['recordingInProgress'], function (items) {
+            if (chrome.runtime.lastError) {
+                console.error('Error retrieving recording flag:', chrome.runtime.lastError);
+                reject('Error retrieving recording flag');
+            }
+            resolve(items.recordingInProgress);
+        });
+    });
+
+    // If recording is not in progress, return false immediately
+    if (!recordingStatus) {
+        return false;
+    }
+
+    // Fetch the configuration settings if recording is in progress
     const config = await getConfig();
     try {
         const validExcludedUriRegexList = config.excludedUriRegexList.filter(Boolean);
@@ -344,39 +370,7 @@ async function checkUrl(url) {
     }
 }
 
-chrome.webRequest.onBeforeRequest.addListener(
-    async (details) => {
-            const {
-                requestId,
-                method,
-                url,
-                requestBody
-            } = details;
 
-            const isMatchingUrl = await checkUrl(url);
-            if (!isMatchingUrl) {
-                return;
-            }
-
-            const config = await getConfig();
-            const sessionId = await getTrackingIdCookie();
-
-            if (!sessionId) {
-                return;
-            }
-            if (!config.enableOptionsCallTracking && method === 'OPTIONS') {
-                return;
-            }
-
-            requestDetailsMap.set(requestId, {
-                requestBody: requestBody
-            });
-
-        }, {
-            urls: ["<all_urls>"]
-        },
-        ["requestBody"]
-);
 
 async function handleTestChimpRequest(details) {
     const config = await getConfig();
@@ -489,6 +483,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         })(); // Immediately invoke the async function
     }
+
+  if (message.type === "checkUrl") {
+    checkUrl(message.url).then((result) => {
+      sendResponse({ shouldIntercept: result });
+    });
+    return true; // Indicate an async response
+  }
 });
 
 const cleanKey = (key) => {
@@ -528,6 +529,40 @@ const parseMultipartBody = (bodyText, boundary) => {
 
     return keyValueMap;
 };
+
+chrome.webRequest.onBeforeRequest.addListener(
+    async (details) => {
+            const {
+                requestId,
+                method,
+                url,
+                requestBody
+            } = details;
+
+            const isMatchingUrl = await checkUrl(url);
+            if (!isMatchingUrl) {
+                return;
+            }
+
+            const config = await getConfig();
+            const sessionId = await getTrackingIdCookie();
+
+            if (!sessionId) {
+                return;
+            }
+            if (!config.enableOptionsCallTracking && method === 'OPTIONS') {
+                return;
+            }
+
+            requestDetailsMap.set(requestId, {
+                requestBody: requestBody
+            });
+
+        }, {
+            urls: ["<all_urls>"]
+        },
+        ["requestBody"]
+);
 
 chrome.webRequest.onBeforeSendHeaders.addListener(
     async (details) => {
@@ -654,6 +689,17 @@ chrome.webRequest.onCompleted.addListener(
             if (!isMatchingUrl) {
                 return;
             }
+
+        const contentTypeHeader = details.responseHeaders.find(header => header.name.toLowerCase() === 'content-type');
+        const contentType = contentTypeHeader ? contentTypeHeader.value.toLowerCase() : '';
+
+        // Skip processing if the response is a streaming type
+        if (streamingContentTypes.some(type => contentType.includes(type))) {
+            console.log(`Skipping streaming request: ${details.url}`);
+            return;
+        }
+
+
             const contentLength = details.responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
             const key = `${details.url}|${contentLength}`;
             if(details.requestId){
