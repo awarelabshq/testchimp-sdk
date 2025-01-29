@@ -117,6 +117,7 @@ function getTrackingIdCookie(){
   if (existingCookie === "") {
     var sessionId = generateSessionId();
     document.cookie = "testchimp.session-record-tracking-id=" + sessionId + ";path=/;max-age=600;";
+    triggerFullSnapshot();
     var parentSessionCookie=getCookie("testchimp.parent-session-record-tracking-id");
     if (parentSessionCookie === "") {
         document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
@@ -481,6 +482,17 @@ function sendEvents(endpoint, config, events) {
   let sessionRecordEndpoint=endpoint+"/session_records";
   if(sessionSendEnabled){
     sendPayloadToEndpoint(body,sessionRecordEndpoint);
+  }
+}
+
+function triggerFullSnapshot() {
+  if (stopFn && stopFn.takeFullSnapshot) {
+    const fullSnapshot=stopFn.takeFullSnapshot();
+    if(fullSnapshot){
+        eventBuffer.push(fullSnapshot);
+    }
+  } else {
+    console.error('Full snapshot function is not available.');
   }
 }
 
