@@ -1,0 +1,137 @@
+name: TestChimp Test Runner
+shell: bash
+description: Runs TestChimp tests and polls for results.
+inputs:
+  project-id:
+    description: 'Project ID for TestChimp'
+    required: true
+  api-key:
+    description: 'API Key for TestChimp'
+    required: true
+  testchimp-endpoint:
+    description: 'TestChimp API Endpoint (optional)'
+    required: false
+    default: 'https://featureservice.testchimp.io'
+  log-level:
+    description: 'Log level for results (all, failures, none)'
+    required: false
+    default: 'all'
+  test-case-regex:
+    description: 'Regex to filter test cases'
+    required: false
+    default: '.*'
+  test-suite-regex:
+    description: 'Regex to filter test suites'
+    required: false
+    default: '.*'
+  test-type:
+    description: 'Type of test (FS_TEST or UI_TEST)'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Trigger TestChimp Tests
+      shell: bash
+      id: trigger
+      run: |
+        PROJECT_ID="${{ inputs.project-id }}"
+        TESTCHIMP_API_KEY="${{ inputs.api-key }}"
+        TESTCHIMP_ENDPOINT="${{ inputs.testchimp-endpoint }}"
+        LOG_LEVEL="${{ inputs.log-level }}"
+        TEST_CASE_REGEX="${{ inputs.test-case-regex }}"
+        TEST_SUITE_REGEX="${{ inputs.test-suite-regex }}"
+        TEST_TYPE="${{ inputs.test-type }}"
+        
+        echo "Triggering the test run with type: $TEST_TYPE..."
+        
+        response=$(curl -s -X POST $TESTCHIMP_ENDPOINT/api/run_tests \
+          -H "Content-Type: application/json" \
+          -H "Project-Id: $PROJECT_ID" \
+          -H "Testchimp-Api-Key: $TESTCHIMP_API_KEY" \
+          -d "{\"test_case_selector\":{\"testCaseRegex\":\"$TEST_CASE_REGEX\",\"testSuiteRegex\":\"$TEST_SUITE_REGEX\",\"testType\":\"$TEST_TYPE\"}}")
+
+        invocationBatchId=$(echo $response | jq -r .invocationBatchId)
+        echo "Batch invocation ID: $invocationBatchId"
+        echo "invocationBatchId=$invocationBatchId" >> $GITHUB_ENV
+
+    - name: Poll for Test Results
+      shell: bash
+      id: poll
+      run: |
+        PROJECT_ID="${{ inputs.project-id }}"
+        TESTCHIMP_API_KEY="${{ inputs.api-key }}"
+        TESTCHIMP_ENDPOINT="${{ inputs.testchimp-endpoint }}"
+        LOG_LEVEL="${{ inputs.log-level }}"
+        invocationBatchId="${{ env.invocationBatchId }}"
+        
+        echo "Starting to poll for test results..."
+        
+        sleep 10
+        
+        TERMINAL_STATES=("SKIPPED_EXECUTION" "EXCEPTION_IN_TEST_RUN" "EXECUTION_COMPLETED")
+        any_failed=false
+
+        while true; do
+          echo "Polling for test results..."
+          response=$(curl -s -X POST $TESTCHIMP_ENDPOINT/api/list_test_invocation_results \
+            -H "Content-Type: application/json" \
+            -H "Project-Id: $PROJECT_ID" \
+            -H "Testchimp-Api-Key: $TESTCHIMP_API_KEY" \
+            -d "{\"batch_invocation_id\":\"$invocationBatchId\"}")
+          
+          invocation_results=$(echo $response | jq -c '.invocationResults[]')
+          all_terminal=true
+
+          while IFS= read -r result; do
+            state=$(echo $result | jq -r '.state')
+            if [[ ! " ${TERMINAL_STATES[@]} " =~ " ${state} " ]]; then
+              all_terminal=false
+              break
+            fi
+          done <<< "$invocation_results"
+
+          if $all_terminal; then
+            # Process the results
+            while IFS= read -r result; do
+              state=$(echo $result | jq -r '.state')
+              if [[ $state == "EXECUTION_COMPLETED" ]]; then
+                test_suite=$(echo $result | jq -r '.testName.suite')
+                test_name=$(echo $result | jq -r '.testName.name')
+                # Handle API Tests
+                if echo $result | jq -e '.result.awareApiTestExecutionResult' > /dev/null; then
+                  passed_count=$(echo $result | jq '[.result.awareApiTestExecutionResult.assertionResults[] | select(.evaluation == "PASSED")] | length')
+                  failed_count=$(echo $result | jq '[.result.awareApiTestExecutionResult.assertionResults[] | select(.evaluation == "FAILED")] | length')
+                  if [[ $LOG_LEVEL == "all" ]] || ([[ $LOG_LEVEL == "failures" ]] && [[ $failed_count -gt 0 ]]); then
+                    echo "$test_suite#$test_name: Passed: $passed_count, Failed: $failed_count [invocation id: $(echo $result | jq -r '.invocationId')]"
+                  fi
+                  if [[ $failed_count -gt 0 ]]; then
+                    any_failed=true
+                  fi
+                fi
+                
+                # Handle UI Tests
+                if echo $result | jq -e '.result.awareUiTestExecutionResult' > /dev/null; then
+                  error=$(echo $result | jq -r '.result.awareUiTestExecutionResult.error // empty')
+                  
+                  if [[ -n "$error" ]]; then
+                    echo "UI Test Failed: $test_suite#$test_name - Error: $error"
+                    any_failed=true
+                  else
+                    echo "UI Test Passed: $test_suite#$test_name"
+                  fi
+                fi
+              fi
+            done <<< "$invocation_results"
+
+            if $any_failed; then
+              echo "Some tests failed"
+              exit 1
+            else
+              echo "All tests passed"
+              exit 0
+            fi
+          else
+            echo "Tests are still running, waiting for 5 seconds..."
+            sleep 5
+          fi
+        done
