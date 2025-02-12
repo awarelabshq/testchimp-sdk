@@ -5378,6 +5378,11 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   if (message.action === 'endTCRecording') {
     endTrackedSession();
   }
+  if (message.action === "open_extension_popup") {
+    chrome.runtime.sendMessage({
+      type: "trigger_popup"
+    });
+  }
 });
 window.addEventListener("message", function (event) {
   // Ensure the message is from the correct source
@@ -5435,7 +5440,7 @@ window.addEventListener("message", function (event) {
   }
 
   // Check for specific message types
-  if (event.data.type === "check_extension" || event.data.type === "run_tests_request" || event.data.type === "update_tc_ext_config" || event.data.type === "tc_open_options_page") {
+  if (event.data.type === "check_extension" || event.data.type === "run_tests_request" || event.data.type === "update_tc_ext_config" || event.data.type === "tc_open_options_page" || event.data.type === "show_testchimp_ext_popup") {
     // Forward messages to the background script
     if (event.data.type === "update_tc_ext_config") {
       console.log("Received extension configuration message:", event.data.payload);
@@ -5463,6 +5468,10 @@ window.addEventListener("message", function (event) {
       // Open the options page
       chrome.runtime.sendMessage({
         type: "tc_open_options_page_in_bg"
+      });
+    } else if (event.data.type === "show_testchimp_ext_popup") {
+      chrome.runtime.sendMessage({
+        type: "trigger_popup"
       });
     } else {
       // Handle check_extension and run_tests_request

@@ -168,13 +168,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     chrome.storage.sync.get(['projectId', 'sessionRecordingApiKey', 'uriRegexToIntercept'], function (items) {
-        if (!items.projectId || !items.sessionRecordingApiKey || !items.uriRegexToIntercept) {
-            tooltipElement.textContent = 'Configure project Id, API key & URI regex to intercept at extension options first.';
-            startButton.style.display = 'none';
-            endButton.style.display = 'none';
-        } else {
-            handleSessionCapture();
-        }
+    const tooltipElement = document.getElementById('tooltip');
+    if (!items.projectId || !items.sessionRecordingApiKey || !items.uriRegexToIntercept) {
+        tooltipElement.innerHTML = 'Configure project Id, API key & URI regex to intercept at <a href="#" id="extensionOptionsLink">extension options</a> first.';
+
+        // Add event listener to the options link
+        const optionsLink = document.getElementById('extensionOptionsLink');
+        optionsLink.addEventListener('click', function (e) {
+            e.preventDefault(); // Prevent default anchor behavior
+            chrome.runtime.openOptionsPage(); // Open the extension options page
+        });
+
+        startButton.style.display = 'none';
+        endButton.style.display = 'none';
+    } else {
+        handleSessionCapture();
+    }
     });
 });
 

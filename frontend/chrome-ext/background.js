@@ -412,6 +412,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Indicate that the response will be sent asynchronously
   }
 
+  if (message.type === "trigger_popup") {
+    chrome.action.openPopup();
+    sendResponse({ success: true });
+    return  true;
+  }
+
   if (message.type === "run_tests_request") {
 
    let parsedBody;
