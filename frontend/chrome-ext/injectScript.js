@@ -47,7 +47,6 @@
       }
 
       if (!shouldIntercept) {
-        console.log("Skipping interception for " + url);
         return originalFetch.apply(this, args);
       }
 

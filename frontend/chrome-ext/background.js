@@ -184,6 +184,8 @@ function deleteEntriesByRequestId(map, requestIdToDelete) {
     }
 }
 
+const MAX_PAYLOAD_SIZE = 1024 * 1024; // 1MB
+
 async function sendPayloadForRequestId(requestId) {
     const config = await getConfig();
     const sessionId = await getTrackingIdCookie();
@@ -196,6 +198,16 @@ async function sendPayloadForRequestId(requestId) {
     const requestUrl = requestUrls.get(requestId);
 
     if (requestPayload && responsePayload && requestUrl && spanId && requestCompletedMap.get(requestId) && captureResponseComplete.get(requestId)) {
+        const requestPayloadStrLen = requestPayload ? JSON.stringify(requestPayload).length : 0;
+        const responsePayloadStrLen = responsePayload ? JSON.stringify(responsePayload).length : 0;
+
+        if (requestPayloadStrLen > MAX_PAYLOAD_SIZE || responsePayloadStrLen > MAX_PAYLOAD_SIZE) {
+            console.warn("Skipping payload interception due to large size for " + requestUrl);
+            cleanupRequestData(requestId);
+            return;
+        }
+
+        // Construct payload
         const payload = {
             requestPayload: {
                 spanId: spanId,
@@ -218,13 +230,19 @@ async function sendPayloadForRequestId(requestId) {
             request_timestamp: new Date().getTime(),
             response_timestamp: new Date().getTime()
         };
+
         sendPayloadToEndpoint(insertPayloadRequest, config.endpoint + '/insert_client_recorded_payloads');
-        delete requestPayloads[requestId];
-        delete responsePayloads[requestId];
-        delete requestCompletedMap[requestId];
-        delete captureResponseComplete[requestId];
-        deleteEntriesByRequestId(urlToRequestIdMap, requestId);
+        cleanupRequestData(requestId);
     }
+}
+
+// Helper function to clean up stored request data
+function cleanupRequestData(requestId) {
+    delete requestPayloads[requestId];
+    delete responsePayloads[requestId];
+    delete requestCompletedMap[requestId];
+    delete captureResponseComplete[requestId];
+    deleteEntriesByRequestId(urlToRequestIdMap, requestId);
 }
 
 async function populateHttpPayload(config, details) {
@@ -330,8 +348,16 @@ async function populateHttpPayload(config, details) {
     return httpPayload;
 }
 
+function isBroadRegex(regexList) {
+  return regexList.some(regex => regex.toString() === ".*" || regex.toString() === "^.*$");
+}
+
+function isExcludedApiCall(url) {
+  return url.includes('/insert_client_recorded_payloads') || url.includes('/session_records');
+}
+
 async function checkUrl(url) {
-    if (!url) {
+    if (!url || isExcludedApiCall(url)) {
         return false;
     }
 
@@ -354,23 +380,28 @@ async function checkUrl(url) {
     // Fetch the configuration settings if recording is in progress
     const config = await getConfig();
     try {
-        const validExcludedUriRegexList = config.excludedUriRegexList.filter(Boolean);
-        const matchedTracedUri = config.tracedUriRegexListToTrack.some(regex => url.match(regex));
-        const matchedUntracedUri = config.untracedUriRegexListToTrack.some(regex => url.match(regex));
-        const matchedExcludedUri = validExcludedUriRegexList.some(regex => url.match(regex));
-        if (!matchedExcludedUri) {
-            if (matchedTracedUri || matchedUntracedUri) {
-                return true;
-            }
+        const { tracedUriRegexListToTrack, untracedUriRegexListToTrack, excludedUriRegexList } = config;
+
+        // Ensure valid regex lists
+        const validExcludedUriRegexList = excludedUriRegexList.filter(Boolean);
+
+        // Check if any regex lists contain overly broad patterns
+        if (isBroadRegex(tracedUriRegexListToTrack) || isBroadRegex(untracedUriRegexListToTrack)) {
+            console.warn("Skipping interception due to broad regex patterns");
+            return false;
         }
-        return false;
+
+        // Check for matches
+        const matchedTracedUri = tracedUriRegexListToTrack.some(regex => url.match(regex));
+        const matchedUntracedUri = untracedUriRegexListToTrack.some(regex => url.match(regex));
+        const matchedExcludedUri = validExcludedUriRegexList.some(regex => url.match(regex));
+        // Allow only if it's not an excluded URI and matches a specific pattern
+        return !matchedExcludedUri && (matchedTracedUri || matchedUntracedUri);
     } catch (error) {
-        console.log("Error during parsing ", url);
+        console.error("Error during URL check:", error);
         return false;
     }
 }
-
-
 
 async function handleTestChimpRequest(details) {
     const config = await getConfig();
