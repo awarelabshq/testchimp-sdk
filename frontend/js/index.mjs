@@ -21,7 +21,7 @@ let samplingConfig = {
   // set the interval of scrolling event
   scroll: 150, // do not emit twice in 150ms
   // set the interval of media interaction event
-  media: 800,
+  media: 3000,
   // set the timing of record input
   input: 'last' // When input multiple characters, only record the final input
 };
@@ -327,7 +327,7 @@ async function enableRequestIntercept(config) {
     }
 
   if (typeof excludedUriRegexList === 'string') {
-    excludedUriRegexList = [excludedUriRegexList];
+      excludedUriRegexList = excludedUriRegexList.split(',').map(item => item.trim());
   }
 
   // Get sessionId from the storage
@@ -347,6 +347,15 @@ async function enableRequestIntercept(config) {
 
   // Object to store request payloads
   const requestPayloads = {};
+const MAX_PAYLOAD_SIZE = 1024 * 1024; // 1MB
+
+function isBroadRegex(regexList) {
+  return regexList.some(regex => regex.toString() === "/.*/" || regex.toString() === "/^.*$/");
+}
+
+function isExcludedApiCall(url) {
+  return url.includes('/insert_client_recorded_payloads') || url.includes('/session_records');
+}
 
   // Add listeners for the 'request' event on the BatchInterceptor
   interceptor.on('request', async ({ request, requestId }) => {
@@ -357,6 +366,18 @@ async function enableRequestIntercept(config) {
     let matchedTracedUri = urlRegex.some(regex => request.url.match(regex));
     let matchedUntracedUri = untracedUrisToTrackRegex.some(regex => request.url.match(regex));
     let matchedExcludedUri=excludedUriRegexList.some(regex=>request.url.match(regex));
+
+    if (isBroadRegex(urlRegex) || isBroadRegex(untracedUrisToTrackRegex)) {
+        console.log("Regex for capturing requests is too broad. Define a narrow regex");
+        return;
+    }
+
+    // Ignore excluded API calls
+    if (isExcludedApiCall(request.url)) {
+        return;
+    }
+
+
     if(!matchedExcludedUri){
         if (matchedTracedUri) {
           log(config, "request matches regex for interception " + request.url);
@@ -387,6 +408,10 @@ async function enableRequestIntercept(config) {
           // Capture request body and headers
           try {
             const requestPayload = await populateHttpPayload(config,request);
+            if (JSON.stringify(requestPayload).length > MAX_PAYLOAD_SIZE) {
+                log(config, "Skipping request capture due to large payload size");
+                return;
+            }
             requestPayloads[requestId] = requestPayload;
           } catch (error) {
             console.error('Error populating request payload:', error);
@@ -397,6 +422,11 @@ async function enableRequestIntercept(config) {
 
   // Add listeners for the 'response' event on the BatchInterceptor
   interceptor.on('response', async ({ response, requestId }) => {
+
+    if (isExcludedApiCall(response.url)) {
+        return;
+    }
+
     let matchedUntracedUri = untracedUrisToTrackRegex.some(regex => response.url.match(regex));
     let matchedExcludedUri=excludedUriRegexList.some(regex=>response.url.match(regex));
     if(!matchedExcludedUri){
@@ -405,6 +435,11 @@ async function enableRequestIntercept(config) {
           // Capture response body and headers
           try {
             const responsePayload = await populateHttpPayload(config,response);
+            if (JSON.stringify(responsePayload).length > MAX_PAYLOAD_SIZE) {
+                delete requestPayloads[requestId];
+                log(config, "Skipping response capture due to large payload size");
+                return;
+            }
             const requestPayload = requestPayloads[requestId];
             const requestUrl = requestUrls.get(requestId);
             const spanId = requestIdToSpanIdMap.get(requestId);
