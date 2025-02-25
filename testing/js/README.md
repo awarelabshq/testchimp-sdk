@@ -1,6 +1,6 @@
-# TestChimp Evals Library
+# LLM Evals Library
 
-The testchimp-eval-js library provides a way to evaluate AI-generated text against specific criteria using LLM evaluator models. The library integrates with the OpenAI API to provide a simple interface for evaluating text, offering flexibility to include context and compare the output against a golden output.
+The llm-eval-js library provides a way to evaluate AI-generated text against specific criteria using LLM evaluator models. The library integrates with the OpenAI API to provide a simple interface for evaluating text, offering flexibility to include context and compare the output against a golden output.
 This is meant as a thin wrapper library for easy usage in E2E test scripts such as playwright, cypress and selenium js.
 
 Features
@@ -13,7 +13,7 @@ Features
 
 ## Installation
 
-run ```npm install testchimp-eval-js```
+run ```npm install llm-eval-js```
 
 ## Usage
 
@@ -22,14 +22,14 @@ run ```npm install testchimp-eval-js```
 First, import the library into your project:
 
 ```commandline
-const { TestChimpEval, ModelProvider } = require('testchimp-eval');
+const { Evaluator, ModelProvider } = require('llm-eval-js');
 ```
 
 2. Configure the Library
 
 You need to configure the library with the model provider, model, and API key before calling any evaluation. For now, it only supports OpenAI as a model provider.
 ```
-const evaluator = new TestChimpEval();
+const evaluator = new Evaluator();
 
 // Configure OpenAI with your API key
 evaluator.configure(ModelProvider.OPENAI, 'gpt-4o-mini', 'your-openai-api-key');

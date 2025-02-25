@@ -7,7 +7,7 @@ const ModelProvider = Object.freeze({
   GEMINI: "gemini",
 });
 
-class TestChimpEval {
+class Evaluator {
   constructor() {
     this.config = {
       modelProvider:null,
@@ -87,4 +87,4 @@ async callModelAPI(prompt) {
 }
 }
 
-module.exports = { TestChimpEval, ModelProvider };
+module.exports = { Evaluator, ModelProvider };
