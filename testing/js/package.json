@@ -1,15 +1,20 @@
 {
   "name": "testchimp-eval-js",
-  "version": "0.0.2",
+  "version": "0.0.22",
   "description": "A library for evaluating LLM outputs in js based test frameworks (Playwright etc.)",
   "main": "index.js",
   "scripts": {
     "test": "echo \"No tests yet\" && exit 0"
   },
-  "keywords": ["Playwright", "Cypress" ,"AI evaluation", "test automation"],
+  "keywords": [
+    "Playwright",
+    "Cypress",
+    "AI evaluation",
+    "test automation"
+  ],
   "author": "Aware Labs",
   "license": "GPL-3.0-only",
   "dependencies": {
-    "axios": "latest"
+    "openai": "^4.85.4"
   }
 }
