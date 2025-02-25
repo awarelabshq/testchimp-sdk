@@ -27,3 +27,4 @@ replay_pid*
 /backend/nodejs/node_modules/
 /frontend/js/node_modules/
 /frontend/chrome-ext/node_modules/
+/testing/js/node_modules/
