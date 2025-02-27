@@ -10096,6 +10096,8 @@ function sendEvents(endpoint, config, sessionId, events) {
     aware_project_id: config.projectId,
     aware_session_tracking_api_key: config.sessionRecordingApiKey,
     session_record_source: "EXTENSION",
+    current_user_id: config.currentUserId,
+    environment: config.environment,
     event_list: {
       events: sessionRecordEvents
     }

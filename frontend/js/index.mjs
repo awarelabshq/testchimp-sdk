@@ -508,6 +508,8 @@ function sendEvents(endpoint, config, events) {
     aware_project_id: config.projectId,
     aware_session_tracking_api_key: config.sessionRecordingApiKey,
     session_record_source:sessionRecordSource,
+    current_user_id: getCurrentUserId(),
+    environment: config.environment,
     event_list:{
         events: sessionRecordEvents
     }
