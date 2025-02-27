@@ -3222,7 +3222,7 @@ function initMutationObserver(options, rootEl) {
   mutationBuffer.init(options);
   let mutationObserverCtor = window.MutationObserver || /**
   * Some websites may disable MutationObserver by removing it from the window object.
-  * If someone is using rrweb to build a browser extention or things like it, they
+  * If someone is using rrweb to build a browser extension or things like it, they
   * could not change the website's code but can have an opportunity to inject some
   * code before the website executing its JS logic.
   * Then they can do this to store the native MutationObserver:
