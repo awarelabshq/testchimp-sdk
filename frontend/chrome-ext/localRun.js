@@ -148,10 +148,16 @@ async function handleResponse(response) {
         rawResponse.headers[key.toLowerCase()] = value;
     });
 
-    // Process the body based on content type
-    if (contentType.includes("application/json")) {
+    if (contentType.includes("text/event-stream")) {
+        rawResponse.body.eventStreamBody = await handleEventStream(response.body);
+    } else if (contentType.includes("application/json")) {
         let jsonBody = await response.json();
-        rawResponse.body.jsonBody=JSON.stringify(jsonBody);
+        rawResponse.body.jsonBody = JSON.stringify(jsonBody);
+    } else if (contentType.includes("application/x-www-form-urlencoded")) {
+        let text = await response.text();
+        rawResponse.body.httpFormUrlencodedBody = parseUrlEncoded(text);
+    } else if (contentType.includes("multipart/form-data")) {
+        rawResponse.body.httpFormDataBody = await parseFormData(response);
     } else if (contentType.includes("text/plain")) {
         rawResponse.body.textBody = await response.text();
     } else if (contentType.includes("text/html")) {
@@ -161,8 +167,89 @@ async function handleResponse(response) {
     } else {
         rawResponse.body.textBody = await response.text();
     }
-
     return rawResponse;
+}
+
+function parseUrlEncoded(text) {
+    const params = new URLSearchParams(text);
+    let keyValueMap = {};
+    params.forEach((value, key) => {
+        keyValueMap[key] = value;
+    });
+    return keyValueMap;
+}
+
+async function parseFormData(response) {
+    let formData = await response.formData();
+    let keyValueMap = {};
+    for (let [key, value] of formData.entries()) {
+        keyValueMap[key] = value instanceof File ? await "__FILE" : value;
+    }
+    return keyValueMap;
+}
+
+async function handleEventStream(stream) {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let eventStreamBody = { events: [] };
+    let buffer = "";
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            console.log("Read chunk:", { done, value });
+
+            if (done) {
+                console.log("Stream ended.");
+                break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+            console.log("Current buffer:", buffer);
+
+            let lines = buffer.split("\n");
+            buffer = lines.pop(); // Keep the last incomplete line in buffer for next read
+
+            let currentEvent = null; // Reset event for each new event block
+
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) {
+                    // Empty line means the event is complete
+                    if (currentEvent) {
+                        eventStreamBody.events.push(currentEvent);
+                        console.log("Pushed event:", currentEvent);
+                    }
+                    currentEvent = null; // Reset for the next event
+                    continue;
+                }
+
+                if (!currentEvent) currentEvent = {}; // Initialize a new event object
+
+                if (line.startsWith("data:")) {
+                    if (!currentEvent.data) currentEvent.data = [];
+                    currentEvent.data.push(line.substring(5).trim());
+                } else if (line.startsWith("id:")) {
+                    currentEvent.id = line.substring(3).trim();
+                } else if (line.startsWith("event:")) {
+                    currentEvent.event = line.substring(6).trim();
+                } else if (line.startsWith("retry:")) {
+                    currentEvent.retry = parseInt(line.substring(6).trim(), 10);
+                }
+            }
+
+            // Ensure we push the last event in case it wasn't finalized
+            if (currentEvent) {
+                eventStreamBody.events.push(currentEvent);
+                console.log("Pushed last remaining event:", currentEvent);
+            }
+        }
+    } catch (error) {
+        console.error("Error reading event stream:", error);
+    }
+
+    console.log("Final eventStreamBody:", eventStreamBody);
+    return eventStreamBody;
 }
 
 function isValidJSON(str) {
