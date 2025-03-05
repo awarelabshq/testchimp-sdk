@@ -701,10 +701,22 @@ async function startRecording(config) {
   initRecording(endpoint, config);
 }
 
+function captureCurrentSnapshot(){
+  if (stopFn && stopFn.takeFullSnapshot) {
+    const fullSnapshot=stopFn.takeFullSnapshot();
+    if(fullSnapshot){
+        return fullSnapshot;
+    }
+  } else {
+    console.error('Full snapshot function is not available.');
+  }
+    return "";
+}
 
 // Expose the startRecording function along with other recording-related methods to consumers
 var TestChimpSDK = {
   startRecording: startRecording,
+  captureCurrentSnapshot: captureCurrentSnapshot,
   endTrackedSession:endTrackedSession,
   stopRecording: endTrackedSession, // Expose the stopRecording function
   setCurrentUserId: setCurrentUserId // Expose the setCurrentUserId function
