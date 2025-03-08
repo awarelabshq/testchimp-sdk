@@ -571,7 +571,7 @@ function startSendingEvents(endpoint, config) {
         stopFn = null;
       }
     }
-  }, 5000);
+  }, config.snapshotInterval??5000);
 
     return {
       stop: function () {
@@ -645,6 +645,7 @@ async function startRecording(config) {
   const defaultSamplingProbability = 1.0;
   const defaultSamplingProbabilityOnError = 0.0;
   const defaultEnvironment = "QA";
+  const defaultSnapshotInterval=5000;
   const defaultEndpoint="https://ingress.testchimp.io";
 
   if (!config.projectId) {
@@ -671,10 +672,16 @@ async function startRecording(config) {
     excludedUriRegexList:config.excludedUriRegexList || [],
     environment: config.environment || defaultEnvironment,
     enableLogging: config.enableLogging || true,
-    enableOptionsCallTracking:config.enableOptionsCallTracking || false
+    enableOptionsCallTracking:config.enableOptionsCallTracking || false,
+    snapshotInterval:config.snapshotInterval || defaultSnapshotInterval
   };
 
+
   config = window.TestChimpSDKConfig;
+  if(config.snapshotInterval<1000){
+    config.snapshotInterval=1000;
+  }
+
   console.log("config used for session recording: ", config);
 
   // Determine whether to record the session based on samplingProbability
