@@ -108,7 +108,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 'endpoint',
                 'maxSessionDurationSecs',
                 'eventWindowToSaveOnError',
-                'uriRegexToIntercept'
+                'uriRegexToIntercept',
+                'currentUserId'
             ], function (items) {
                 if (chrome.runtime.lastError) {
                     console.error('Error retrieving settings from storage:', chrome.runtime.lastError);
@@ -131,6 +132,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             samplingProbability: 1.0,
                             maxSessionDurationSecs: items.maxSessionDurationSecs || 500,
                             eventWindowToSaveOnError: 200,
+                            currentUserId:items.currentUserId,
                             untracedUriRegexListToTrack: items.uriRegexToIntercept || '.*'
                         }
                     });

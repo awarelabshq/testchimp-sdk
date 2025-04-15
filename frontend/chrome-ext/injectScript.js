@@ -216,9 +216,6 @@ XMLHttpRequest.prototype.open = function(...args) {
       }else{
        baseUrl = `${window.location.origin}`;
       }
-      // Remove any trailing file name or query string to avoid incorrect URL concatenation
-
-      // Prepend the base path to the relative URL
       url = `${baseUrl}${url}`;
     }
 
@@ -229,30 +226,45 @@ XMLHttpRequest.prototype.open = function(...args) {
       return { name, value };
     });
 
-     const contentType = responseHeaders?.find(header => header.name.toLowerCase() === 'content-type')?.value || '';
-
-      // Skip interception if it's a streaming response
-      if (contentType.includes('text/event-stream') || contentType.includes('application/x-ndjson')) {
-        return;
-      }
+    const contentType = responseHeaders?.find(header => header.name.toLowerCase() === 'content-type')?.value || '';
+    // Skip interception if it's a streaming response
+    if (contentType.includes('text/event-stream') || contentType.includes('application/x-ndjson')) {
+      return;
+    }
 
     const contentLength = responseHeaders?.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
     const key = `${url}|${contentLength}`;
     const requestId = requestIdMap.get(key);
 
-      window.postMessage(
-        {
-          type: 'interceptedResponse',
-          detail: {
-            responseHeaders: responseHeaders,
-            responseBody: this.responseText,
-            statusCode: this.status,
-            url: url,
-            requestId: requestId
-          },
+    // Get the response body based on responseType
+    let responseBody;
+    try {
+      if (this.responseType === '' || this.responseType === 'text') {
+        responseBody = this.responseText;
+      } else if (this.responseType === 'json') {
+        responseBody = JSON.stringify(this.response);
+      } else {
+        // For other types (arraybuffer, blob, document), we may need different handling
+        // For now, just stringify the response or use a placeholder
+        responseBody = this.response ? JSON.stringify(this.response) : '[Binary Data]';
+      }
+    } catch (error) {
+      responseBody = `[Error accessing response: ${error.message}]`;
+    }
+
+    window.postMessage(
+      {
+        type: 'interceptedResponse',
+        detail: {
+          responseHeaders: responseHeaders,
+          responseBody: responseBody,
+          statusCode: this.status,
+          url: url,
+          requestId: requestId
         },
-        '*'
-      );
+      },
+      '*'
+    );
 
     if (requestId) {
       requestIdMap.delete(key);

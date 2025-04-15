@@ -227,6 +227,7 @@ async function startRecording(config) {
   const defaultSamplingProbability = 0.0;
   const defaultSamplingProbabilityOnError = 0.0;
   const defaultEnvironment = "QA";
+  const defaultCurrentUserId="default_tester";
 
   if (!config.projectId) {
     console.error("No project id specified for session capture");
@@ -251,7 +252,8 @@ async function startRecording(config) {
     excludedUriRegexList:config.excludedUriRegexList || [],
     environment: config.environment || defaultEnvironment,
     enableLogging: config.enableLogging || true,
-    enableOptionsCallTracking:config.enableOptionsCallTracking || false
+    enableOptionsCallTracking:config.enableOptionsCallTracking || false,
+    currentUserId: config.currentUserId || defaultCurrentUserId
   };
 
   console.log("config used for session recording: ", config);
@@ -390,6 +392,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function checkAndStartRecording() {
+
+
     console.log("Content script is loaded.");
     const cookie = await getTrackingIdCookie();
     if (cookie && cookie.trim() !== '') {
@@ -400,12 +404,15 @@ async function checkAndStartRecording() {
         'endpoint',
         'maxSessionDurationSecs',
         'eventWindowToSaveOnError',
-        'uriRegexToIntercept'
+        'uriRegexToIntercept',
+        'currentUserId'
       ], function(items) {
         if (chrome.runtime.lastError) {
           console.error('Error retrieving settings from storage:', chrome.runtime.lastError);
           return;
         }
+
+        console.log("ITEMS FROM CHROME: ",items);
 
         startRecording({
           projectId: items.projectId,
@@ -415,6 +422,7 @@ async function checkAndStartRecording() {
           samplingProbability: 1.0,
           maxSessionDurationSecs: items.maxSessionDurationSecs || 500,
           eventWindowToSaveOnError: 200,
+          currentUserId:items.currentUserId,
           untracedUriRegexListToTrack: items.uriRegexToIntercept || '.*'
         });
       });

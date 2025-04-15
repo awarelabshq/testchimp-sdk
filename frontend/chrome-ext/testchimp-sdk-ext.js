@@ -10193,7 +10193,7 @@ function startRecording(_x) {
 }
 function _startRecording() {
   _startRecording = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee2(config) {
-    var endpoint, sessionId, defaultMaxSessionDurationSecs, defaultEventWindowToSaveOnError, defaultUrlRegexToAddTracking, defaultUntracedUrisToTrackRegex, defaultSamplingProbability, defaultSamplingProbabilityOnError, defaultEnvironment;
+    var endpoint, sessionId, defaultMaxSessionDurationSecs, defaultEventWindowToSaveOnError, defaultUrlRegexToAddTracking, defaultUntracedUrisToTrackRegex, defaultSamplingProbability, defaultSamplingProbabilityOnError, defaultEnvironment, defaultCurrentUserId;
     return _regeneratorRuntime().wrap(function _callee2$(_context2) {
       while (1) switch (_context2.prev = _context2.next) {
         case 0:
@@ -10218,20 +10218,21 @@ function _startRecording() {
           defaultSamplingProbability = 0.0;
           defaultSamplingProbabilityOnError = 0.0;
           defaultEnvironment = "QA";
+          defaultCurrentUserId = "default_tester";
           if (config.projectId) {
-            _context2.next = 20;
+            _context2.next = 21;
             break;
           }
           console.error("No project id specified for session capture");
           return _context2.abrupt("return");
-        case 20:
+        case 21:
           if (config.sessionRecordingApiKey) {
-            _context2.next = 23;
+            _context2.next = 24;
             break;
           }
           console.error("No session recording api key specified for session capture");
           return _context2.abrupt("return");
-        case 23:
+        case 24:
           config = {
             enableRecording: config.enableRecording || true,
             endpoint: endpoint,
@@ -10246,7 +10247,8 @@ function _startRecording() {
             excludedUriRegexList: config.excludedUriRegexList || [],
             environment: config.environment || defaultEnvironment,
             enableLogging: config.enableLogging || true,
-            enableOptionsCallTracking: config.enableOptionsCallTracking || false
+            enableOptionsCallTracking: config.enableOptionsCallTracking || false,
+            currentUserId: config.currentUserId || defaultCurrentUserId
           };
           console.log("config used for session recording: ", config);
 
@@ -10258,7 +10260,7 @@ function _startRecording() {
           if (shouldRecordSession) {
             sessionManager = startSendingEvents(endpoint, config, sessionId);
           }
-        case 28:
+        case 29:
         case "end":
           return _context2.stop();
       }
@@ -10438,11 +10440,12 @@ function _checkAndStartRecording() {
           cookie = _context3.sent;
           if (cookie && cookie.trim() !== '') {
             // Cookie is set, retrieve settings and start recording
-            chrome.storage.sync.get(['projectId', 'sessionRecordingApiKey', 'endpoint', 'maxSessionDurationSecs', 'eventWindowToSaveOnError', 'uriRegexToIntercept'], function (items) {
+            chrome.storage.sync.get(['projectId', 'sessionRecordingApiKey', 'endpoint', 'maxSessionDurationSecs', 'eventWindowToSaveOnError', 'uriRegexToIntercept', 'currentUserId'], function (items) {
               if (chrome.runtime.lastError) {
                 console.error('Error retrieving settings from storage:', chrome.runtime.lastError);
                 return;
               }
+              console.log("ITEMS FROM CHROME: ", items);
               startRecording({
                 projectId: items.projectId,
                 sessionRecordingApiKey: items.sessionRecordingApiKey,
@@ -10451,6 +10454,7 @@ function _checkAndStartRecording() {
                 samplingProbability: 1.0,
                 maxSessionDurationSecs: items.maxSessionDurationSecs || 500,
                 eventWindowToSaveOnError: 200,
+                currentUserId: items.currentUserId,
                 untracedUriRegexListToTrack: items.uriRegexToIntercept || '.*'
               });
             });
