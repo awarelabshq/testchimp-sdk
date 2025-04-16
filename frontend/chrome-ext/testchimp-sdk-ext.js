@@ -10111,12 +10111,52 @@ function sendEvents(endpoint, config, sessionId, events) {
 
 // Function to start sending events in batches every 5 seconds
 function startSendingEvents(endpoint, config, sessionId) {
-  stopFn = record({
+  var recordOptions = {
     emit: function emit(event) {
-      eventBuffer.push(event);
+      // Process the event before adding it to the buffer
+      var processedEvent = processEvent(event);
+      if (processedEvent) {
+        eventBuffer.push(processedEvent);
+      }
     },
-    sampling: samplingConfig
-  });
+    sampling: samplingConfig,
+    ignore: function ignore(node) {
+      return node.tagName === 'VIDEO' || node.tagName === 'CANVAS' || node.hasAttribute && node.hasAttribute('data-rrweb-ignore');
+    },
+    recordCanvas: false
+  };
+  function processEvent(event) {
+    // Always keep snapshot events unchanged
+    if (event.type === 2) {
+      return event;
+    }
+
+    // For DOM mutations with attribute changes
+    if (event.type === 3 && event.data.source === 0 && event.data.attributes && event.data.attributes.length > 0) {
+      // Create a filtered array of attributes without transform changes
+      var filteredAttributes = event.data.attributes.filter(function (attr) {
+        // Check if this is a transform attribute
+        var isTransformChange = attr.attributes.style && attr.attributes.style.transform || attr.attributes.transform;
+
+        // Keep attributes that are not transform-related
+        return !isTransformChange;
+      });
+
+      // If all attributes were transform-related, filter out the entire event
+      if (filteredAttributes.length === 0) {
+        return null;
+      }
+
+      // Otherwise create a modified event with transforms removed
+      var modifiedEvent = JSON.parse(JSON.stringify(event));
+      modifiedEvent.data.attributes = filteredAttributes;
+      return modifiedEvent;
+    }
+
+    // Pass through all other event types unchanged
+    return event;
+  }
+  stopFn = record(recordOptions);
 
   // Save events every 5 seconds
   var intervalId = setInterval(function () {
