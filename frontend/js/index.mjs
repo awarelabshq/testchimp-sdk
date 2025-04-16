@@ -549,36 +549,91 @@ function startSendingEventsWithCheckout(config) {
   });
 }
 
-// Function to start sending events in batches every 5 seconds
 function startSendingEvents(endpoint, config) {
+  // Keep your existing sampling configuration
+  // It already handles mouse/input/scroll throttling well
 
-  stopFn =record({
+  const recordOptions = {
     emit: function (event) {
-      eventBuffer.push(event)
+      if (shouldKeepEvent(event)) {
+        eventBuffer.push(event);
+      }
     },
     sampling: samplingConfig,
-  });
 
-  // Save events every 5 seconds
+    // Keep your existing ignore settings if any,
+    // plus ignore animations
+    ignore: (node) => {
+      return node.tagName === 'VIDEO' ||
+             node.tagName === 'CANVAS' ||
+             (node.hasAttribute && node.hasAttribute('data-rrweb-ignore'));
+    },
+
+    // Disable canvas recording entirely
+    recordCanvas: false
+  };
+
+  function shouldKeepEvent(event) {
+    // Always keep snapshot events (for replay initialization)
+    if (event.type === 2) {
+      return true;
+    }
+
+    // For DOM mutations
+    if (event.type === 3 && event.data.source === 0) {
+      // If it's an attribute change
+      if (event.data.attributes && event.data.attributes.length > 0) {
+        // Check if this event only contains transform-related changes
+        let containsOnlyTransforms = true;
+
+        for (const attr of event.data.attributes) {
+          // Check if this is a transform attribute
+          const isTransformChange =
+            // CSS transform in style attribute
+            (attr.attributes.style && attr.attributes.style.transform) ||
+            // SVG transform attribute
+            attr.attributes.transform;
+
+          // If at least one attribute is not a transform, then keep this event
+          if (!isTransformChange) {
+            containsOnlyTransforms = false;
+            break;
+          }
+        }
+
+        // If it's only transform changes, filter it out
+        if (containsOnlyTransforms && event.data.attributes.length > 0) {
+          return false;
+        }
+      }
+    }
+
+    // Let other events through
+    return true;
+  }
+
+  stopFn = record(recordOptions);
+
+  // Rest of your code remains the same
   var intervalId = setInterval(function () {
     var sessionDuration = (new Date().getTime() - sessionStartTime) / 1000;
     if (!config.maxSessionDurationSecs || (config.maxSessionDurationSecs && sessionDuration < config.maxSessionDurationSecs)) {
       sendEvents(endpoint, config, eventBuffer);
     } else {
-      clearInterval(intervalId); // Clear the interval
+      clearInterval(intervalId);
       if (typeof stopFn === 'function') {
-        stopFn(); // Stop the recording
+        stopFn();
         stopFn = null;
       }
     }
   }, config.snapshotInterval??5000);
 
-    return {
-      stop: function () {
-        clearInterval(intervalId); // Stop periodic sending
-        stopSendingEvents(endpoint, config); // Stop and flush
-      }
-    };
+  return {
+    stop: function () {
+      clearInterval(intervalId);
+      stopSendingEvents(endpoint, config);
+    }
+  };
 }
 
 // Function to stop sending events
