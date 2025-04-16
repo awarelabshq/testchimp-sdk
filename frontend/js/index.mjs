@@ -550,66 +550,57 @@ function startSendingEventsWithCheckout(config) {
 }
 
 function startSendingEvents(endpoint, config) {
-  // Keep your existing sampling configuration
-  // It already handles mouse/input/scroll throttling well
-
   const recordOptions = {
     emit: function (event) {
-      if (shouldKeepEvent(event)) {
-        eventBuffer.push(event);
+      // Process the event before adding it to the buffer
+      const processedEvent = processEvent(event);
+      if (processedEvent) {
+        eventBuffer.push(processedEvent);
       }
     },
     sampling: samplingConfig,
-
-    // Keep your existing ignore settings if any,
-    // plus ignore animations
     ignore: (node) => {
       return node.tagName === 'VIDEO' ||
              node.tagName === 'CANVAS' ||
              (node.hasAttribute && node.hasAttribute('data-rrweb-ignore'));
     },
-
-    // Disable canvas recording entirely
     recordCanvas: false
   };
 
-  function shouldKeepEvent(event) {
-    // Always keep snapshot events (for replay initialization)
+  function processEvent(event) {
+    // Always keep snapshot events unchanged
     if (event.type === 2) {
-      return true;
+      return event;
     }
 
-    // For DOM mutations
-    if (event.type === 3 && event.data.source === 0) {
-      // If it's an attribute change
-      if (event.data.attributes && event.data.attributes.length > 0) {
-        // Check if this event only contains transform-related changes
-        let containsOnlyTransforms = true;
+    // For DOM mutations with attribute changes
+    if (event.type === 3 && event.data.source === 0 &&
+        event.data.attributes && event.data.attributes.length > 0) {
 
-        for (const attr of event.data.attributes) {
-          // Check if this is a transform attribute
-          const isTransformChange =
-            // CSS transform in style attribute
-            (attr.attributes.style && attr.attributes.style.transform) ||
-            // SVG transform attribute
-            attr.attributes.transform;
+      // Create a filtered array of attributes without transform changes
+      const filteredAttributes = event.data.attributes.filter(attr => {
+        // Check if this is a transform attribute
+        const isTransformChange =
+          (attr.attributes.style && attr.attributes.style.transform) ||
+          attr.attributes.transform;
 
-          // If at least one attribute is not a transform, then keep this event
-          if (!isTransformChange) {
-            containsOnlyTransforms = false;
-            break;
-          }
-        }
+        // Keep attributes that are not transform-related
+        return !isTransformChange;
+      });
 
-        // If it's only transform changes, filter it out
-        if (containsOnlyTransforms && event.data.attributes.length > 0) {
-          return false;
-        }
+      // If all attributes were transform-related, filter out the entire event
+      if (filteredAttributes.length === 0) {
+        return null;
       }
+
+      // Otherwise create a modified event with transforms removed
+      const modifiedEvent = JSON.parse(JSON.stringify(event));
+      modifiedEvent.data.attributes = filteredAttributes;
+      return modifiedEvent;
     }
 
-    // Let other events through
-    return true;
+    // Pass through all other event types unchanged
+    return event;
   }
 
   stopFn = record(recordOptions);
