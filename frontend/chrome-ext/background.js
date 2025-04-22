@@ -449,6 +449,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return  true;
   }
 
+  if (message.type === "get_latest_session") {
+    // Retrieve the latest session from local storage
+    chrome.storage.local.get("recentSessions", (data) => {
+      const recentSessions = data.recentSessions || [];
+      const latestSession =
+        recentSessions.length > 0
+          ? recentSessions[recentSessions.length - 1]
+          : null;
+      // Send response back to index.mjs
+      sendResponse({ latestSession }); // <-- fix: should match what index.mjs expects
+    });
+    return true;
+  }
+
   if (message.type === "run_tests_request") {
 
    let parsedBody;

@@ -379,7 +379,7 @@ window.addEventListener("message", (event) => {
     }
 
   // Check for specific message types
-  if (event.data.type === "check_extension" || event.data.type === "run_tests_request" || event.data.type === "update_tc_ext_config" || event.data.type === "tc_open_options_page" || event.data.type ==="show_testchimp_ext_popup") {
+  if (event.data.type === "check_extension" || event.data.type === "run_tests_request" || event.data.type === "update_tc_ext_config" || event.data.type === "tc_open_options_page" || event.data.type ==="show_testchimp_ext_popup" || event.data.type === "get_latest_session") {
     // Forward messages to the background script
     if (event.data.type === "update_tc_ext_config") {
         console.log("Received extension configuration message:",event.data.payload);
@@ -401,7 +401,24 @@ window.addEventListener("message", (event) => {
             chrome.runtime.sendMessage({ type: "tc_open_options_page_in_bg" });
     }else if(event.data.type==="show_testchimp_ext_popup"){
         chrome.runtime.sendMessage({ type: "trigger_popup" });
-    } else {
+    }else if(event.data.type === "get_latest_session") {
+            // Request the latest session from the extension
+                 chrome.runtime.sendMessage({ type: "get_latest_session" }, (response) => {
+                   // Handle the response from the extension
+                   if (response && response.latestSession) {
+                       window.postMessage({
+                         type: "latest_session_response",  // New type for response
+                         latestSession: response.latestSession,
+                       }, "*");
+                     // You can also send this data to the webpage or store it in a variable for later use
+                   } else {
+                       window.postMessage({
+                         type: "latest_session_response",
+                         latestSession: null,
+                       }, "*");
+                   }
+                 });
+    }else {
       // Handle check_extension and run_tests_request
       chrome.runtime.sendMessage(event.data, (response) => {
         if (chrome.runtime.lastError) {
