@@ -1,7 +1,9 @@
-import {record} from 'rrweb';
+import { record } from 'rrweb';
 import { BatchInterceptor } from '@mswjs/interceptors';
 import { FetchInterceptor } from '@mswjs/interceptors/fetch';
 import { XMLHttpRequestInterceptor } from '@mswjs/interceptors/XMLHttpRequest';
+import { getRelatedFiles } from './getRelatedFiles.ts';
+
 // Buffer to store events before sending in batches. Used for onError event sending (last N events)
 var eventsMatrix = [[]];
 // Buffer to store events for continuous send (when normal recording is enabled)
@@ -37,16 +39,16 @@ function generateSpanId() {
 }
 
 function generateTraceparent(parentSpanId) {
-    // Generate random trace ID (hexadecimal, 32 characters)
-    const traceId = Array(32)
-        .fill()
-        .map(() => Math.floor(Math.random() * 16).toString(16))
-        .join('');
+  // Generate random trace ID (hexadecimal, 32 characters)
+  const traceId = Array(32)
+    .fill()
+    .map(() => Math.floor(Math.random() * 16).toString(16))
+    .join('');
 
-    // Combine trace ID and parent ID in a traceparent format
-    const traceparent = `00-${traceId}-${parentSpanId}-01`;
-    return traceparent;
-  }
+  // Combine trace ID and parent ID in a traceparent format
+  const traceparent = `00-${traceId}-${parentSpanId}-01`;
+  return traceparent;
+}
 
 function setCurrentUserId(userId) {
   document.cookie = "testchimp.current_user_id=" + userId + ";path=/";
@@ -68,10 +70,10 @@ function generateSessionId() {
   return 'session_' + uuid;
 }
 
-function log(config,log){
-    if(config.enableLogging){
-        console.log(log);
-    }
+function log(config, log) {
+  if (config.enableLogging) {
+    console.log(log);
+  }
 }
 
 // Function to retrieve session ID from standard session ID cookies or custom cookie key
@@ -102,48 +104,48 @@ function getSessionIdFromCookie(cookieKey) {
 }
 
 function setTrackingIdCookie(sessionId) {
-    var existingCookie = getCookie("testchimp.session-record-tracking-id");
-    if (existingCookie === "") {
-       document.cookie = "testchimp.session-record-tracking-id=" + sessionId + ";path=/;max-age=600;";
-    }
-    var parentSessionCookie=getCookie("testchimp.parent-session-record-tracking-id");
-    if (parentSessionCookie === "") {
-        document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
-    }
+  var existingCookie = getCookie("testchimp.session-record-tracking-id");
+  if (existingCookie === "") {
+    document.cookie = "testchimp.session-record-tracking-id=" + sessionId + ";path=/;max-age=600;";
+  }
+  var parentSessionCookie = getCookie("testchimp.parent-session-record-tracking-id");
+  if (parentSessionCookie === "") {
+    document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
+  }
 }
 
-function getTrackingIdCookie(){
-  var existingCookie=getCookie("testchimp.session-record-tracking-id");
+function getTrackingIdCookie() {
+  var existingCookie = getCookie("testchimp.session-record-tracking-id");
   if (existingCookie === "") {
     var sessionId = generateSessionId();
     document.cookie = "testchimp.session-record-tracking-id=" + sessionId + ";path=/;max-age=600;";
     triggerFullSnapshot();
-    var parentSessionCookie=getCookie("testchimp.parent-session-record-tracking-id");
+    var parentSessionCookie = getCookie("testchimp.parent-session-record-tracking-id");
     if (parentSessionCookie === "") {
-        document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
+      document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
     }
     return sessionId;
   }
   return existingCookie;
 }
 
-function getParentTrackingIdCookie(){
-    var parentSessionCookie=getCookie("testchimp.parent-session-record-tracking-id");
-    if (parentSessionCookie === "") {
-        var sessionId = generateSessionId();
-        document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
-        return sessionId;
-    }
-    return parentSessionCookie;
+function getParentTrackingIdCookie() {
+  var parentSessionCookie = getCookie("testchimp.parent-session-record-tracking-id");
+  if (parentSessionCookie === "") {
+    var sessionId = generateSessionId();
+    document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
+    return sessionId;
+  }
+  return parentSessionCookie;
 }
 
 
-function getSessionRecordSourceCookie(){
-    var cookie=getCookie("testchimp.session-record-source");
-    if(cookie === ""){
-        return "SDK"
-    }
-    return cookie;
+function getSessionRecordSourceCookie() {
+  var cookie = getCookie("testchimp.session-record-source");
+  if (cookie === "") {
+    return "SDK"
+  }
+  return cookie;
 }
 
 function getCookie(name) {
@@ -176,158 +178,158 @@ function sendPayloadToEndpoint(payload, endpoint) {
 }
 
 async function populateHttpPayload(config, rawPayloadIn) {
-    var rawPayload=rawPayloadIn.clone();
-    const method = rawPayload.method;
-    const httpPayload = {
-        headerMap: {},
-        queryParamMap: {},
-        httpMethod: method ?? ""
-    };
+  var rawPayload = rawPayloadIn.clone();
+  const method = rawPayload.method;
+  const httpPayload = {
+    headerMap: {},
+    queryParamMap: {},
+    httpMethod: method ?? ""
+  };
 
-    // Convert headers to a plain object
-    rawPayload.headers.forEach((value, key) => {
-        httpPayload.headerMap[key] = value;
-    });
+  // Convert headers to a plain object
+  rawPayload.headers.forEach((value, key) => {
+    httpPayload.headerMap[key] = value;
+  });
 
-    if (rawPayload.status) {
-        httpPayload.responseCode = rawPayload.status;
-    }
+  if (rawPayload.status) {
+    httpPayload.responseCode = rawPayload.status;
+  }
 
-    const urlParams = new URLSearchParams(rawPayload.url.split('?')[1] || '');
-    urlParams.forEach((value, key) => {
-        httpPayload.queryParamMap[key] = value;
-    });
+  const urlParams = new URLSearchParams(rawPayload.url.split('?')[1] || '');
+  urlParams.forEach((value, key) => {
+    httpPayload.queryParamMap[key] = value;
+  });
 
-    const contentType = rawPayload.headers.get('content-type') || '';
+  const contentType = rawPayload.headers.get('content-type') || '';
 
-    if (method !== 'GET') {
-        if (contentType.includes('application/json')) {
-            try {
-                const body = await rawPayload.json();
-                httpPayload.jsonBody = JSON.stringify(body);
-            } catch {
-                httpPayload.jsonBody = "{}";
-            }
-        } else if (contentType.includes('multipart/form-data')) {
-            const boundaryMatch = contentType.match(/boundary=([^;]+)/);
+  if (method !== 'GET') {
+    if (contentType.includes('application/json')) {
+      try {
+        const body = await rawPayload.json();
+        httpPayload.jsonBody = JSON.stringify(body);
+      } catch {
+        httpPayload.jsonBody = "{}";
+      }
+    } else if (contentType.includes('multipart/form-data')) {
+      const boundaryMatch = contentType.match(/boundary=([^;]+)/);
 
-            if (boundaryMatch) {
-                // Process as boundary-based form data
-                try {
-                    const boundary = boundaryMatch[1];
-                    const bodyText = await rawPayload.text();
+      if (boundaryMatch) {
+        // Process as boundary-based form data
+        try {
+          const boundary = boundaryMatch[1];
+          const bodyText = await rawPayload.text();
 
-                    if (bodyText.includes(`--${boundary}`)) {
-                        const parts = bodyText.split(`--${boundary}`);
-                        const keyValueMap = {};
+          if (bodyText.includes(`--${boundary}`)) {
+            const parts = bodyText.split(`--${boundary}`);
+            const keyValueMap = {};
 
-                        for (const part of parts) {
-                            if (part.trim() && !part.includes('--')) {  // Skip empty parts and boundary end
-                                const [headers, ...contentParts] = part.trim().split('\r\n\r\n');
-                                const content = contentParts.join('\r\n\r\n');
+            for (const part of parts) {
+              if (part.trim() && !part.includes('--')) {  // Skip empty parts and boundary end
+                const [headers, ...contentParts] = part.trim().split('\r\n\r\n');
+                const content = contentParts.join('\r\n\r\n');
 
-                                const nameMatch = headers.match(/name="([^"]+)"/);
-                                if (nameMatch) {
-                                    const name = nameMatch[1];
-                                    const filenameMatch = headers.match(/filename="([^"]+)"/);
+                const nameMatch = headers.match(/name="([^"]+)"/);
+                if (nameMatch) {
+                  const name = nameMatch[1];
+                  const filenameMatch = headers.match(/filename="([^"]+)"/);
 
-                                    if (filenameMatch) {
-                                        // Handle file uploads if needed
-                                        keyValueMap[name] = {
-                                            filename: filenameMatch[1],
-                                            content: content
-                                        };
-                                    } else {
-                                        keyValueMap[name] = content.trim();
-                                    }
-                                }
-                            }
-                        }
-                        httpPayload.httpFormDataBody = { keyValueMap };
-                    }
-                } catch (error) {
-                    console.error('Error processing boundary-based form data:', error);
+                  if (filenameMatch) {
+                    // Handle file uploads if needed
+                    keyValueMap[name] = {
+                      filename: filenameMatch[1],
+                      content: content
+                    };
+                  } else {
+                    keyValueMap[name] = content.trim();
+                  }
                 }
-            } else {
-                // Process as regular form data
-                try {
-                    const formData = await rawPayload.formData();
-                    const keyValueMap = {};
-                    let formDataSize = 0;
-
-                    for (const [key, value] of formData.entries()) {
-                        formDataSize += value.size || 0;
-                        if (formDataSize > 10 * 1024 * 1024) {
-                            log(config, "Binary data exceeds 10MB. Dropping data.");
-                            break;
-                        }
-                        keyValueMap[key] = value;
-                    }
-                    httpPayload.httpFormDataBody = { keyValueMap };
-                } catch (error) {
-                    console.error('Error processing regular form data:', error);
-                }
+              }
             }
-        } else if (contentType.includes('application/octet-stream')) {
-            try {
-                const buffer = await rawPayload.arrayBuffer();
-                if (buffer.byteLength <= 10 * 1024 * 1024) {
-                    httpPayload.binaryDataBody = { data: buffer };
-                } else {
-                    log(config, "Binary data exceeds 10MB. Dropping data.");
-                }
-            } catch {
-                // Handle error
-            }
-        } else if (contentType.includes('application/x-www-form-urlencoded')) {
-            try {
-                const body = new URLSearchParams(await rawPayload.text());
-                const keyValueMap = {};
-                body.forEach((value, key) => {
-                    keyValueMap[key] = value;
-                });
-                httpPayload.httpFormUrlencodedBody = { keyValueMap };
-            } catch {
-                // Handle error
-            }
-        } else {
-            try {
-                const body = await rawPayload.text();
-                if (contentType.includes('text/plain')) {
-                    httpPayload.textBody = body;
-                } else if (contentType.includes('text/html')) {
-                    httpPayload.htmlBody = body;
-                } else if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
-                    httpPayload.xmlBody = body;
-                } else {
-                    httpPayload.textBody = body;
-                }
-            } catch (error) {
-                console.error('Error reading payload:', error);
-            }
+            httpPayload.httpFormDataBody = { keyValueMap };
+          }
+        } catch (error) {
+          console.error('Error processing boundary-based form data:', error);
         }
-    }
+      } else {
+        // Process as regular form data
+        try {
+          const formData = await rawPayload.formData();
+          const keyValueMap = {};
+          let formDataSize = 0;
 
-    return httpPayload;
+          for (const [key, value] of formData.entries()) {
+            formDataSize += value.size || 0;
+            if (formDataSize > 10 * 1024 * 1024) {
+              log(config, "Binary data exceeds 10MB. Dropping data.");
+              break;
+            }
+            keyValueMap[key] = value;
+          }
+          httpPayload.httpFormDataBody = { keyValueMap };
+        } catch (error) {
+          console.error('Error processing regular form data:', error);
+        }
+      }
+    } else if (contentType.includes('application/octet-stream')) {
+      try {
+        const buffer = await rawPayload.arrayBuffer();
+        if (buffer.byteLength <= 10 * 1024 * 1024) {
+          httpPayload.binaryDataBody = { data: buffer };
+        } else {
+          log(config, "Binary data exceeds 10MB. Dropping data.");
+        }
+      } catch {
+        // Handle error
+      }
+    } else if (contentType.includes('application/x-www-form-urlencoded')) {
+      try {
+        const body = new URLSearchParams(await rawPayload.text());
+        const keyValueMap = {};
+        body.forEach((value, key) => {
+          keyValueMap[key] = value;
+        });
+        httpPayload.httpFormUrlencodedBody = { keyValueMap };
+      } catch {
+        // Handle error
+      }
+    } else {
+      try {
+        const body = await rawPayload.text();
+        if (contentType.includes('text/plain')) {
+          httpPayload.textBody = body;
+        } else if (contentType.includes('text/html')) {
+          httpPayload.htmlBody = body;
+        } else if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
+          httpPayload.xmlBody = body;
+        } else {
+          httpPayload.textBody = body;
+        }
+      } catch (error) {
+        console.error('Error reading payload:', error);
+      }
+    }
+  }
+
+  return httpPayload;
 }
 
 async function enableRequestIntercept(config) {
   let urlRegex = config.tracedUriRegexListToTrack;
   let untracedUrisToTrackRegex = config.untracedUriRegexListToTrack;
-  let excludedUriRegexList=config.excludedUriRegexList;
-  let enableOptionsCallTracking=config.enableOptionsCallTracking;
+  let excludedUriRegexList = config.excludedUriRegexList;
+  let enableOptionsCallTracking = config.enableOptionsCallTracking;
 
   const parentSessionId = getParentTrackingIdCookie();
-    if (typeof urlRegex === 'string') {
-      urlRegex = urlRegex.split(',').map(item => item.trim());
-    }
+  if (typeof urlRegex === 'string') {
+    urlRegex = urlRegex.split(',').map(item => item.trim());
+  }
 
-    if (typeof untracedUrisToTrackRegex === 'string') {
-      untracedUrisToTrackRegex = untracedUrisToTrackRegex.split(',').map(item => item.trim());
-    }
+  if (typeof untracedUrisToTrackRegex === 'string') {
+    untracedUrisToTrackRegex = untracedUrisToTrackRegex.split(',').map(item => item.trim());
+  }
 
   if (typeof excludedUriRegexList === 'string') {
-      excludedUriRegexList = excludedUriRegexList.split(',').map(item => item.trim());
+    excludedUriRegexList = excludedUriRegexList.split(',').map(item => item.trim());
   }
 
   // Get sessionId from the storage
@@ -347,76 +349,76 @@ async function enableRequestIntercept(config) {
 
   // Object to store request payloads
   const requestPayloads = {};
-const MAX_PAYLOAD_SIZE = 1024 * 1024; // 1MB
+  const MAX_PAYLOAD_SIZE = 1024 * 1024; // 1MB
 
-function isBroadRegex(regexList) {
-  return regexList.some(regex => regex.toString() === "/.*/" || regex.toString() === "/^.*$/");
-}
+  function isBroadRegex(regexList) {
+    return regexList.some(regex => regex.toString() === "/.*/" || regex.toString() === "/^.*$/");
+  }
 
-function isExcludedApiCall(url) {
-  return url.includes('/insert_client_recorded_payloads') || url.includes('/session_records');
-}
+  function isExcludedApiCall(url) {
+    return url.includes('/insert_client_recorded_payloads') || url.includes('/session_records');
+  }
 
   // Add listeners for the 'request' event on the BatchInterceptor
   interceptor.on('request', async ({ request, requestId }) => {
     if (!enableOptionsCallTracking && request.method === 'OPTIONS') {
-        return;
+      return;
     }
     let sessionId = getTrackingIdCookie();
     let matchedTracedUri = urlRegex.some(regex => request.url.match(regex));
     let matchedUntracedUri = untracedUrisToTrackRegex.some(regex => request.url.match(regex));
-    let matchedExcludedUri=excludedUriRegexList.some(regex=>request.url.match(regex));
+    let matchedExcludedUri = excludedUriRegexList.some(regex => request.url.match(regex));
 
     if (isBroadRegex(urlRegex) || isBroadRegex(untracedUrisToTrackRegex)) {
-        console.log("Regex for capturing requests is too broad. Define a narrow regex");
-        return;
+      console.log("Regex for capturing requests is too broad. Define a narrow regex");
+      return;
     }
 
     // Ignore excluded API calls
     if (isExcludedApiCall(request.url)) {
-        return;
+      return;
     }
 
 
-    if(!matchedExcludedUri){
-        if (matchedTracedUri) {
-          log(config, "request matches regex for interception " + request.url);
-          // Add the 'testchimp-session-record-tracking-id' header
-          request.headers.set('testchimp-session-record-tracking-id', sessionId);
-          request.headers.set('testchimp-parent-session-record-tracking-id', parentSessionId);
-          let currentUserId=getCurrentUserId();
-          if(currentUserId){
-            request.headers.set('testchimp-current-user-id', currentUserId);
-          }
-        } else if (matchedUntracedUri) {
-          log(config, "request matches regex for untraced uris to track " + request.url);
-          // Store the request URL in the map
-          const parsedUrl = new URL(request.url);
-          const urlWithoutQueryParams = `${parsedUrl.origin}${parsedUrl.pathname}`;
-          // Store the request URL without query parameters in the map
-          requestUrls.set(requestId, urlWithoutQueryParams);
-
-          let traceparent = request.headers.get('traceparent');
-          if (!traceparent) {
-            traceparent = generateTraceparent(generateSpanId());
-            log(config, "Generating new traceparent " + traceparent);
-          }
-          const parts = traceparent.split('-');
-          let spanId = parts[2];
-          requestIdToSpanIdMap.set(requestId, spanId);
-
-          // Capture request body and headers
-          try {
-            const requestPayload = await populateHttpPayload(config,request);
-            if (JSON.stringify(requestPayload).length > MAX_PAYLOAD_SIZE) {
-                log(config, "Skipping request capture due to large payload size");
-                return;
-            }
-            requestPayloads[requestId] = requestPayload;
-          } catch (error) {
-            console.error('Error populating request payload:', error);
-          }
+    if (!matchedExcludedUri) {
+      if (matchedTracedUri) {
+        log(config, "request matches regex for interception " + request.url);
+        // Add the 'testchimp-session-record-tracking-id' header
+        request.headers.set('testchimp-session-record-tracking-id', sessionId);
+        request.headers.set('testchimp-parent-session-record-tracking-id', parentSessionId);
+        let currentUserId = getCurrentUserId();
+        if (currentUserId) {
+          request.headers.set('testchimp-current-user-id', currentUserId);
         }
+      } else if (matchedUntracedUri) {
+        log(config, "request matches regex for untraced uris to track " + request.url);
+        // Store the request URL in the map
+        const parsedUrl = new URL(request.url);
+        const urlWithoutQueryParams = `${parsedUrl.origin}${parsedUrl.pathname}`;
+        // Store the request URL without query parameters in the map
+        requestUrls.set(requestId, urlWithoutQueryParams);
+
+        let traceparent = request.headers.get('traceparent');
+        if (!traceparent) {
+          traceparent = generateTraceparent(generateSpanId());
+          log(config, "Generating new traceparent " + traceparent);
+        }
+        const parts = traceparent.split('-');
+        let spanId = parts[2];
+        requestIdToSpanIdMap.set(requestId, spanId);
+
+        // Capture request body and headers
+        try {
+          const requestPayload = await populateHttpPayload(config, request);
+          if (JSON.stringify(requestPayload).length > MAX_PAYLOAD_SIZE) {
+            log(config, "Skipping request capture due to large payload size");
+            return;
+          }
+          requestPayloads[requestId] = requestPayload;
+        } catch (error) {
+          console.error('Error populating request payload:', error);
+        }
+      }
     }
   });
 
@@ -424,61 +426,61 @@ function isExcludedApiCall(url) {
   interceptor.on('response', async ({ response, requestId }) => {
 
     if (isExcludedApiCall(response.url)) {
-        return;
+      return;
     }
 
     let matchedUntracedUri = untracedUrisToTrackRegex.some(regex => response.url.match(regex));
-    let matchedExcludedUri=excludedUriRegexList.some(regex=>response.url.match(regex));
-    if(!matchedExcludedUri){
+    let matchedExcludedUri = excludedUriRegexList.some(regex => response.url.match(regex));
+    if (!matchedExcludedUri) {
       let sessionId = getTrackingIdCookie();
       if (matchedUntracedUri || requestUrls.has(requestId)) {
-          // Capture response body and headers
-          try {
-            const responsePayload = await populateHttpPayload(config,response);
-            if (JSON.stringify(responsePayload).length > MAX_PAYLOAD_SIZE) {
-                delete requestPayloads[requestId];
-                log(config, "Skipping response capture due to large payload size");
-                return;
-            }
-            const requestPayload = requestPayloads[requestId];
-            const requestUrl = requestUrls.get(requestId);
-            const spanId = requestIdToSpanIdMap.get(requestId);
-
-            if (requestPayload && requestUrl && spanId) {
-              const payload = {
-                requestPayload: {
-                  spanId: spanId,
-                  httpPayload: requestPayload
-                },
-                responsePayload: {
-                  spanId: spanId,
-                  httpPayload: responsePayload
-                }
-              };
-              const insertPayloadRequest = {
-                aware_project_id: config.projectId,
-                aware_session_tracking_api_key: config.sessionRecordingApiKey,
-                request_payload: JSON.stringify(payload.requestPayload),
-                response_payload: JSON.stringify(payload.responsePayload),
-                current_user_id: getCurrentUserId(), // Include the current_user_id
-                url: requestUrl, // Use the stored request.url
-                tracking_id: sessionId,
-                parent_tracking_id:parentSessionId,
-                environment: config.environment,
-                request_timestamp: new Date().getTime(),
-                response_timestamp: new Date().getTime()
-              };
-              sendPayloadToEndpoint(insertPayloadRequest, config.endpoint + '/insert_client_recorded_payloads');
-
-              // Remove the requestId from the maps after processing
-              requestUrls.delete(requestId);
-              requestIdToSpanIdMap.delete(requestId);
-              delete requestPayloads[requestId];
-            }
-          } catch (error) {
-            console.error('Error populating response payload:', error);
+        // Capture response body and headers
+        try {
+          const responsePayload = await populateHttpPayload(config, response);
+          if (JSON.stringify(responsePayload).length > MAX_PAYLOAD_SIZE) {
+            delete requestPayloads[requestId];
+            log(config, "Skipping response capture due to large payload size");
+            return;
           }
+          const requestPayload = requestPayloads[requestId];
+          const requestUrl = requestUrls.get(requestId);
+          const spanId = requestIdToSpanIdMap.get(requestId);
+
+          if (requestPayload && requestUrl && spanId) {
+            const payload = {
+              requestPayload: {
+                spanId: spanId,
+                httpPayload: requestPayload
+              },
+              responsePayload: {
+                spanId: spanId,
+                httpPayload: responsePayload
+              }
+            };
+            const insertPayloadRequest = {
+              aware_project_id: config.projectId,
+              aware_session_tracking_api_key: config.sessionRecordingApiKey,
+              request_payload: JSON.stringify(payload.requestPayload),
+              response_payload: JSON.stringify(payload.responsePayload),
+              current_user_id: getCurrentUserId(), // Include the current_user_id
+              url: requestUrl, // Use the stored request.url
+              tracking_id: sessionId,
+              parent_tracking_id: parentSessionId,
+              environment: config.environment,
+              request_timestamp: new Date().getTime(),
+              response_timestamp: new Date().getTime()
+            };
+            sendPayloadToEndpoint(insertPayloadRequest, config.endpoint + '/insert_client_recorded_payloads');
+
+            // Remove the requestId from the maps after processing
+            requestUrls.delete(requestId);
+            requestIdToSpanIdMap.delete(requestId);
+            delete requestPayloads[requestId];
+          }
+        } catch (error) {
+          console.error('Error populating response payload:', error);
         }
+      }
     }
   });
 
@@ -499,34 +501,34 @@ function sendEvents(endpoint, config, events) {
   // Clear the event buffer. While sendEvents is used in both onError and normal recording, the eventBuffer is utilized only in normal recording.
   eventBuffer = [];
 
-  let sessionId=getTrackingIdCookie();
-  let parentSessionId=getParentTrackingIdCookie();
-  let sessionRecordSource=getSessionRecordSourceCookie();
+  let sessionId = getTrackingIdCookie();
+  let parentSessionId = getParentTrackingIdCookie();
+  let sessionRecordSource = getSessionRecordSourceCookie();
   const body = {
     tracking_id: sessionId,
-    parent_tracking_id:parentSessionId,
+    parent_tracking_id: parentSessionId,
     aware_project_id: config.projectId,
     aware_session_tracking_api_key: config.sessionRecordingApiKey,
-    session_record_source:sessionRecordSource,
+    session_record_source: sessionRecordSource,
     current_user_id: getCurrentUserId(),
     environment: config.environment,
-    event_list:{
-        events: sessionRecordEvents
+    event_list: {
+      events: sessionRecordEvents
     }
   };
 
-  let sessionSendEnabled=true;
-  let sessionRecordEndpoint=endpoint+"/session_records";
-  if(sessionSendEnabled){
-    sendPayloadToEndpoint(body,sessionRecordEndpoint);
+  let sessionSendEnabled = true;
+  let sessionRecordEndpoint = endpoint + "/session_records";
+  if (sessionSendEnabled) {
+    sendPayloadToEndpoint(body, sessionRecordEndpoint);
   }
 }
 
 function triggerFullSnapshot() {
   if (stopFn && stopFn.takeFullSnapshot) {
-    const fullSnapshot=stopFn.takeFullSnapshot();
-    if(fullSnapshot){
-        eventBuffer.push(fullSnapshot);
+    const fullSnapshot = stopFn.takeFullSnapshot();
+    if (fullSnapshot) {
+      eventBuffer.push(fullSnapshot);
     }
   } else {
     console.error('Full snapshot function is not available.');
@@ -561,8 +563,8 @@ function startSendingEvents(endpoint, config) {
     sampling: samplingConfig,
     ignore: (node) => {
       return node.tagName === 'VIDEO' ||
-             node.tagName === 'CANVAS' ||
-             (node.hasAttribute && node.hasAttribute('data-rrweb-ignore'));
+        node.tagName === 'CANVAS' ||
+        (node.hasAttribute && node.hasAttribute('data-rrweb-ignore'));
     },
     recordCanvas: false
   };
@@ -575,7 +577,7 @@ function startSendingEvents(endpoint, config) {
 
     // For DOM mutations with attribute changes
     if (event.type === 3 && event.data.source === 0 &&
-        event.data.attributes && event.data.attributes.length > 0) {
+      event.data.attributes && event.data.attributes.length > 0) {
 
       // Create a filtered array of attributes without transform changes
       const filteredAttributes = event.data.attributes.filter(attr => {
@@ -617,7 +619,7 @@ function startSendingEvents(endpoint, config) {
         stopFn = null;
       }
     }
-  }, config.snapshotInterval??5000);
+  }, config.snapshotInterval ?? 5000);
 
   return {
     stop: function () {
@@ -636,7 +638,7 @@ function stopSendingEvents(endpoint, config) {
     }
     // Flush remaining events in the buffer
     if (eventBuffer.length > 0) {
-      console.log("Sending remaining events of size: ",eventBuffer.length);
+      console.log("Sending remaining events of size: ", eventBuffer.length);
       sendEvents(endpoint, config, eventBuffer);
     }
   } catch (error) {
@@ -644,10 +646,10 @@ function stopSendingEvents(endpoint, config) {
   }
 }
 
-function initRecording(endpoint,config){
+function initRecording(endpoint, config) {
   // Start sending events
   if (shouldRecordSession) {
-    sessionManager=startSendingEvents(endpoint, config);
+    sessionManager = startSendingEvents(endpoint, config);
   } else {
     if (shouldRecordSessionOnError) {
       startSendingEventsWithCheckout(config);
@@ -655,16 +657,16 @@ function initRecording(endpoint,config){
   }
 };
 
-function clearTrackingIdCookie(){
-    document.cookie = "testchimp.session-record-tracking-id=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;max-age=0;";
-    document.cookie = "testchimp.parent-session-record-tracking-id=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;max-age=0;";
+function clearTrackingIdCookie() {
+  document.cookie = "testchimp.session-record-tracking-id=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;max-age=0;";
+  document.cookie = "testchimp.parent-session-record-tracking-id=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;max-age=0;";
 }
 
-function endTrackedSession(){
-    if(sessionManager){
-        sessionManager.stop();
-    }
-    clearTrackingIdCookie();
+function endTrackedSession() {
+  if (sessionManager) {
+    sessionManager.stop();
+  }
+  clearTrackingIdCookie();
 }
 
 // Function to start recording user sessions
@@ -691,8 +693,8 @@ async function startRecording(config) {
   const defaultSamplingProbability = 1.0;
   const defaultSamplingProbabilityOnError = 0.0;
   const defaultEnvironment = "QA";
-  const defaultSnapshotInterval=5000;
-  const defaultEndpoint="https://ingress.testchimp.io";
+  const defaultSnapshotInterval = 5000;
+  const defaultEndpoint = "https://ingress.testchimp.io";
 
   if (!config.projectId) {
     console.log("No project id specified for session capture");
@@ -703,9 +705,9 @@ async function startRecording(config) {
     return;
   }
 
-  let endpoint=config.endpoint || defaultEndpoint;
+  let endpoint = config.endpoint || defaultEndpoint;
   window.TestChimpSDKConfig = {
-    enableRecording:config.enableRecording || true,
+    enableRecording: config.enableRecording || true,
     endpoint: endpoint,
     projectId: config.projectId,
     sessionRecordingApiKey: config.sessionRecordingApiKey,
@@ -715,17 +717,17 @@ async function startRecording(config) {
     eventWindowToSaveOnError: config.eventWindowToSaveOnError || defaultEventWindowToSaveOnError,
     tracedUriRegexListToTrack: config.tracedUriRegexListToTrack || defaultUrlRegexToAddTracking,
     untracedUriRegexListToTrack: config.untracedUriRegexListToTrack || defaultUntracedUrisToTrackRegex,
-    excludedUriRegexList:config.excludedUriRegexList || [],
+    excludedUriRegexList: config.excludedUriRegexList || [],
     environment: config.environment || defaultEnvironment,
     enableLogging: config.enableLogging || true,
-    enableOptionsCallTracking:config.enableOptionsCallTracking || false,
-    snapshotInterval:config.snapshotInterval || defaultSnapshotInterval
+    enableOptionsCallTracking: config.enableOptionsCallTracking || false,
+    snapshotInterval: config.snapshotInterval || defaultSnapshotInterval
   };
 
 
   config = window.TestChimpSDKConfig;
-  if(config.snapshotInterval<1000){
-    config.snapshotInterval=1000;
+  if (config.snapshotInterval < 1000) {
+    config.snapshotInterval = 1000;
   }
 
   console.log("config used for session recording: ", config);
@@ -754,26 +756,27 @@ async function startRecording(config) {
   initRecording(endpoint, config);
 }
 
-function captureCurrentSnapshot(){
+function captureCurrentSnapshot() {
   if (stopFn && stopFn.takeFullSnapshot) {
-    const fullSnapshot=stopFn.takeFullSnapshot();
-    if(fullSnapshot){
-        return fullSnapshot;
+    const fullSnapshot = stopFn.takeFullSnapshot();
+    if (fullSnapshot) {
+      return fullSnapshot;
     }
   } else {
     console.error('Full snapshot function is not available.');
   }
-    return "";
+  return "";
 }
 
 // Expose the startRecording function along with other recording-related methods to consumers
 var TestChimpSDK = {
   startRecording: startRecording,
   captureCurrentSnapshot: captureCurrentSnapshot,
-  endTrackedSession:endTrackedSession,
+  endTrackedSession: endTrackedSession,
   stopRecording: endTrackedSession, // Expose the stopRecording function
   setCurrentUserId: setCurrentUserId // Expose the setCurrentUserId function
 };
 
 // Export TestChimpSDK
 export { TestChimpSDK };
+export { getRelatedFiles };

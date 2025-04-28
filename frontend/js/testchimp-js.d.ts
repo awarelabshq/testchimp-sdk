@@ -23,5 +23,6 @@ declare module 'testchimp-js' {
     static endTrackedSession(): void;
     static stopRecording(): void;
     static setCurrentUserId(userId: string): void;
+    static getRelatedFiles(): Promise<{ files: Array<{ path: string; type: string; confidenceScore: number }> }>
   }
 }

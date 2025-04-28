@@ -19,12 +19,13 @@ module.exports = [
         },
         module: {
             rules: [{
-                test: /\.m?js$/,
+                test: /\.(mjs|js|ts)$/,  // Match .mjs, .js, and .ts files
                 exclude: /(node_modules)/,
                 use: {
                     loader: 'babel-loader',
                     options: {
                         presets: [
+                            '@babel/preset-typescript',
                             ['@babel/preset-env', {
                                 useBuiltIns: 'usage',
                                 corejs: 3,
@@ -34,10 +35,10 @@ module.exports = [
                         plugins: ['@babel/plugin-transform-runtime'],
                     },
                 },
-            }, ],
+            },],
         },
         resolve: {
-            extensions: ['.js', '.json'],
+            extensions: ['.ts', '.js', '.json'],
         },
         optimization: {
             minimizer: [
@@ -80,12 +81,13 @@ module.exports = [
         },
         module: {
             rules: [{
-                test: /\.m?js$/,
+                test: /\.[cm]?[jt]s$/,
                 exclude: /(node_modules)/,
                 use: {
                     loader: 'babel-loader',
                     options: {
                         presets: [
+                            '@babel/preset-typescript',
                             ['@babel/preset-env', {
                                 useBuiltIns: 'usage',
                                 corejs: 3,
@@ -95,10 +97,10 @@ module.exports = [
                         plugins: ['@babel/plugin-transform-runtime'],
                     },
                 },
-            }, ],
+            },],
         },
         resolve: {
-            extensions: ['.js', '.json'],
+            extensions: ['.ts', '.js', '.json'],
         },
         optimization: {
             minimizer: [
@@ -133,12 +135,13 @@ module.exports = [
         },
         module: {
             rules: [{
-                test: /\.m?js$/,
+                test: /\.(mjs|js|ts)$/,  // Match .mjs, .js, and .ts files
                 exclude: /(node_modules)/,
                 use: {
                     loader: 'babel-loader',
                     options: {
                         presets: [
+                            '@babel/preset-typescript',
                             ['@babel/preset-env', {
                                 useBuiltIns: 'usage',
                                 corejs: 3,
@@ -148,7 +151,7 @@ module.exports = [
                         plugins: ['@babel/plugin-transform-runtime'],
                     },
                 },
-            }, ],
+            },],
         },
         resolve: {
             extensions: ['.js', '.json'],

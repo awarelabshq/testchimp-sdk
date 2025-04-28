@@ -1,6 +1,6 @@
 {
   "name": "testchimp-js",
-  "version": "1.0.144",
+  "version": "1.0.145",
   "description": "TestChimp SDK for JS",
   "main": "dist/testchimp-sdk.cjs.js",
   "module": "dist/testchimp-sdk.esm.js",
@@ -23,20 +23,23 @@
   "author": "Aware Labs",
   "license": "LGPL-3.0-or-later",
   "dependencies": {
+    "@babel/runtime": "^7.22.5",
     "@mswjs/interceptors": "^0.29.0",
-    "rrweb": "^2.0.0-alpha.4",
-    "@babel/runtime": "^7.22.5"
+    "rrweb": "^2.0.0-alpha.4"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@babel/plugin-transform-runtime": "^7.25.4",
     "@babel/preset-env": "^7.25.4",
-    "babel-loader": "^9.1.3",
+    "@babel/preset-typescript": "^7.27.0",
+    "babel-loader": "^9.2.1",
     "copy-webpack-plugin": "^12.0.2",
     "core-js": "^3.38.1",
     "core-js-pure": "^3.38.1",
     "regenerator-runtime": "^0.14.1",
     "terser-webpack-plugin": "^5.3.10",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.3",
     "webpack": "^5.94.0",
     "webpack-cli": "^5.1.4"
   }
