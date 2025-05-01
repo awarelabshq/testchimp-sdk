@@ -38,3 +38,4 @@ replay_pid*
 
 # Ignore all .gradle directories
 **/.gradle/
+**/.DS_Store
