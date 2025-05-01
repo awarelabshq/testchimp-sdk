@@ -31,3 +31,10 @@ replay_pid*
 /testing/js/node_modules/
 /testing/js/node_modules/
 .gradle/*
+.idea
+
+# Ignore all dist folders
+**/dist/
+
+# Ignore all .gradle directories
+**/.gradle/
