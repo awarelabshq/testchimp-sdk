@@ -8,8 +8,7 @@
     "storage",
     "contextMenus",
     "scripting",
-    "webRequest",
-    "tabs"
+    "webRequest"
   ],
   "background": {
     "service_worker": "background.js"
@@ -41,7 +40,8 @@
     {
       "resources": [
         "injectScript.js",
-        "menu-config.json"
+        "menu-config.json",
+        "images/icon-128.png"
       ],
       "matches": [
         "<all_urls>"

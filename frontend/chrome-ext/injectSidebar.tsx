@@ -51,7 +51,7 @@ function createSidebar(initiallyExpanded: boolean) {
   styleTag.textContent = sidebarCss;
   shadowRoot.host.setAttribute('data-rrweb-ignore', 'true');
   shadowContainer.setAttribute('data-rrweb-ignore', 'true');
-   shadowRoot.appendChild(styleTag);
+  shadowRoot.appendChild(styleTag);
 
   const antdReset = document.createElement('link');
   antdReset.rel = 'stylesheet';
@@ -74,18 +74,36 @@ function createSidebar(initiallyExpanded: boolean) {
   );
 }
 
-function createToggleButton() {
-  if (document.getElementById(toggleButtonId)) return;
+function createToggleButton(initialVisible: boolean) {
+  const existingBtn = document.getElementById(toggleButtonId) as HTMLButtonElement | null;
+  const arrowText = (visible: boolean) => (visible ? '→' : '←');
+  const rightPosition = (visible: boolean) => (visible ? `${sidebarWidth + 10}px` : '5px');
+
+  const updateButtonVisuals = (btn: HTMLButtonElement, visible: boolean) => {
+    btn.style.right = rightPosition(visible);
+    btn.innerHTML = '';
+    const arrowSpan = document.createElement('span');
+    arrowSpan.textContent = arrowText(visible);
+    arrowSpan.style.fontSize = '16px';
+    btn.appendChild(arrowSpan);
+    btn.dataset.visible = String(visible);
+  };
+
+  if (existingBtn) {
+    const visible = initialVisible;
+    updateButtonVisuals(existingBtn, visible);
+    return;
+  }
 
   const btn = document.createElement('button');
   btn.id = toggleButtonId;
-  btn.innerText = isVisible ? '⮜' : '⮞';
   btn.setAttribute('data-rrweb-ignore', 'true');
+  btn.dataset.visible = String(initialVisible);
 
   Object.assign(btn.style, {
     position: 'fixed',
     top: '50%',
-    right: isVisible ? `${sidebarWidth + 10}px` : '10px',
+    right: rightPosition(initialVisible),
     transform: 'translateY(-50%)',
     zIndex: '1000000',
     backgroundColor: '#ff6b65',
@@ -94,26 +112,23 @@ function createToggleButton() {
     borderRadius: '4px 0 0 4px',
     padding: '4px 8px',
     cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
     transition: 'right 0.3s ease',
   });
 
-  btn.style.right = isVisible ? `${sidebarWidth + 10}px` : '10px';
+  updateButtonVisuals(btn, initialVisible);
 
   btn.onclick = () => {
     const host = document.getElementById(containerId);
     if (!host) return;
-  
-    if (isVisible) {
-      host.style.transform = 'translateX(100%)';
-      btn.innerText = '⮞';
-      btn.style.right = '10px';
-    } else {
-      host.style.transform = 'translateX(0)';
-      btn.innerText = '⮜';
-      btn.style.right = `${sidebarWidth + 10}px`;
-    }
-  
-    isVisible = !isVisible;
+
+    const currentlyVisible = btn.dataset.visible === 'true';
+    const newVisible = !currentlyVisible;
+
+    host.style.transform = newVisible ? 'translateX(0)' : 'translateX(100%)';
+    updateButtonVisuals(btn, newVisible);
   };
 
   document.body.appendChild(btn);
@@ -121,7 +136,6 @@ function createToggleButton() {
 
 
 chrome.storage.local.get(['recordingInProgress', 'forceExpandSidebar'], (result) => {
-  console.log("FORCE EXPAND RECV", result.forceExpandSidebar);
   const initiallyExpanded = !!result.forceExpandSidebar || !result.recordingInProgress;
 
   // Clear the flag so it only affects the first open
@@ -130,5 +144,5 @@ chrome.storage.local.get(['recordingInProgress', 'forceExpandSidebar'], (result)
   }
 
   createSidebar(initiallyExpanded);
-  createToggleButton();
+  createToggleButton(initiallyExpanded);
 });
