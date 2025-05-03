@@ -1,0 +1,76 @@
+.tc-sidebar {
+    padding: 16px;
+    color: white;
+    font-size: 14px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #1e1e1e;
+  }
+  
+  .tc-centered {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .tc-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: visible;
+    padding: 4px;
+    background-color: #1e1e1e;
+  }
+  
+  .tc-section {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 16px;
+    margin-top: 16px;
+  }
+  
+  .tc-messages {
+    flex: 1;
+    overflow: auto;
+    background-color: #2a2a2a;
+    padding: 8px;
+    margin-top: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+  }
+  
+  .tc-sticky-bottom {
+    position: sticky;
+    bottom: 0;
+    background-color: #1e1e1e;
+    padding: 8px;
+    margin-top: 16px;
+  }
+  
+  .tc-action-btn {
+    background-color: #3a3a3a;
+    border-color: #3a3a3a;
+    color: white;
+    width: 56px;
+    height: 36px;
+    transition: background-color 0.2s ease;
+  }
+  
+  .tc-action-btn:hover {
+    background-color: #ff6b65;
+  }
+  
+  .tc-session-link {
+    color: #72BDA3;
+    text-decoration: underline;
+  }
+  
+  .tc-full-width {
+    width: 100%;
+  }
+  
+  .tc-input-margin {
+    margin-bottom: 8px;
+  }

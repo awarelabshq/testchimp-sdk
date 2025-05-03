@@ -1,12 +1,18 @@
 const path = require('path');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+//const Utf8BOMPlugin = require('./Utf8BOMPlugin');
 
 module.exports = {
   mode: 'production',
-  entry: './index-ext.mjs',
+  entry: {
+    background: './background.js',   // Your background script (if this is still correct)
+    index: './index-ext.mjs',   // Your background script (if this is still correct)
+    sidebar: './sidebar.tsx',         // Update to point to the correct .tsx file
+    injectSidebar: './injectSidebar.tsx',
+  },
   output: {
-    path: path.resolve(__dirname, ''),
-    filename: 'testchimp-sdk-ext.js',
+    path: path.resolve(__dirname, 'dist'),
+    filename: '[name].js',  // Dynamically use entry name (background.js, sidebar.js)
     library: {
       name: 'TestChimpSDK',
       type: 'umd',
@@ -16,23 +22,45 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.m?js$/,
+        test: /\.(ts|tsx|js|jsx|mjs)$/,  // This will match .tsx, .ts, .js, and .jsx files
         exclude: /(node_modules|bower_components)/,
         use: {
           loader: 'babel-loader',
           options: {
-            presets: ['@babel/preset-env'],
+            presets: [
+              '@babel/preset-env',
+              '@babel/preset-react',
+              '@babel/preset-typescript', // Ensure TypeScript is handled
+            ],
           },
         },
       },
+      {
+        test: /\.css$/i,
+        use: 'raw-loader',
+      }
     ],
   },
   resolve: {
-    extensions: ['.js', '.json'],
+    extensions: ['.tsx', '.ts', '.js', '.jsx'],  // Ensure webpack resolves .tsx files
   },
   optimization: {
     minimize: false, // Disable minification
   },
   plugins: [
+    new CopyWebpackPlugin({
+      patterns: [
+        { from: 'manifest.json', to: 'manifest.json' },  // Ensure manifest is copied
+        { from: 'menu-config.json', to: 'menu-config.json' },  // Ensure manifest is copied
+        { from: 'popup.html', to: 'popup.html' },
+        { from: 'options.html', to: 'options.html' },
+        { from: 'options.js', to: 'options.js' },
+        { from: 'contextMenu.js', to: 'contextMenu.js' },
+        { from: 'injectScript.js', to: 'injectScript.js' },
+        { from: 'localRun.js', to: 'localRun.js' },
+        { from: 'images/', to: 'images/' },
+      ],
+    }),
+    //new Utf8BOMPlugin({ dir: 'dist' }), // Add this
   ],
 };

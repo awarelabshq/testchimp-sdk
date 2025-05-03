@@ -35,6 +35,41 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+chrome.action.onClicked.addListener((tab) => {
+    if (!tab.id) return;
+  
+    chrome.storage.local.set({ forceExpandSidebar: true }, () => {
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['injectSidebar.js'],
+      });
+    });
+  });
+  
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete') {
+      chrome.storage.local.get(['recordingInProgress'], (data) => {
+        if (data.recordingInProgress) {
+          chrome.scripting.executeScript({
+            target: { tabId },
+            files: ['injectSidebar.js'],
+          });
+        }
+      });
+    }
+  });
+  
+  chrome.tabs.onActivated.addListener(({ tabId }) => {
+    chrome.storage.local.get(['recordingInProgress'], (data) => {
+      if (data.recordingInProgress) {
+        chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['injectSidebar.js'],
+        });
+      }
+    });
+  });
+
 // List of streaming content types to exclude from interception
 const streamingContentTypes = [
     'text/event-stream',
@@ -540,6 +575,101 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ shouldIntercept: result });
     });
     return true; // Indicate an async response
+  }
+
+  if (message.type === 'start_recording_from_sidebar') {
+    chrome.storage.sync.get([
+      'projectId',
+      'sessionRecordingApiKey',
+      'endpoint',
+      'maxSessionDurationSecs',
+      'eventWindowToSaveOnError',
+      'uriRegexToIntercept',
+      'currentUserId'
+    ], (items) => {
+      if (chrome.runtime.lastError) {
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        return;
+      }
+
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const tabId = tabs[0]?.id;
+        if (!tabId) {
+          sendResponse({ success: false, error: 'No active tab' });
+          return;
+        }
+
+        chrome.tabs.sendMessage(tabId, {
+          action: 'startTCRecording',
+          data: {
+            projectId: items.projectId,
+            sessionRecordingApiKey: items.sessionRecordingApiKey,
+            endpoint: items.endpoint,
+            samplingProbabilityOnError: 0.0,
+            samplingProbability: 1.0,
+            maxSessionDurationSecs: items.maxSessionDurationSecs || 500,
+            eventWindowToSaveOnError: items.eventWindowToSaveOnError || 200,
+            currentUserId: items.currentUserId,
+            untracedUriRegexListToTrack: items.uriRegexToIntercept || '.*'
+          }
+        });
+
+        sendResponse({ success: true });
+      });
+    });
+
+    return true; // Keep the message channel open
+  }
+
+  if (message.type === 'stop_recording_from_sidebar') {
+    chrome.storage.sync.get(['projectId'], (syncData) => {
+      const projectId = syncData.projectId;
+      if (!projectId) {
+        sendResponse({ success: false, error: 'Missing projectId' });
+        return;
+      }
+
+      chrome.storage.local.get("testchimp.ext-session-record-tracking-id", (data) => {
+        const sessionId = data["testchimp.ext-session-record-tracking-id"];
+        if (!sessionId) {
+          sendResponse({ success: false, error: 'Missing session ID' });
+          return;
+        }
+
+        const sessionLink = `https://prod.testchimp.io/replay?session_id=${sessionId}&project_id=${projectId}`;
+
+        // Save to recentSessions
+        chrome.storage.local.get('recentSessions', (history) => {
+          const recentSessions = history.recentSessions || [];
+          recentSessions.push({ url: sessionLink, timestamp: Date.now() });
+
+          if (recentSessions.length > 5) recentSessions.shift();
+
+          chrome.storage.local.set({ recentSessions });
+        });
+
+        // End recording in content script
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          const tabId = tabs[0]?.id;
+          if (!tabId) {
+            sendResponse({ success: false, error: 'No active tab found' });
+            return;
+          }
+
+          chrome.tabs.sendMessage(tabId, {
+            action: 'endTCRecording',
+            data: {}
+          });
+
+          chrome.storage.local.remove("testchimp.ext-session-record-tracking-id");
+          chrome.storage.local.set({ recordingInProgress: false });
+
+          sendResponse({ success: true, sessionLink });
+        });
+      });
+    });
+
+    return true; // Keep async channel open
   }
 });
 

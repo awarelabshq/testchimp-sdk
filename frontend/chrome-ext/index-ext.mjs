@@ -4,14 +4,14 @@ if (!window.__scriptInjected) {
 
   const script = document.createElement('script');
   script.src = chrome.runtime.getURL('injectScript.js');
-  script.onload = function() {
+  script.onload = function () {
     this.remove();
   };
   document.documentElement.appendChild(script);
 }
 
 
-import {record} from 'rrweb';
+import { record } from 'rrweb';
 
 // Buffer to store events for continuous send (when normal recording is enabled)
 var eventBuffer = [];
@@ -46,48 +46,48 @@ function generateSessionId() {
   return 'session_' + uuid;
 }
 
-function log(config,log){
-    if(config.enableLogging){
-        console.log(log);
-    }
+function log(config, log) {
+  if (config.enableLogging) {
+    console.log(log);
+  }
 }
 
 function setTrackingIdCookie(sessionId) {
-    return new Promise((resolve, reject) => {
-        // Check if a value already exists
-        chrome.storage.local.get("testchimp.ext-session-record-tracking-id", function(data) {
-            if (chrome.runtime.lastError) {
-                return reject(new Error(chrome.runtime.lastError));
-            }
+  return new Promise((resolve, reject) => {
+    // Check if a value already exists
+    chrome.storage.local.get("testchimp.ext-session-record-tracking-id", function (data) {
+      if (chrome.runtime.lastError) {
+        return reject(new Error(chrome.runtime.lastError));
+      }
 
-            if (!data["testchimp.ext-session-record-tracking-id"]) {
-                // Set the tracking ID only if it doesn't exist
-                chrome.storage.local.set({ "testchimp.ext-session-record-tracking-id": sessionId }, function() {
-                    if (chrome.runtime.lastError) {
-                        return reject(new Error(chrome.runtime.lastError));
-                    }
-                    console.log("Setting testchimp tracking id to " + sessionId);
-                    resolve(); // Resolve the promise when setting is complete
-                });
-            } else {
-                // If it already exists, resolve immediately
-                resolve();
-            }
+      if (!data["testchimp.ext-session-record-tracking-id"]) {
+        // Set the tracking ID only if it doesn't exist
+        chrome.storage.local.set({ "testchimp.ext-session-record-tracking-id": sessionId }, function () {
+          if (chrome.runtime.lastError) {
+            return reject(new Error(chrome.runtime.lastError));
+          }
+          console.log("Setting testchimp tracking id to " + sessionId);
+          resolve(); // Resolve the promise when setting is complete
         });
+      } else {
+        // If it already exists, resolve immediately
+        resolve();
+      }
     });
+  });
 }
 
 
 function getTrackingIdCookie() {
-    return new Promise((resolve, reject) => {
-        chrome.storage.local.get("testchimp.ext-session-record-tracking-id", function(data) {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError));
-            } else {
-                resolve(data["testchimp.ext-session-record-tracking-id"] || "");
-            }
-        });
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get("testchimp.ext-session-record-tracking-id", function (data) {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError));
+      } else {
+        resolve(data["testchimp.ext-session-record-tracking-id"] || "");
+      }
     });
+  });
 }
 
 function sendPayloadToEndpoint(payload, endpoint) {
@@ -121,18 +121,18 @@ function sendEvents(endpoint, config, sessionId, events) {
     tracking_id: sessionId,
     aware_project_id: config.projectId,
     aware_session_tracking_api_key: config.sessionRecordingApiKey,
-    session_record_source:"EXTENSION",
-    current_user_id:config.currentUserId,
-    environment:config.environment,
-    event_list:{
-        events: sessionRecordEvents
+    session_record_source: "EXTENSION",
+    current_user_id: config.currentUserId,
+    environment: config.environment,
+    event_list: {
+      events: sessionRecordEvents
     }
   };
 
-  let sessionSendEnabled=true;
-  let sessionRecordEndpoint=endpoint+"/session_records";
-  if(sessionSendEnabled){
-    sendPayloadToEndpoint(body,sessionRecordEndpoint);
+  let sessionSendEnabled = true;
+  let sessionRecordEndpoint = endpoint + "/session_records";
+  if (sessionSendEnabled) {
+    sendPayloadToEndpoint(body, sessionRecordEndpoint);
   }
 }
 
@@ -147,71 +147,102 @@ function startSendingEvents(endpoint, config, sessionId) {
       }
     },
     sampling: samplingConfig,
-    ignore: (node) => {
-      return node.tagName === 'VIDEO' ||
-             node.tagName === 'CANVAS' ||
-             (node.hasAttribute && node.hasAttribute('data-rrweb-ignore'));
-    },
+    blockSelector: '.data-rrweb-ignore, #testchimp-sidebar, #testchimp-sidebar-toggle, #testchimp-sidebar *',
     recordCanvas: false
   };
 
   function processEvent(event) {
-    // Always keep snapshot events unchanged
-    if (event.type === 2) {
-      return event;
-    }
+    if (event.type === 2) return event;
 
-    // For DOM mutations with attribute changes
-    if (event.type === 3 && event.data.source === 0 &&
-        event.data.attributes && event.data.attributes.length > 0) {
-
-      // Create a filtered array of attributes without transform changes
+    if (event.type === 3 && event.data.source === 0 && event.data.attributes?.length > 0) {
       const filteredAttributes = event.data.attributes.filter(attr => {
-        // Check if this is a transform attribute
-        const isTransformChange =
-          (attr.attributes.style && attr.attributes.style.transform) ||
-          attr.attributes.transform;
-
-        // Keep attributes that are not transform-related
-        return !isTransformChange;
+        const isTransform = attr.attributes?.style?.transform || attr.attributes?.transform;
+        return !isTransform;
       });
 
-      // If all attributes were transform-related, filter out the entire event
-      if (filteredAttributes.length === 0) {
-        return null;
-      }
+      if (filteredAttributes.length === 0) return null;
 
-      // Otherwise create a modified event with transforms removed
-      const modifiedEvent = JSON.parse(JSON.stringify(event));
-      modifiedEvent.data.attributes = filteredAttributes;
-      return modifiedEvent;
+      return {
+        ...event,
+        data: {
+          ...event.data,
+          attributes: filteredAttributes
+        }
+      };
     }
 
-    // Pass through all other event types unchanged
     return event;
   }
 
   stopFn = record(recordOptions);
+  record.takeFullSnapshot();
 
-  // Save events every 5 seconds
-  var intervalId = setInterval(function () {
-    var sessionDuration = (new Date().getTime() - sessionStartTime) / 1000;
-    if (!config.maxSessionDurationSecs || (config.maxSessionDurationSecs && sessionDuration < config.maxSessionDurationSecs)) {
+  const intervalId = setInterval(() => {
+    const sessionDuration = (Date.now() - sessionStartTime) / 1000;
+    if (!config.maxSessionDurationSecs || sessionDuration < config.maxSessionDurationSecs) {
       sendEvents(endpoint, config, sessionId, eventBuffer);
     } else {
-      clearInterval(intervalId); // Stop periodic sending
-      stopSendingEvents(endpoint, config, sessionId); // Stop and flush
+      clearInterval(intervalId);
+      cleanup();
     }
   }, 5000);
 
+  function flushBufferedEventsBeforeExit() {
+    if (eventBuffer.length === 0) return;
+
+    const payload = JSON.stringify({
+      sessionId,
+      events: eventBuffer,
+      config
+    });
+
+    try {
+      const blob = new Blob([payload], { type: 'application/json' });
+      const success = navigator.sendBeacon(endpoint, blob);
+
+      if (!success) {
+        fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          keepalive: true,
+          body: payload
+        }).catch((err) => {
+          console.error("Fetch fallback failed", err);
+        });
+      }
+    } catch (err) {
+      console.error("Failed to flush events", err);
+    }
+
+    eventBuffer.length = 0;
+  }
+
+  function cleanup() {
+    stopSendingEvents(endpoint, config, sessionId);
+    window.removeEventListener("beforeunload", flushBufferedEventsBeforeExit);
+    window.removeEventListener("pagehide", flushBufferedEventsBeforeExit);
+    document.removeEventListener("visibilitychange", visibilityHandler);
+  }
+
+  function visibilityHandler() {
+    if (document.visibilityState === "hidden") {
+      flushBufferedEventsBeforeExit();
+    }
+  }
+
+  window.addEventListener("beforeunload", flushBufferedEventsBeforeExit);
+  window.addEventListener("pagehide", flushBufferedEventsBeforeExit);
+  document.addEventListener("visibilitychange", visibilityHandler);
+
   return {
-    stop: function () {
-      clearInterval(intervalId); // Stop periodic sending
-      stopSendingEvents(endpoint, config, sessionId); // Stop and flush
+    stop: () => {
+      clearInterval(intervalId);
+      cleanup();
     }
   };
 }
-
 
 // Function to stop sending events
 function stopSendingEvents(endpoint, config, sessionId) {
@@ -222,7 +253,7 @@ function stopSendingEvents(endpoint, config, sessionId) {
     }
     // Flush remaining events in the buffer
     if (eventBuffer.length > 0) {
-      console.log("Sending remaining events of size: ",eventBuffer.length);
+      console.log("Sending remaining events of size: ", eventBuffer.length);
       sendEvents(endpoint, config, sessionId, eventBuffer);
     }
   } catch (error) {
@@ -232,25 +263,25 @@ function stopSendingEvents(endpoint, config, sessionId) {
 
 
 function clearTrackingIdCookie() {
-    try {
-        chrome.storage.local.set({ "testchimp.ext-session-record-tracking-id": '' }, function() {
-            if (chrome.runtime.lastError) {
-                console.error("Error:", chrome.runtime.lastError);
-                return;
-            }
-            console.log("TestChimp tracking id cleared");
-        });
-    } catch (error) {
-        console.error("Security error caught:", error);
-    }
+  try {
+    chrome.storage.local.set({ "testchimp.ext-session-record-tracking-id": '' }, function () {
+      if (chrome.runtime.lastError) {
+        console.error("Error:", chrome.runtime.lastError);
+        return;
+      }
+      console.log("TestChimp tracking id cleared");
+    });
+  } catch (error) {
+    console.error("Security error caught:", error);
+  }
 }
 
-async function endTrackedSession(){
-    console.log("Ending current tracking session");
-    if(sessionManager){
-        sessionManager.stop();
-    }
-    clearTrackingIdCookie();
+async function endTrackedSession() {
+  console.log("Ending current tracking session");
+  if (sessionManager) {
+    sessionManager.stop();
+  }
+  clearTrackingIdCookie();
 }
 
 // Function to start recording user sessions
@@ -263,7 +294,7 @@ async function startRecording(config) {
   await setTrackingIdCookie(sessionId);
   // The set method above sets only if no value present. This is needed so that page re-directs persists the session tracking (since this code runs on page load of each page).
   sessionId = await getTrackingIdCookie();
-  console.log("Session id for TC",sessionId);
+  console.log("Session id for TC", sessionId);
   // Record the session start time
   sessionStartTime = new Date().getTime();
 
@@ -274,7 +305,7 @@ async function startRecording(config) {
   const defaultSamplingProbability = 0.0;
   const defaultSamplingProbabilityOnError = 0.0;
   const defaultEnvironment = "QA";
-  const defaultCurrentUserId="default_tester";
+  const defaultCurrentUserId = "default_tester";
 
   if (!config.projectId) {
     console.error("No project id specified for session capture");
@@ -286,7 +317,7 @@ async function startRecording(config) {
   }
 
   config = {
-    enableRecording:config.enableRecording || true,
+    enableRecording: config.enableRecording || true,
     endpoint: endpoint,
     projectId: config.projectId,
     sessionRecordingApiKey: config.sessionRecordingApiKey,
@@ -296,10 +327,10 @@ async function startRecording(config) {
     eventWindowToSaveOnError: config.eventWindowToSaveOnError || defaultEventWindowToSaveOnError,
     tracedUriRegexListToTrack: config.tracedUriRegexListToTrack || defaultUrlRegexToAddTracking,
     untracedUriRegexListToTrack: config.untracedUriRegexListToTrack || defaultUntracedUrisToTrackRegex,
-    excludedUriRegexList:config.excludedUriRegexList || [],
+    excludedUriRegexList: config.excludedUriRegexList || [],
     environment: config.environment || defaultEnvironment,
     enableLogging: config.enableLogging || true,
-    enableOptionsCallTracking:config.enableOptionsCallTracking || false,
+    enableOptionsCallTracking: config.enableOptionsCallTracking || false,
     currentUserId: config.currentUserId || defaultCurrentUserId
   };
 
@@ -312,20 +343,20 @@ async function startRecording(config) {
   shouldRecordSessionOnError = config.samplingProbabilityOnError && Math.random() <= config.samplingProbabilityOnError;
 
   if (shouldRecordSession) {
-    sessionManager=startSendingEvents(endpoint, config, sessionId);
+    sessionManager = startSendingEvents(endpoint, config, sessionId);
   }
- }
+}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'startTCRecording') {
     startRecording(message.data);
   }
-  if(message.action==='endTCRecording'){
+  if (message.action === 'endTCRecording') {
     endTrackedSession();
   }
-   if (message.action === "open_extension_popup") {
-       chrome.runtime.sendMessage({ type: "trigger_popup" });
-   }
+  if (message.action === "open_extension_popup") {
+    chrome.runtime.sendMessage({ type: "trigger_popup" });
+  }
 
 });
 
@@ -335,118 +366,131 @@ window.addEventListener("message", (event) => {
     return;
   }
 
-    if(event.data.type==="interceptedResponse"){
+  if (event.data.type === "interceptedResponse") {
 
-      const { responseHeaders, responseBody, statusCode, url, requestId } = event.data.detail;
+    const { responseHeaders, responseBody, statusCode, url, requestId } = event.data.detail;
 
-      chrome.runtime?.sendMessage({
-        type: 'capturedResponse',
-        requestId: requestId,
-        responseHeaders: responseHeaders,
-        responseBody: responseBody,
-        statusCode: statusCode,
-        url: url?.toString() || ''
-      });
-      return;
-    }
+    chrome.runtime?.sendMessage({
+      type: 'capturedResponse',
+      requestId: requestId,
+      responseHeaders: responseHeaders,
+      responseBody: responseBody,
+      statusCode: statusCode,
+      url: url?.toString() || ''
+    });
+    return true;
+  } else if (event.data.type === "checkUrl") {
+    chrome.runtime.sendMessage({ type: "checkUrl", url: event.data.url }, (response) => {
+      window.postMessage(
+        {
+          type: "checkUrlResponse",
+          shouldIntercept: response?.shouldIntercept || false,
+        },
+        "*"
+      );
+    });
+    return true;
+  } else if (event.data.type === "fallbackRequestBody") {
+    const { url, method, responseHeaders, requestId, requestHeaders, requestBody } = event.data.detail;
 
-      if (event.data.type === "checkUrl") {
-        chrome.runtime.sendMessage({ type: "checkUrl", url: event.data.url }, (response) => {
-          window.postMessage(
-            {
-              type: "checkUrlResponse",
-              shouldIntercept: response?.shouldIntercept || false,
-            },
-            "*"
-          );
-        });
+    chrome.runtime?.sendMessage({
+      type: 'interceptedRequest',
+      url,
+      method,
+      responseHeaders,
+      requestId,
+      requestHeaders,
+      requestBody
+    });
+    return true;
+  } else if (event.data?.type === "get_tc_ext_config") {
+    // Fetch currentUserId and userAuthKey from chrome.storage.sync
+    chrome.storage.sync.get(["currentUserId", "userAuthKey"], (result) => {
+      window.postMessage(
+        {
+          type: "get_tc_ext_config_response",
+          payload: {
+            currentUserId: result.currentUserId ?? null,
+            userAuthKey: result.userAuthKey ?? null,
+          },
+        },
+        "*"
+      );
+    });
+    return true;
+  } else if (event.data.type === "tc_open_options_page") {
+    console.log("Received message tc_open_options_page");
+    // Open the options page
+    chrome.runtime.sendMessage({ type: "tc_open_options_page_in_bg" });
+    return true;
+  } else if (event.data.type === "show_testchimp_ext_popup") {
+    chrome.runtime.sendMessage({ type: "trigger_popup" });
+    return true;
+  } else if (event.data.type === "get_latest_session") {
+    chrome.runtime.sendMessage({ type: "get_latest_session" }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error("get_latest_session error:", chrome.runtime.lastError.message);
+        window.postMessage({
+          type: "latest_session_response",
+          latestSession: null,
+          error: chrome.runtime.lastError.message,
+        }, "*");
+        return;
       }
 
-    if(event.data.type==="fallbackRequestBody"){
+      window.postMessage({
+        type: "latest_session_response",
+        latestSession: response?.latestSession ?? null,
+      }, "*");
+    });
+    return true;
+  } else if (event.data.type === "update_tc_ext_config") {
+    console.log("Received extension configuration message:", event.data.payload);
+    // Extract the data to be stored from the message
+    const dataToStore = event.data.payload; // Assuming payload contains the key-value pairs
 
-      const { url,method,responseHeaders,requestId,requestHeaders,requestBody } = event.data.detail;
+    // Store the data in chrome.storage.sync
+    chrome.storage.sync.set(dataToStore, () => {
+      if (chrome.runtime.lastError) {
+        console.error("Error storing data:", chrome.runtime.lastError.message);
+        window.postMessage({ type: "update_tc_ext_config_response", success: false, error: chrome.runtime.lastError.message }, "*");
+      } else {
+        window.postMessage({ type: "update_tc_ext_config_response", success: true }, "*");
+      }
+    });
+    return true;
+  } else {
+    // Handle check_extension and run_tests_request
+    chrome.runtime.sendMessage(event.data, (response) => {
+      if (!event.data.type) {
+        return;
+      }
 
-      chrome.runtime?.sendMessage({
-        type: 'interceptedRequest',
-        url,
-        method,
-        responseHeaders,
-        requestId,
-        requestHeaders,
-        requestBody
-      });
-      return;
-    }
-
-  // Check for specific message types
-  if (event.data.type === "check_extension" || event.data.type === "run_tests_request" || event.data.type === "update_tc_ext_config" || event.data.type === "tc_open_options_page" || event.data.type ==="show_testchimp_ext_popup" || event.data.type === "get_latest_session") {
-    // Forward messages to the background script
-    if (event.data.type === "update_tc_ext_config") {
-        console.log("Received extension configuration message:",event.data.payload);
-      // Extract the data to be stored from the message
-      const dataToStore = event.data.payload; // Assuming payload contains the key-value pairs
-
-      // Store the data in chrome.storage.sync
-      chrome.storage.sync.set(dataToStore, () => {
-        if (chrome.runtime.lastError) {
-          console.error("Error storing data:", chrome.runtime.lastError.message);
-          window.postMessage({ type: "update_tc_ext_config_response", success: false, error: chrome.runtime.lastError.message }, "*");
-        } else {
-          window.postMessage({ type: "update_tc_ext_config_response", success: true }, "*");
+      if (chrome.runtime.lastError) {
+        // Error communicating with the background script
+        if (event.data.type === "check_extension") {
+          window.postMessage({ type: "check_extension_response", success: false }, "*");
+        } else if (event.data.type === "run_tests_request") {
+          window.postMessage({ type: "run_tests_response", error: "Extension error: " + chrome.runtime.lastError.message }, "*");
         }
-      });
-    }else if (event.data.type === "tc_open_options_page") {
-           console.log("Received message tc_open_options_page");
-           // Open the options page
-            chrome.runtime.sendMessage({ type: "tc_open_options_page_in_bg" });
-    }else if(event.data.type==="show_testchimp_ext_popup"){
-        chrome.runtime.sendMessage({ type: "trigger_popup" });
-    }else if(event.data.type === "get_latest_session") {
-            // Request the latest session from the extension
-                 chrome.runtime.sendMessage({ type: "get_latest_session" }, (response) => {
-                   // Handle the response from the extension
-                   if (response && response.latestSession) {
-                       window.postMessage({
-                         type: "latest_session_response",  // New type for response
-                         latestSession: response.latestSession,
-                       }, "*");
-                     // You can also send this data to the webpage or store it in a variable for later use
-                   } else {
-                       window.postMessage({
-                         type: "latest_session_response",
-                         latestSession: null,
-                       }, "*");
-                   }
-                 });
-    }else {
-      // Handle check_extension and run_tests_request
-      chrome.runtime.sendMessage(event.data, (response) => {
-        if (chrome.runtime.lastError) {
-          // Error communicating with the background script
-          console.error("Error communicating with background script:", chrome.runtime.lastError.message);
-          if (event.data.type === "check_extension") {
-            window.postMessage({ type: "check_extension_response", success: false }, "*");
-          } else if (event.data.type === "run_tests_request") {
-            window.postMessage({ type: "run_tests_response", error: "Extension error: " + chrome.runtime.lastError.message }, "*");
-          }
-        } else if (response.error) {
-          // Background script returned an error
-          if (event.data.type === "check_extension") {
-            window.postMessage({ type: "check_extension_response", success: false }, "*");
-          } else if (event.data.type === "run_tests_request") {
-            window.postMessage({ type: "run_tests_response", error: response.error }, "*");
-          }
-        } else {
-          // Successful responses
-          if (event.data.type === "check_extension") {
-            window.postMessage({ type: "check_extension_response", success: response.success }, "*");
-          } else if (event.data.type === "run_tests_request") {
-            window.postMessage({ type: "run_tests_response", response: response.data }, "*");
-          }
+      } else if (response.error) {
+        // Background script returned an error
+        if (event.data.type === "check_extension") {
+          window.postMessage({ type: "check_extension_response", success: false }, "*");
+        } else if (event.data.type === "run_tests_request") {
+          window.postMessage({ type: "run_tests_response", error: response.error }, "*");
         }
-      });
-    }
+      } else {
+        // Successful responses
+        if (event.data.type === "check_extension") {
+          window.postMessage({ type: "check_extension_response", success: response.success }, "*");
+        } else if (event.data.type === "run_tests_request") {
+          window.postMessage({ type: "run_tests_response", response: response.data }, "*");
+        }
+      }
+    });
   }
+
 });
 
 // Listen for messages from the background script
@@ -458,39 +502,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function checkAndStartRecording() {
 
 
-    console.log("Content script is loaded.");
-    const cookie = await getTrackingIdCookie();
-    if (cookie && cookie.trim() !== '') {
-      // Cookie is set, retrieve settings and start recording
-      chrome.storage.sync.get([
-        'projectId',
-        'sessionRecordingApiKey',
-        'endpoint',
-        'maxSessionDurationSecs',
-        'eventWindowToSaveOnError',
-        'uriRegexToIntercept',
-        'currentUserId'
-      ], function(items) {
-        if (chrome.runtime.lastError) {
-          console.error('Error retrieving settings from storage:', chrome.runtime.lastError);
-          return;
-        }
+  console.log("Content script is loaded.");
+  const cookie = await getTrackingIdCookie();
+  if (cookie && cookie.trim() !== '') {
+    // Cookie is set, retrieve settings and start recording
+    chrome.storage.sync.get([
+      'projectId',
+      'sessionRecordingApiKey',
+      'endpoint',
+      'maxSessionDurationSecs',
+      'eventWindowToSaveOnError',
+      'uriRegexToIntercept',
+      'currentUserId'
+    ], function (items) {
+      if (chrome.runtime.lastError) {
+        console.error('Error retrieving settings from storage:', chrome.runtime.lastError);
+        return;
+      }
 
-        console.log("ITEMS FROM CHROME: ",items);
+      console.log("ITEMS FROM CHROME: ", items);
 
-        startRecording({
-          projectId: items.projectId,
-          sessionRecordingApiKey: items.sessionRecordingApiKey,
-          endpoint: items.endpoint,
-          samplingProbabilityOnError: 0.0,
-          samplingProbability: 1.0,
-          maxSessionDurationSecs: items.maxSessionDurationSecs || 500,
-          eventWindowToSaveOnError: 200,
-          currentUserId:items.currentUserId,
-          untracedUriRegexListToTrack: items.uriRegexToIntercept || '.*'
-        });
+      startRecording({
+        projectId: items.projectId,
+        sessionRecordingApiKey: items.sessionRecordingApiKey,
+        endpoint: items.endpoint,
+        samplingProbabilityOnError: 0.0,
+        samplingProbability: 1.0,
+        maxSessionDurationSecs: items.maxSessionDurationSecs || 500,
+        eventWindowToSaveOnError: 200,
+        currentUserId: items.currentUserId,
+        untracedUriRegexListToTrack: items.uriRegexToIntercept || '.*'
       });
-    }
+    });
+  }
 }
 
 // Check for the cookie when the page is loaded
