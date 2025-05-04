@@ -23,12 +23,12 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.tabs.query({}, (tabs) => {
     for (let tab of tabs) {
       // Check if the tab's URL matches the desired patterns
-      if (tab.url && (tab.url.includes('testchimp.'))) {
+      if (tab.url && (tab.url.includes('testchimp'))) {
         // Inject contentScript.js into tabs matching the patterns
         console.log("Injecting script to ",tab.url);
         chrome.scripting.executeScript({
           target: { tabId: tab.id },
-          files: ['testchimp-sdk-ext.js']
+          files: ['index.js']
         });
       }
     }

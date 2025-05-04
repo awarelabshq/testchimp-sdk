@@ -276,28 +276,35 @@ export const SidebarApp = () => {
 
     const configureProjectIntercept = async (urlRegex: string): Promise<void> => {
         setUpdatingConfig(true);
-        const res = await fetch(`${BASE_URL}/ext/configure_project_intercept`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'USER_MAIL': currentUserId!,
-                'USER_AUTH_KEY': userAuthKey!,
-            },
-            body: JSON.stringify({
-                "projectId": selectedProjectId,
-                "urlRegexToCapture": urlRegex
-            }),
-        });
-        await fetchProjects();
-        setUpdatingConfig(false);
-        setTimeout(() => {
-            let updatedProject = {
-                ...selectedProject,
-                urlRegexToCapture: urlRegex
-            };
-            setSelectedProject(updatedProject);
-            setEditingIntercept(false);
-        }, 1000);
+        chrome.storage.sync.get(
+            ['userAuthKey', 'currentUserId'],
+            async (syncItems: { userAuthKey?: string; currentUserId?: string; projectId?: string }) => {
+                const { userAuthKey, currentUserId } = syncItems;
+
+                const res = await fetch(`${BASE_URL}/ext/configure_project_intercept`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'USER_MAIL': currentUserId!,
+                        'USER_AUTH_KEY': userAuthKey!,
+                    },
+                    body: JSON.stringify({
+                        "projectId": selectedProjectId,
+                        "urlRegexToCapture": urlRegex
+                    }),
+                });
+                await fetchProjects();
+                setUpdatingConfig(false);
+                setTimeout(() => {
+                    let updatedProject = {
+                        ...selectedProject,
+                        urlRegexToCapture: urlRegex
+                    };
+                    setSelectedProject(updatedProject);
+                    setEditingIntercept(false);
+                }, 1000);
+            }
+        );
     }
 
     const handleLogout = () => {
