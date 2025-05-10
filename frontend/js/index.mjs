@@ -3,6 +3,7 @@ import { BatchInterceptor } from '@mswjs/interceptors';
 import { FetchInterceptor } from '@mswjs/interceptors/fetch';
 import { XMLHttpRequestInterceptor } from '@mswjs/interceptors/XMLHttpRequest';
 import { getRelatedFiles } from './getRelatedFiles.ts';
+import { getReleaseMetadata } from './getReleaseMetadata.ts';
 
 // Buffer to store events before sending in batches. Used for onError event sending (last N events)
 var eventsMatrix = [[]];
@@ -780,3 +781,4 @@ var TestChimpSDK = {
 // Export TestChimpSDK
 export { TestChimpSDK };
 export { getRelatedFiles };
+export { getReleaseMetadata };
