@@ -778,6 +778,10 @@ var TestChimpSDK = {
   setCurrentUserId: setCurrentUserId // Expose the setCurrentUserId function
 };
 
+if (typeof window !== 'undefined') {
+  window.TestChimpSDK = TestChimpSDK;
+}
+
 // Export TestChimpSDK
 export { TestChimpSDK };
 export { getRelatedFiles };
