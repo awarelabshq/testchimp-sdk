@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TestChimp ESM Test</title>
+  <script type="module">
+    import { TestChimpSDK } from '/dist/testchimp-sdk.esm.js';
+
+    console.log('✅ SDK loaded:', TestChimpSDK);
+
+    console.log('startRecording:', typeof TestChimpSDK.startRecording);
+    console.log('getRelatedFiles:', typeof TestChimpSDK.getRelatedFiles);
+
+    // Optional test:
+    // TestChimpSDK.startRecording({ projectId: 'abc', sessionRecordingApiKey: '123' });
+  </script>
+</head>
+<body>
+</body>
+</html>

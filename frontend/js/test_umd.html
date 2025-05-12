@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TestChimp UMD Test</title>
+  <!-- Load the UMD build -->
+  <script src="dist/testchimp-sdk.umd.js"></script>
+</head>
+<body>
+  <script>
+    console.log('SDK loaded?', window.TestChimpSDK);
+
+    if (window.TestChimpSDK) {
+      console.log('✅ UMD Test: SDK attached to window');
+      console.log('startRecording:', typeof window.TestChimpSDK.startRecording); // should be 'function'
+      console.log('getRelatedFiles:', typeof window.TestChimpSDK.getRelatedFiles); // should be 'function'
+
+      // Optionally test a method call
+      // window.TestChimpSDK.startRecording({ projectId: 'abc', sessionRecordingApiKey: 'xyz' });
+    } else {
+      console.error('❌ UMD Test: SDK not attached to window');
+    }
+  </script>
+</body>
+</html>

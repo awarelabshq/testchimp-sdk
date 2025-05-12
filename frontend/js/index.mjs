@@ -770,19 +770,20 @@ function captureCurrentSnapshot() {
 }
 
 // Expose the startRecording function along with other recording-related methods to consumers
-var TestChimpSDK = {
+const TestChimpSDK = {
   startRecording: startRecording,
   captureCurrentSnapshot: captureCurrentSnapshot,
   endTrackedSession: endTrackedSession,
   stopRecording: endTrackedSession, // Expose the stopRecording function
-  setCurrentUserId: setCurrentUserId // Expose the setCurrentUserId function
+  setCurrentUserId: setCurrentUserId, // Expose the setCurrentUserId function
+  getRelatedFiles:getRelatedFiles,
+  getReleaseMetadata:getReleaseMetadata
 };
 
-if (typeof window !== 'undefined') {
+/*if (typeof window !== 'undefined') {
   window.TestChimpSDK = TestChimpSDK;
-}
+}*/
 
 // Export TestChimpSDK
+export default TestChimpSDK;
 export { TestChimpSDK };
-export { getRelatedFiles };
-export { getReleaseMetadata };

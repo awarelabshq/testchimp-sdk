@@ -14,6 +14,7 @@ module.exports = [
             library: {
                 name: 'TestChimpSDK',
                 type: 'umd',
+                export: 'default',
             },
             globalObject: 'this', // Ensures compatibility in both browser and Node.js
         },
