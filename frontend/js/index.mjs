@@ -4,6 +4,7 @@ import { FetchInterceptor } from '@mswjs/interceptors/fetch';
 import { XMLHttpRequestInterceptor } from '@mswjs/interceptors/XMLHttpRequest';
 import { getRelatedFiles } from './getRelatedFiles.ts';
 import { getReleaseMetadata } from './getReleaseMetadata.ts';
+import { parse } from 'tldts';
 
 // Buffer to store events before sending in batches. Used for onError event sending (last N events)
 var eventsMatrix = [[]];
@@ -104,42 +105,85 @@ function getSessionIdFromCookie(cookieKey) {
   return null; // Return null if session ID cookie doesn't exist
 }
 
-function setTrackingIdCookie(sessionId) {
-  var existingCookie = getCookie("testchimp.session-record-tracking-id");
-  if (existingCookie === "") {
-    document.cookie = "testchimp.session-record-tracking-id=" + sessionId + ";path=/;max-age=600;";
+function getBaseDomain() {
+  try {
+    const parsed = parse(window.location.hostname);
+    return parsed.domain ? `.${parsed.domain}` : null;
+  } catch (error) {
+    console.error('Error getting base domain:', error);
+    return null;  // return null in case of any error
   }
-  var parentSessionCookie = getCookie("testchimp.parent-session-record-tracking-id");
-  if (parentSessionCookie === "") {
-    document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
+}
+
+function setCookie(name, value, options = {}) {
+  let cookieStr = `${name}=${value}; path=/`;
+
+  if (options.maxAge) {
+    cookieStr += `; max-age=${options.maxAge}`;
+  }
+
+  if (options.domain) {
+    cookieStr += `; domain=${options.domain}`;
+  }
+
+  document.cookie = cookieStr;
+}
+
+function setTrackingIdCookie(sessionId) {
+  const baseDomain = getBaseDomain();
+
+  if (getCookie("testchimp.session-record-tracking-id") === "") {
+    setCookie("testchimp.session-record-tracking-id", sessionId, {
+      maxAge: 3000,
+      domain: baseDomain,
+    });
+  }
+
+  if (getCookie("testchimp.parent-session-record-tracking-id") === "") {
+    setCookie("testchimp.parent-session-record-tracking-id", sessionId, {
+      domain: baseDomain,
+    });
   }
 }
 
 function getTrackingIdCookie() {
-  var existingCookie = getCookie("testchimp.session-record-tracking-id");
-  if (existingCookie === "") {
-    var sessionId = generateSessionId();
-    document.cookie = "testchimp.session-record-tracking-id=" + sessionId + ";path=/;max-age=600;";
+  const baseDomain = getBaseDomain();
+  let sessionId = getCookie("testchimp.session-record-tracking-id");
+
+  if (sessionId === "") {
+    sessionId = generateSessionId();
+
+    setCookie("testchimp.session-record-tracking-id", sessionId, {
+      maxAge: 3000,
+      domain: baseDomain,
+    });
+
     triggerFullSnapshot();
-    var parentSessionCookie = getCookie("testchimp.parent-session-record-tracking-id");
-    if (parentSessionCookie === "") {
-      document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
+
+    if (getCookie("testchimp.parent-session-record-tracking-id") === "") {
+      setCookie("testchimp.parent-session-record-tracking-id", sessionId, {
+        domain: baseDomain,
+      });
     }
-    return sessionId;
   }
-  return existingCookie;
+
+  return sessionId;
 }
 
 function getParentTrackingIdCookie() {
-  var parentSessionCookie = getCookie("testchimp.parent-session-record-tracking-id");
-  if (parentSessionCookie === "") {
-    var sessionId = generateSessionId();
-    document.cookie = "testchimp.parent-session-record-tracking-id" + "=" + sessionId + ";path=/";
-    return sessionId;
-  }
-  return parentSessionCookie;
-}
+  const baseDomain = getBaseDomain();
+  let parentSessionId = getCookie("testchimp.parent-session-record-tracking-id");
 
+  if (parentSessionId === "") {
+    parentSessionId = generateSessionId();
+
+    setCookie("testchimp.parent-session-record-tracking-id", parentSessionId, {
+      domain: baseDomain,
+    });
+  }
+
+  return parentSessionId;
+}
 
 function getSessionRecordSourceCookie() {
   var cookie = getCookie("testchimp.session-record-source");
