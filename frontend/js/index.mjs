@@ -597,12 +597,22 @@ function startSendingEventsWithCheckout(config) {
 }
 
 function startSendingEvents(endpoint, config) {
+  const DISPLAY_TOGGLE_SUPPRESSION_MS = 200;
+  const DEFAULT_MAX_EVENT_SIZE = 1024 * 1024; // 1 MB
+  const recentDisplayChanges = new Map(); // Map<nodeId, timestamp>
+
   const recordOptions = {
     emit: function (event) {
       // Process the event before adding it to the buffer
       const processedEvent = processEvent(event);
       if (processedEvent) {
-        eventBuffer.push(processedEvent);
+        const size = JSON.stringify(processedEvent).length;
+        const maxSize = config.maxEventSizeBytes ?? DEFAULT_MAX_EVENT_SIZE;
+        if (size <= maxSize) {
+          eventBuffer.push(processedEvent);
+        } else {
+          console.warn("Dropped oversized event:", size, "bytes");
+        }
       }
     },
     sampling: samplingConfig,
@@ -614,34 +624,103 @@ function startSendingEvents(endpoint, config) {
     recordCanvas: false
   };
 
+  function isBase64Image(value) {
+    return typeof value === 'string' && value.startsWith('data:image/');
+  }
+
+  function sanitizeAttributes(attrs) {
+    const filtered = {};
+    for (const key in attrs) {
+      const val = attrs[key];
+      if ((key === 'src' || key === 'href') && isBase64Image(val)) {
+        continue;
+      }
+
+      if (key === 'style' && typeof val === 'object') {
+        const styleCopy = {};
+        for (const styleKey in val) {
+          const styleVal = val[styleKey];
+          if (
+            (styleKey === 'backgroundImage' || styleKey === 'background') &&
+            typeof styleVal === 'string' &&
+            styleVal.includes('data:image/')
+          ) {
+            continue;
+          }
+          styleCopy[styleKey] = styleVal;
+        }
+        if (Object.keys(styleCopy).length > 0) {
+          filtered[key] = styleCopy;
+        }
+      } else {
+        filtered[key] = val;
+      }
+    }
+    return filtered;
+  }
+
+  function isOnlyDisplayChange(attributes) {
+    if (!attributes?.style) return false;
+    const keys = Object.keys(attributes.style);
+    return keys.length === 1 && keys[0] === 'display';
+  }
+
+  function isScriptOnlyMutation(event) {
+    if (event.type !== 3 || event.data.source !== 0 || !event.data.attributes) return false;
+    return event.data.attributes.every(attr => attr?.tagName === 'SCRIPT');
+  }
+
   function processEvent(event) {
     // Always keep snapshot events unchanged
     if (event.type === 2) {
       return event;
     }
 
-    // For DOM mutations with attribute changes
-    if (event.type === 3 && event.data.source === 0 &&
-      event.data.attributes && event.data.attributes.length > 0) {
+    if (isScriptOnlyMutation(event)) {
+      return null;
+    }
 
-      // Create a filtered array of attributes without transform changes
-      const filteredAttributes = event.data.attributes.filter(attr => {
-        // Check if this is a transform attribute
-        const isTransformChange =
-          (attr.attributes.style && attr.attributes.style.transform) ||
-          attr.attributes.transform;
+    if (event.type === 3 && event.data.source === 0 && event.data.attributes?.length > 0) {
+      const now = Date.now();
 
-        // Keep attributes that are not transform-related
-        return !isTransformChange;
+      let filteredAttributes = event.data.attributes.filter(attr => {
+        const { id, attributes } = attr;
+
+        // Remove transform-only changes
+        const isTransform =
+          attributes?.style?.transform || attributes?.transform;
+        if (isTransform) return false;
+
+        // Debounce spammy display-only toggles if optimizedImageFiltering is enabled
+        if (config.optimizedImageFiltering && isOnlyDisplayChange(attributes)) {
+          const lastChange = recentDisplayChanges.get(id);
+          if (lastChange && (now - lastChange) < DISPLAY_TOGGLE_SUPPRESSION_MS) {
+            return false;
+          }
+          recentDisplayChanges.set(id, now);
+        }
+
+        return true;
       });
 
-      // If all attributes were transform-related, filter out the entire event
       if (filteredAttributes.length === 0) {
         return null;
       }
 
       // Otherwise create a modified event with transforms removed
       const modifiedEvent = JSON.parse(JSON.stringify(event));
+
+      if (config.optimizedImageFiltering) {
+        filteredAttributes = filteredAttributes.map(attr => ({
+          ...attr,
+          attributes: sanitizeAttributes(attr.attributes),
+        })).filter(attr => Object.keys(attr.attributes).length > 0);
+      }
+
+      if (filteredAttributes.length === 0) {
+        return null;
+      }
+
       modifiedEvent.data.attributes = filteredAttributes;
       return modifiedEvent;
     }
@@ -652,7 +731,6 @@ function startSendingEvents(endpoint, config) {
 
   stopFn = record(recordOptions);
 
-  // Rest of your code remains the same
   var intervalId = setInterval(function () {
     var sessionDuration = (new Date().getTime() - sessionStartTime) / 1000;
     if (!config.maxSessionDurationSecs || (config.maxSessionDurationSecs && sessionDuration < config.maxSessionDurationSecs)) {
@@ -766,7 +844,9 @@ async function startRecording(config) {
     environment: config.environment || defaultEnvironment,
     enableLogging: config.enableLogging || true,
     enableOptionsCallTracking: config.enableOptionsCallTracking || false,
-    snapshotInterval: config.snapshotInterval || defaultSnapshotInterval
+    snapshotInterval: config.snapshotInterval || defaultSnapshotInterval,
+    optimizedImageFiltering: config.optimizedImageFiltering || false,
+    maxEventSizeBytes: config.maxEventSizeBytes || 1024 * 1024,
   };
 
 
