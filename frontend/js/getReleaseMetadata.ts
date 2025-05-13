@@ -2,8 +2,6 @@ export interface ReleaseMetadata {
   releaseId: string;
   versionMetaTag?: string;
   webpackHash?: string;
-  etag?: string;
-  lastModified?: string;
   detectedTimestamp: string;
 }
 
@@ -26,14 +24,15 @@ export async function getReleaseMetadata(): Promise<ReleaseMetadata> {
 }
 
 async function computeReleaseMetadata(): Promise<ReleaseMetadata> {
+  const detectedTimestamp = new Date().toISOString();
+
   const versionMeta = extractVersionMetaTag();
   if (versionMeta) {
     const releaseId = await sha256(`meta:${versionMeta}`);
     return {
       releaseId,
       versionMetaTag: versionMeta,
-      ...(await fetchPageHeaders()),
-      detectedTimestamp: new Date().toISOString(),
+      detectedTimestamp,
     };
   }
 
@@ -43,32 +42,17 @@ async function computeReleaseMetadata(): Promise<ReleaseMetadata> {
     return {
       releaseId,
       webpackHash,
-      ...(await fetchPageHeaders()),
-      detectedTimestamp: new Date().toISOString(),
+      detectedTimestamp,
     };
   }
 
-  const assetUrls = extractAssetUrls();
-  if (assetUrls.length > 0) {
-    const joinedAssets = assetUrls.join(',');
-    const releaseId = await sha256(`assets:${joinedAssets}`);
-    return {
-      releaseId,
-      ...(await fetchPageHeaders()),
-      detectedTimestamp: new Date().toISOString(),
-    };
-  }
-
-  const domFingerprint = computeDomFingerprint();
-  const releaseId = await sha256(`dom:${domFingerprint}`);
   return {
-    releaseId,
-    ...(await fetchPageHeaders()),
-    detectedTimestamp: new Date().toISOString(),
+    releaseId: 'default',
+    detectedTimestamp,
   };
 }
 
-// 1. Meta Tag Extraction
+// Extract version info from <meta name="version" content="...">
 function extractVersionMetaTag(): string | undefined {
   const metaTagNames = ['build-id', 'version', 'build', 'release'];
   for (const name of metaTagNames) {
@@ -78,7 +62,7 @@ function extractVersionMetaTag(): string | undefined {
   return undefined;
 }
 
-// 2. Webpack Hash Detection
+// Detect webpack hash from known globals
 function extractWebpackHash(): string | undefined {
   const globalCandidates = [
     (window as any).__webpack_hash__,
@@ -87,36 +71,7 @@ function extractWebpackHash(): string | undefined {
   return globalCandidates.find((val) => typeof val === 'string');
 }
 
-// 3. Asset Hashing
-function extractAssetUrls(): string[] {
-  const scriptSrcs = Array.from(document.querySelectorAll<HTMLScriptElement>('script[src]')).map((s) => s.src);
-  const styleHrefs = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')).map((l) => l.href);
-  return [...scriptSrcs, ...styleHrefs]
-    .map((url) => new URL(url, location.href).toString())
-    .sort();
-}
-
-// 4. DOM Fingerprint
-function computeDomFingerprint(): string {
-  const bodyDescendants = Array.from(document.body.querySelectorAll('*')).slice(0, 100);
-  return bodyDescendants
-    .map((el) => `${el.tagName.toLowerCase()}.${Array.from(el.classList).sort().join('.')}`)
-    .join('|');
-}
-
-// Shared Headers
-async function fetchPageHeaders(): Promise<Partial<ReleaseMetadata>> {
-  try {
-    const response = await fetch(location.origin + '/', { method: 'HEAD' });
-    const etag = response.headers.get('etag') || undefined;
-    const lastModified = response.headers.get('last-modified') || undefined;
-    return { etag, lastModified };
-  } catch {
-    return {};
-  }
-}
-
-// Hash Helper
+// Hash helper
 async function sha256(input: string): Promise<string> {
   const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
   return Array.from(new Uint8Array(buffer))
