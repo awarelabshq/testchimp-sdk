@@ -780,10 +780,6 @@ const TestChimpSDK = {
   getReleaseMetadata:getReleaseMetadata
 };
 
-/*if (typeof window !== 'undefined') {
-  window.TestChimpSDK = TestChimpSDK;
-}*/
-
 // Export TestChimpSDK
 export default TestChimpSDK;
 export { TestChimpSDK };
