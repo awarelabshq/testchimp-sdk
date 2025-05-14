@@ -600,19 +600,14 @@ function startSendingEvents(endpoint, config) {
   const DISPLAY_TOGGLE_SUPPRESSION_MS = 200;
   const DEFAULT_MAX_EVENT_SIZE = 1024 * 1024; // 1 MB
   const recentDisplayChanges = new Map(); // Map<nodeId, timestamp>
+  const maxSize = config.maxEventSizeBytes ?? DEFAULT_MAX_EVENT_SIZE;
 
   const recordOptions = {
     emit: function (event) {
       // Process the event before adding it to the buffer
-      const processedEvent = processEvent(event);
+      const processedEvent = processEvent(event, config.pruneLargeEvents ?? true, maxSize);
       if (processedEvent) {
-        const size = JSON.stringify(processedEvent).length;
-        const maxSize = config.maxEventSizeBytes ?? DEFAULT_MAX_EVENT_SIZE;
-        if (size <= maxSize) {
-          eventBuffer.push(processedEvent);
-        } else {
-          console.warn("Dropped oversized event:", size, "bytes");
-        }
+        eventBuffer.push(processedEvent);
       }
     },
     sampling: samplingConfig,
@@ -670,10 +665,18 @@ function startSendingEvents(endpoint, config) {
     return event.data.attributes.every(attr => attr?.tagName === 'SCRIPT');
   }
 
-  function processEvent(event) {
+  function processEvent(event, pruneLargeEvents, maxSize) {
     // Always keep snapshot events unchanged
     if (event.type === 2) {
       return event;
+    }
+
+    if (pruneLargeEvents) {
+      const eventSize = JSON.stringify(event).length;
+      if (eventSize > maxSize) {
+        console.warn(`Dropped oversized event: ${eventSize} bytes`);
+        return null;
+      }
     }
 
     if (isScriptOnlyMutation(event)) {
@@ -847,6 +850,7 @@ async function startRecording(config) {
     snapshotInterval: config.snapshotInterval || defaultSnapshotInterval,
     optimizedImageFiltering: config.optimizedImageFiltering || false,
     maxEventSizeBytes: config.maxEventSizeBytes || 1024 * 1024,
+    pruneLargeEvents: config.pruneLargeEvents || true
   };
 
 
@@ -900,8 +904,8 @@ const TestChimpSDK = {
   endTrackedSession: endTrackedSession,
   stopRecording: endTrackedSession, // Expose the stopRecording function
   setCurrentUserId: setCurrentUserId, // Expose the setCurrentUserId function
-  getRelatedFiles:getRelatedFiles,
-  getReleaseMetadata:getReleaseMetadata
+  getRelatedFiles: getRelatedFiles,
+  getReleaseMetadata: getReleaseMetadata
 };
 
 // Export TestChimpSDK
