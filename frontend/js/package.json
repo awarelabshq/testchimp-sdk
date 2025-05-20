@@ -1,6 +1,6 @@
 {
   "name": "testchimp-js",
-  "version": "1.0.155",
+  "version": "1.0.158",
   "description": "TestChimp SDK for JS",
   "main": "dist/testchimp-sdk.cjs.js",
   "module": "dist/testchimp-sdk.esm.js",
@@ -25,6 +25,7 @@
   "dependencies": {
     "@babel/runtime": "^7.22.5",
     "@mswjs/interceptors": "^0.29.0",
+    "js-cookie": "^3.0.5",
     "rrweb": "^2.0.0-alpha.4",
     "tldts": "^7.0.7"
   },

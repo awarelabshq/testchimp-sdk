@@ -5,6 +5,7 @@ import { XMLHttpRequestInterceptor } from '@mswjs/interceptors/XMLHttpRequest';
 import { getRelatedFiles } from './getRelatedFiles.ts';
 import { getReleaseMetadata } from './getReleaseMetadata.ts';
 import { parse } from 'tldts';
+import Cookies from 'js-cookie';
 
 // Buffer to store events before sending in batches. Used for onError event sending (last N events)
 var eventsMatrix = [[]];
@@ -56,10 +57,6 @@ function setCurrentUserId(userId) {
   document.cookie = "testchimp.current_user_id=" + userId + ";path=/";
 }
 
-// Function to get the current_user_id from the cookie
-function getCurrentUserId() {
-  return getCookie("testchimp.current_user_id");
-}
 
 // Function to generate a unique session ID
 function generateSessionId() {
@@ -107,32 +104,49 @@ function getSessionIdFromCookie(cookieKey) {
 
 function getBaseDomain() {
   try {
-    const parsed = parse(window.location.hostname);
-    return parsed.domain ? `.${parsed.domain}` : null;
+    const parsed = parse(window.location.hostname, { allowPrivateDomains: true });
+
+    // Handle public suffixes like `hosted.app` by falling back to full hostname
+    if (!parsed.domain || parsed.isIcann === false) {
+      return `.${window.location.hostname}`;
+    }
+
+    return `.${parsed.domain}`;
   } catch (error) {
     console.error('Error getting base domain:', error);
-    return null;  // return null in case of any error
+    return null;
   }
 }
 
+function getCookie(name) {
+  return Cookies.get(name) || "";
+}
+
 function setCookie(name, value, options = {}) {
-  let cookieStr = `${name}=${value}; path=/`;
+  const jsCookieOptions = {
+    path: '/', // always set path=/ like your original code
+  };
 
   if (options.maxAge) {
-    cookieStr += `; max-age=${options.maxAge}`;
+    // js-cookie expects "expires" in days, not seconds
+    jsCookieOptions.expires = options.maxAge / 86400;
   }
 
   if (options.domain) {
-    cookieStr += `; domain=${options.domain}`;
+    jsCookieOptions.domain = options.domain;
   }
+  Cookies.set(name, value, jsCookieOptions);
+}
 
-  document.cookie = cookieStr;
+// Function to get the current_user_id from the cookie
+function getCurrentUserId() {
+  return getCookie("testchimp.current_user_id");
 }
 
 function setTrackingIdCookie(sessionId) {
   const baseDomain = getBaseDomain();
-
   if (getCookie("testchimp.session-record-tracking-id") === "") {
+    console.log("Setting tracking cookie: " + sessionId + " at " + baseDomain);
     setCookie("testchimp.session-record-tracking-id", sessionId, {
       maxAge: 3000,
       domain: baseDomain,
@@ -191,21 +205,6 @@ function getSessionRecordSourceCookie() {
     return "SDK"
   }
   return cookie;
-}
-
-function getCookie(name) {
-  var nameEQ = name + "=";
-  var cookies = document.cookie.split(';');
-  for (var i = 0; i < cookies.length; i++) {
-    var cookie = cookies[i];
-    while (cookie.charAt(0) == ' ') {
-      cookie = cookie.substring(1, cookie.length);
-    }
-    if (cookie.indexOf(nameEQ) == 0) {
-      return cookie.substring(nameEQ.length, cookie.length);
-    }
-  }
-  return "";
 }
 
 function sendPayloadToEndpoint(payload, endpoint) {
@@ -870,7 +869,6 @@ async function startRecording(config) {
   log(config, "Should record session: " + shouldRecordSession + " should record on error: " + shouldRecordSessionOnError);
   // Intercept all outgoing requests and add additional HTTP header
   if (shouldRecordSession || shouldRecordSessionOnError) {
-    log(config, "Setting tracking id in cookie " + sessionId);
     await enableRequestIntercept(config);
   }
 

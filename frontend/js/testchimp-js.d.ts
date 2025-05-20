@@ -16,6 +16,9 @@ declare module 'testchimp-js' {
     environment?: string;
     enableLogging?: boolean;
     enableOptionsCallTracking?: boolean;
+    optimizedImageFiltering?:boolean;
+    maxEventSizeBytes?:number;
+    pruneLargeEvents?:boolean;
   }
 
   export interface ReleaseMetadata {
