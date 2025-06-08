@@ -1,6 +1,6 @@
 {
     "name": "babel-plugin-source-mapper",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Injects data-filepath and data-component into JSX elements for source mapping",
     "main": "index.js",
     "keywords": [

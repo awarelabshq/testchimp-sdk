@@ -26,19 +26,19 @@ module.exports = function ({ types: t }) {
         const relativePath = path.relative(process.cwd(), filename);
         const filePathValue = relativePath.startsWith('..') ? filename : relativePath;
 
-        if (!alreadyInstrumented('data-filepath')) {
+        if (!alreadyInstrumented('__data-filepath')) {
           node.attributes.push(
             t.jsxAttribute(
-              t.jsxIdentifier('data-filepath'),
+              t.jsxIdentifier('__data-filepath'),
               t.stringLiteral(filePathValue)
             )
           );
         }
 
-        if (!alreadyInstrumented('data-component')) {
+        if (!alreadyInstrumented('__data-filepath')) {
           node.attributes.push(
             t.jsxAttribute(
-              t.jsxIdentifier('data-component'),
+              t.jsxIdentifier('__data-filepath'),
               t.stringLiteral(tagName)
             )
           );
