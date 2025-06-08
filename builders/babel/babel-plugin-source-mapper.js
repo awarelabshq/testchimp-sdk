@@ -11,9 +11,9 @@ module.exports = function ({ types: t }) {
 
         if (!filename || filename.includes('node_modules')) return;
 
-        // Skip built-in HTML tags (e.g. div, span)
+        // Get the tag/component name
         const tagName = node.name?.name || '';
-        if (!tagName || /^[a-z]/.test(tagName)) return;
+        if (!tagName || /^[a-z]/.test(tagName)) return; // Skip HTML tags
 
         const alreadyInstrumented = (attrName) =>
           node.attributes.some(
@@ -22,23 +22,25 @@ module.exports = function ({ types: t }) {
               t.isJSXIdentifier(attr.name, { name: attrName })
           );
 
-        // Relative file path
+        // Compute relative path
         const relativePath = path.relative(process.cwd(), filename);
         const filePathValue = relativePath.startsWith('..') ? filename : relativePath;
 
-        if (!alreadyInstrumented('__data-filepath')) {
+        // Inject data-filepath
+        if (!alreadyInstrumented('data-filepath')) {
           node.attributes.push(
             t.jsxAttribute(
-              t.jsxIdentifier('__data-filepath'),
+              t.jsxIdentifier('data-filepath'),
               t.stringLiteral(filePathValue)
             )
           );
         }
 
-        if (!alreadyInstrumented('__data-filepath')) {
+        // Inject data-component
+        if (!alreadyInstrumented('data-component')) {
           node.attributes.push(
             t.jsxAttribute(
-              t.jsxIdentifier('__data-filepath'),
+              t.jsxIdentifier('data-component'),
               t.stringLiteral(tagName)
             )
           );
