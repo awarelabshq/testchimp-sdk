@@ -1,0 +1,20 @@
+{
+    "name": "babel-plugin-source-mapper",
+    "version": "0.1.0",
+    "description": "Injects data-filepath and data-component into JSX elements for source mapping",
+    "main": "index.js",
+    "keywords": [
+      "babel-plugin",
+      "source-mapping",
+      "react",
+      "jsx",
+      "testchimp",
+      "AgenticTesting",
+      "instrumentation"
+    ],
+    "author": "TestChimp.io",
+    "license": "MIT",
+    "peerDependencies": {
+      "@babel/core": "^7.0.0"
+    }
+  }
