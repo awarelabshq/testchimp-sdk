@@ -619,38 +619,105 @@ function startSendingEvents(endpoint, config) {
   };
 
   function isBase64Image(value) {
-    return typeof value === 'string' && value.startsWith('data:image/');
-  }
+    return typeof value === 'string' && value.includes('data:image/');
+    }
 
   function sanitizeAttributes(attrs) {
     const filtered = {};
+    const forbiddenStyleKeys = new Set([
+      // Background
+      'background', 'background-image', 'backgroundImage',
+    
+      // Filters and effects
+      'filter', 'webkit-filter', 'backdrop-filter',
+    
+      // Transforms (commonly animated)
+      'transform', 'translate', 'translatex', 'translatey', 'translatez',
+      'rotate', 'rotatex', 'rotatey', 'rotatez',
+      'scale', 'scalex', 'scaley', 'scalez',
+      'skew', 'skewx', 'skewy',
+      'perspective',
+      'webkit-transform','moz-transform',
+      // Animation and transition
+      'transition', 'transition-property',
+      'animation', 'animation-name', 'animation-duration',
+      'animation-timing-function', 'animation-iteration-count',
+    
+      // Shadows
+      'box-shadow', 'boxShadow', 'text-shadow', 'textShadow',
+    
+      // Visibility
+      'opacity', 'visibility',
+    
+      // Other render-affecting properties
+      'clip-path', 'mask-image', 'will-change'
+    ]);
+  
     for (const key in attrs) {
       const val = attrs[key];
+  
+      // Strip base64 images in src/href
       if ((key === 'src' || key === 'href') && isBase64Image(val)) {
         continue;
       }
-
-      if (key === 'style' && typeof val === 'object') {
-        const styleCopy = {};
-        for (const styleKey in val) {
-          const styleVal = val[styleKey];
-          if (
-            (styleKey === 'backgroundImage' || styleKey === 'background') &&
-            typeof styleVal === 'string' &&
-            styleVal.includes('data:image/')
-          ) {
-            continue;
+  
+      // Style sanitization
+      if (key === 'style') {
+        const styleObj = typeof val === 'string'
+          ? parseStyleString(val)
+          : typeof val === 'object'
+          ? val
+          : null;
+  
+        if (styleObj) {
+          const cleanedStyle = {};
+          for (const styleKey in styleObj) {
+            const styleVal = styleObj[styleKey];
+            const kebabKey = styleKey.replace(/([A-Z])/g, '-$1').toLowerCase();
+            const styleValStr = String(styleVal).toLowerCase();          
+            // Check both camelCase and kebab-case against forbidden set
+            if (
+              forbiddenStyleKeys.has(styleKey) ||
+              forbiddenStyleKeys.has(kebabKey) ||
+              styleValStr.includes('data:image/') ||
+              styleValStr.includes('rotate') ||
+              styleValStr.includes('blur') ||
+              styleValStr.includes('hue-rotate') ||
+              styleValStr.includes('skew')
+            ) {
+              continue;
+            }
+          
+            cleanedStyle[styleKey] = styleVal;
           }
-          styleCopy[styleKey] = styleVal;
+  
+          if (Object.keys(cleanedStyle).length > 0) {
+            filtered[key] = cleanedStyle;
+          }
+  
+          continue; // style handled
         }
-        if (Object.keys(styleCopy).length > 0) {
-          filtered[key] = styleCopy;
-        }
-      } else {
-        filtered[key] = val;
       }
+  
+      filtered[key] = val;
     }
+  
     return filtered;
+  }
+  
+  function parseStyleString(styleStr) {
+    const result = {};
+    try {
+      styleStr.split(';').forEach(rule => {
+        const [key, val] = rule.split(':');
+        if (key && val) {
+          result[key.trim()] = val.trim();
+        }
+      });
+    } catch (e) {
+      console.warn('Failed to parse style string:', styleStr);
+    }
+    return result;
   }
 
   function isOnlyDisplayChange(attributes) {
@@ -684,50 +751,37 @@ function startSendingEvents(endpoint, config) {
 
     if (event.type === 3 && event.data.source === 0 && event.data.attributes?.length > 0) {
       const now = Date.now();
-
-      let filteredAttributes = event.data.attributes.filter(attr => {
-        const { id, attributes } = attr;
-
-        // Remove transform-only changes
-        const isTransform =
-          attributes?.style?.transform || attributes?.transform;
-        if (isTransform) return false;
-
-        // Debounce spammy display-only toggles if optimizedImageFiltering is enabled
-        if (config.optimizedImageFiltering && isOnlyDisplayChange(attributes)) {
-          const lastChange = recentDisplayChanges.get(id);
-          if (lastChange && (now - lastChange) < DISPLAY_TOGGLE_SUPPRESSION_MS) {
-            return false;
+      let filteredAttributes = event.data.attributes
+        .map(attr => {
+          const { id, attributes } = attr;
+          if (!attributes || typeof id !== 'number') return null;
+  
+          // Strip, debounce & sanitize
+          const cleanAttrs = sanitizeAttributes(attributes);
+          if (Object.keys(cleanAttrs).length === 0) return null;
+  
+          // Debounce spammy display-only toggles
+          if (config.optimizedImageFiltering && isOnlyDisplayChange(cleanAttrs)) {
+            const lastChange = recentDisplayChanges.get(id);
+            if (lastChange && (now - lastChange) < DISPLAY_TOGGLE_SUPPRESSION_MS) {
+              return null;
+            }
+            recentDisplayChanges.set(id, now);
           }
-          recentDisplayChanges.set(id, now);
-        }
-
-        return true;
-      });
-
-      if (filteredAttributes.length === 0) {
-        return null;
-      }
-
-      // Otherwise create a modified event with transforms removed
-      const modifiedEvent = JSON.parse(JSON.stringify(event));
-
-      if (config.optimizedImageFiltering) {
-        filteredAttributes = filteredAttributes.map(attr => ({
-          ...attr,
-          attributes: sanitizeAttributes(attr.attributes),
-        })).filter(attr => Object.keys(attr.attributes).length > 0);
-      }
-
-      if (filteredAttributes.length === 0) {
-        return null;
-      }
-
-      modifiedEvent.data.attributes = filteredAttributes;
+  
+          return {
+            ...attr,
+            attributes: cleanAttrs
+          };
+        })
+        .filter(Boolean);
+  
+      if (filteredAttributes.length === 0) return null;
+  
+      const modifiedEvent = { ...event, data: { ...event.data, attributes: filteredAttributes } };
       return modifiedEvent;
     }
-
-    // Pass through all other event types unchanged
+  
     return event;
   }
 
