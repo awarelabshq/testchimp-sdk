@@ -647,7 +647,7 @@ function startSendingEvents(endpoint, config) {
       'box-shadow', 'boxShadow', 'text-shadow', 'textShadow',
     
       // Visibility
-      'opacity', 'visibility',
+      'opacity',
     
       // Other render-affecting properties
       'clip-path', 'mask-image', 'will-change'
