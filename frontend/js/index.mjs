@@ -598,7 +598,6 @@ function startSendingEventsWithCheckout(config) {
 function startSendingEvents(endpoint, config) {
   const DISPLAY_TOGGLE_SUPPRESSION_MS = 200;
   const DEFAULT_MAX_EVENT_SIZE = 1024 * 1024; // 1 MB
-  const recentDisplayChanges = new Map(); // Map<nodeId, timestamp>
   const maxSize = config.maxEventSizeBytes ?? DEFAULT_MAX_EVENT_SIZE;
 
   const recordOptions = {
@@ -720,12 +719,6 @@ function startSendingEvents(endpoint, config) {
     return result;
   }
 
-  function isOnlyDisplayChange(attributes) {
-    if (!attributes?.style) return false;
-    const keys = Object.keys(attributes.style);
-    return keys.length === 1 && keys[0] === 'display';
-  }
-
   function isScriptOnlyMutation(event) {
     if (event.type !== 3 || event.data.source !== 0 || !event.data.attributes) return false;
     return event.data.attributes.every(attr => attr?.tagName === 'SCRIPT');
@@ -759,15 +752,6 @@ function startSendingEvents(endpoint, config) {
           // Strip, debounce & sanitize
           const cleanAttrs = sanitizeAttributes(attributes);
           if (Object.keys(cleanAttrs).length === 0) return null;
-  
-          // Debounce spammy display-only toggles
-          if (config.optimizedImageFiltering && isOnlyDisplayChange(cleanAttrs)) {
-            const lastChange = recentDisplayChanges.get(id);
-            if (lastChange && (now - lastChange) < DISPLAY_TOGGLE_SUPPRESSION_MS) {
-              return null;
-            }
-            recentDisplayChanges.set(id, now);
-          }
   
           return {
             ...attr,
