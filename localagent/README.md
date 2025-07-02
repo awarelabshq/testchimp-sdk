@@ -19,11 +19,11 @@ You can sign up for free at: https://testchimp.io
 
 ## TestChimp-Local
 
-By default, the agent runs on TestChimps' servers. testchimp-local enables you to run TestChimp's autonomous testing agent locally. This enables the following:
+When you trigger an exploration from testchimp site, the agent runs on TestChimps cloud. testchimp-local enables you to run TestChimp's autonomous testing agent locally. This enables the following:
 
-- Test your localhost version (during development phase, before pushing to staging envs)
-- Reuse your signed in sessions for testing sites with complex sign-in processes (eg: SSO, 2FA etc.)
-- When your site under test is not open to public internet access (due to firewalls etc.)
+- Test your localhost version (during development phase, before even pushing to staging envs)
+- Reuse your signed-in sessions for testing sites with complex logins (eg: SSO, 2FA etc.)
+- When your site under test is not open to public internet access (behind firewalls etc.)
 - For human-in-the-loop hybrid exploration with the agent. 
 
 ## Prerequisites
@@ -49,6 +49,7 @@ Here is a minimal config file to get started:
   "browserContext": {
     "mode": "launch",
   },
+  "appReleaseLabel": "local_default",
   "explorationConfig": {
     "promptConfig": {
       "url": "https://example.com",
@@ -68,8 +69,7 @@ Here is a minimal config file to get started:
       ]
     },
     "urlRegexToCapture": ".*\\.example\\.com.*"
-  },
-  "appReleaseLabel": "local_default"
+  }
 }
 ```
 
@@ -83,11 +83,11 @@ Following environment variables are used for authenticating your local agent cli
 
 3. Run
 
-Create a exploration config json file (refer below Configuration section).
-
 ```
 ./testchimp-local --config_file=<path to your exploration_config.json>
 ```
+
+By default, the local service is started at port 43449. You can change it be passing --port argument.
 
 ## Configuration
 
@@ -121,7 +121,7 @@ Here's a comprehensive guide to all available configuration fields:
 - **mode**: Browser launch mode
   - `"launch"` - Launch a new browser instance
   - `"cdp"` - Connect to existing browser via Chrome DevTools Protocol
-- **cdp_url**: Chrome DevTools Protocol URL (required when mode is "cdp")
+- **cdpUrl**: Chrome DevTools Protocol URL (required when mode is "cdp")
 - **headless**: Whether to run browser in headless mode
 
 ### Exploration Configuration
@@ -130,6 +130,7 @@ Here's a comprehensive guide to all available configuration fields:
 {
   "explorationConfig": {
     "promptConfig": { /* prompt-based configuration */ },
+    "scriptConfig":{ /* script-based configuration */},
     "maxCredits": 100,
     "maxJourneys": 5,
     "bugCaptureSettings": { /* bug capture configuration */ },
@@ -140,6 +141,8 @@ Here's a comprehensive guide to all available configuration fields:
 ```
 
 #### Prompt-Based Configuration
+
+This is for when you want the agent to autonomously explore the webapp. You can provide (optionally) an exploration focus (via the `explorePrompt`), and the test inputs to use (via the `testDataPrompt`).
 
 ```json
 {
@@ -154,10 +157,22 @@ Here's a comprehensive guide to all available configuration fields:
 }
 ```
 
-- **url**: Required. Target website URL to explore
+- **url**: Required. Target website URL to explore (The starting point of the exploration)
 - **explorePrompt**: Optional. Instructions for the AI agent on what to explore
 - **testDataPrompt**: Optional. Instructions for any specific test input values to use
-- **location**: Optional. specific location to focus on
+
+#### Script-Based Configuration
+
+A.ka. the "Guided Mode" - this is for when you want the agent to follow specific journeys, by providing playwright js / ts scripts as guiding steps. The agent will still analyze the screenshots, DOM, network and console for bugs, write test scenarios, generate scripts and build the mindmap while following the guided steps through the app.
+
+```json
+{
+  "scriptConfig": {
+    // Required: list of file paths for scripts to run
+    "filePaths": ["src/tests/home_visit.spec.js","src/tests/successful_login.spec.js"]
+  }
+}
+```
 
 #### Bug Capture Settings
 
