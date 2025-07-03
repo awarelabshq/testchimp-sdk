@@ -84,7 +84,7 @@ Following environment variables are used for authenticating your local agent cli
 3. Run
 
 ```
-./testchimp-local --config_file=<path to your exploration_config.json>
+testchimp-local --config_file=<path to your exploration_config.json>
 ```
 
 By default, the local service is started at port 43449. You can change it be passing --port argument.
