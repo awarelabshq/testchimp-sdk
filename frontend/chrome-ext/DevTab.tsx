@@ -95,6 +95,7 @@ export const DevTab = () => {
     const [vscodeConnected, setVSCodeConnected] = useState(false);
     const [mcpConnected, setMCPConnected] = useState(false);
     const sendingRef = useRef(sending);
+    const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => { sendingRef.current = sending; }, [sending]);
 
@@ -216,15 +217,22 @@ export const DevTab = () => {
     useEffect(() => {
         function handleStatusEvent(event: MessageEvent) {
             if (event.data && event.data.type === 'connection_status') {
-                console.log('[DevTab] Received connection_status via window.postMessage:', event.data);
                 if (typeof event.data.vscodeConnected !== 'undefined') setVSCodeConnected(!!event.data.vscodeConnected);
                 if (typeof event.data.mcpConnected !== 'undefined') setMCPConnected(!!event.data.mcpConnected);
+            }
+            if (event.data && event.data.type === 'ack_message') {
+                if (errorTimeoutRef.current) {
+                    clearTimeout(errorTimeoutRef.current);
+                    errorTimeoutRef.current = null;
+                }
+                setSending(false);
+                setNotification('Copied prompt to IDE AI Chat');
+                setTimeout(() => setNotification(''), 3000);
             }
         }
         window.addEventListener('message', handleStatusEvent);
         // Request initial status
         window.postMessage({ type: 'get_connection_status' }, '*');
-        return () => window.removeEventListener('message', handleStatusEvent);
     }, []);
 
     // Dropdown menu for context add
@@ -316,7 +324,8 @@ export const DevTab = () => {
         } as UserInstructionMessage & { prompt: string };
         chrome.runtime.sendMessage({ type: 'send_to_vscode', payload: messageToSend });
         // Set a timeout to handle failure to receive ack
-        setTimeout(() => {
+        if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+        errorTimeoutRef.current = setTimeout(() => {
             if (lastMessageId.current === message_id && sendingRef.current) {
                 setSending(false);
                 setNotification('Had an issue sending the message');

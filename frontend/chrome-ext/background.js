@@ -1062,6 +1062,15 @@ function notifyStatus() {
         vscodeConnected: self.vscodeConnected,
         mcpConnected: self.mcpConnected
     });
+    chrome.tabs.query({}, function(tabs) {
+        for (let tab of tabs) {
+            chrome.tabs.sendMessage(tab.id, { 
+                type: 'connection_status',
+                vscodeConnected: self.vscodeConnected, 
+                mcpConnected: self.mcpConnected 
+            });
+        }
+    });
 }
 self.notifyStatus = notifyStatus;
 

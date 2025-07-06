@@ -60,7 +60,6 @@ module.exports = {
         { from: 'localRun.js', to: 'localRun.js' },
         { from: 'background-websockets.js', to: 'background-websockets.js' },
         { from: 'images/', to: 'images/' },
-        { from: 'contentRelay.js', to: 'contentRelay.js' },
       ],
     }),
     //new Utf8BOMPlugin({ dir: 'dist' }), // Add this
