@@ -134,6 +134,31 @@ function createToggleButton(initialVisible: boolean) {
   document.body.appendChild(btn);
 }
 
+// Listen for sidebar show/hide messages from the page
+window.addEventListener('message', (event) => {
+  if (!event.data || typeof event.data.type !== 'string') return;
+  const host = document.getElementById(containerId);
+  if (!host) return;
+  const btn = document.getElementById(toggleButtonId) as HTMLButtonElement | null;
+  if (event.data.type === 'tc-hide-sidebar') {
+    host.style.transform = `translateX(100%)`;
+    isVisible = false;
+    // Move toggle button to the edge of the hidden sidebar
+    if (btn) {
+      btn.dataset.visible = 'false';
+      btn.style.right = '5px'; // Button at screen edge when sidebar is hidden
+    }
+  }
+  if (event.data.type === 'tc-show-sidebar') {
+    host.style.transform = `translateX(0)`;
+    isVisible = true;
+    // Move toggle button to the edge of the visible sidebar
+    if (btn) {
+      btn.dataset.visible = 'true';
+      btn.style.right = `${sidebarWidth + 10}px`;
+    }
+  }
+});
 
 chrome.storage.local.get(['recordingInProgress', 'forceExpandSidebar'], (result) => {
   const initiallyExpanded = !!result.forceExpandSidebar || !result.recordingInProgress;

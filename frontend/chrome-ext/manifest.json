@@ -19,6 +19,7 @@
         "<all_urls>"
       ],
       "js": [
+        "contentRelay.js",
         "index.js"
       ],
       "run_at": "document_start"

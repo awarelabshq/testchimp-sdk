@@ -10040,7 +10040,8 @@ function setTrackingIdCookie(sessionId) {
       if (!data["testchimp.ext-session-record-tracking-id"]) {
         // Set the tracking ID only if it doesn't exist
         chrome.storage.local.set({
-          "testchimp.ext-session-record-tracking-id": sessionId
+          "testchimp.ext-session-record-tracking-id": sessionId,
+          "recordingInProgress":true
         }, function () {
           if (chrome.runtime.lastError) {
             return reject(new Error(chrome.runtime.lastError));

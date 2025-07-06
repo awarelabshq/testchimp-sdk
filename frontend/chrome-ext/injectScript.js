@@ -281,3 +281,140 @@ XMLHttpRequest.prototype.open = function(...args) {
     requestIdMap.set(key, requestId);
   });
 })();
+
+// --- Element Selection and Bounding Box Drawing ---
+(function() {
+  if (window.__tcElementSelectInjected) return;
+  window.__tcElementSelectInjected = true;
+
+  let highlightEl = null;
+  let boxOverlay = null;
+  let startX = 0, startY = 0, endX = 0, endY = 0;
+  let drawing = false;
+
+  function getUniqueSelector(el) {
+    if (!el) return '';
+    if (el.id) return `#${el.id}`;
+    if (el.className && typeof el.className === 'string') return `${el.tagName.toLowerCase()}.${el.className.trim().replace(/\s+/g, '.')}`;
+    return el.tagName.toLowerCase();
+  }
+
+  function cleanupElementSelect() {
+    document.removeEventListener('mousemove', onHover);
+    document.removeEventListener('click', onClick, true);
+    if (highlightEl) {
+      highlightEl.style.outline = '';
+      highlightEl = null;
+    }
+  }
+
+  function onHover(e) {
+    if (highlightEl) highlightEl.style.outline = '';
+    highlightEl = e.target;
+    if (highlightEl) highlightEl.style.outline = '2px solid #72BDA3';
+  }
+
+  function onClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    cleanupElementSelect();
+    if (highlightEl) highlightEl.style.outline = '';
+    const selector = getUniqueSelector(e.target);
+    const id = e.target.id || '';
+    const role = e.target.getAttribute ? e.target.getAttribute('role') : '';
+    let text = '';
+    if (e.target.innerText) text = e.target.innerText.trim();
+    else if (e.target.textContent) text = e.target.textContent.trim();
+    const tagName = e.target.tagName ? e.target.tagName.toLowerCase() : '';
+    window.postMessage({ type: 'elementSelected', selector, id, role, text, tagName }, '*');
+  }
+
+  function startElementSelect() {
+    document.addEventListener('mousemove', onHover);
+    document.addEventListener('click', onClick, true);
+  }
+
+  function cleanupBoxDraw() {
+    document.removeEventListener('mousedown', onBoxDown, true);
+    document.removeEventListener('mousemove', onBoxMove, true);
+    document.removeEventListener('mouseup', onBoxUp, true);
+    if (boxOverlay && boxOverlay.parentNode) boxOverlay.parentNode.removeChild(boxOverlay);
+    boxOverlay = null;
+    drawing = false;
+  }
+
+  function onBoxDown(e) {
+    if (e.button !== 0) return;
+    if (drawing) return; // Prevent multiple draws
+    drawing = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    if (!boxOverlay) {
+      boxOverlay = document.createElement('div');
+      Object.assign(boxOverlay.style, {
+        position: 'fixed',
+        zIndex: 9999999,
+        border: '2px dashed #ff6b65',
+        background: 'rgba(255,107,101,0.1)',
+        pointerEvents: 'none',
+        left: `${startX}px`,
+        top: `${startY}px`,
+        width: '0px',
+        height: '0px',
+      });
+      document.body.appendChild(boxOverlay);
+    }
+    document.addEventListener('mousemove', onBoxMove, true);
+    document.addEventListener('mouseup', onBoxUp, true);
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  function onBoxMove(e) {
+    if (!drawing || !boxOverlay) return;
+    endX = e.clientX;
+    endY = e.clientY;
+    const left = Math.min(startX, endX);
+    const top = Math.min(startY, endY);
+    const width = Math.abs(endX - startX);
+    const height = Math.abs(endY - startY);
+    Object.assign(boxOverlay.style, {
+      left: `${left}px`,
+      top: `${top}px`,
+      width: `${width}px`,
+      height: `${height}px`,
+    });
+  }
+
+  function onBoxUp(e) {
+    if (!drawing) return;
+    drawing = false;
+    document.removeEventListener('mousemove', onBoxMove, true);
+    document.removeEventListener('mouseup', onBoxUp, true);
+    if (boxOverlay) {
+      const rect = boxOverlay.getBoundingClientRect();
+      window.postMessage({ type: 'boxDrawn', coords: { left: rect.left, top: rect.top, width: rect.width, height: rect.height } }, '*');
+      boxOverlay.parentNode.removeChild(boxOverlay);
+      boxOverlay = null;
+    }
+    // Remove mousedown listener to prevent sticky mode
+    document.removeEventListener('mousedown', onBoxDown, true);
+  }
+
+  function startBoxDraw() {
+    cleanupBoxDraw(); // Ensure no duplicate listeners
+    document.addEventListener('mousedown', onBoxDown, true);
+  }
+
+  window.addEventListener('message', (event) => {
+    if (!event.data || typeof event.data.type !== 'string') return;
+    if (event.data.type === 'startElementSelect') {
+      cleanupElementSelect();
+      startElementSelect();
+    }
+    if (event.data.type === 'startBoxDraw') {
+      cleanupBoxDraw();
+      startBoxDraw();
+    }
+  });
+})();

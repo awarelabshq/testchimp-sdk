@@ -1,3 +1,5 @@
+import { connectMCP } from './background-websockets.js';
+
 chrome.runtime.onInstalled.addListener(() => {
     console.log('TestChimp Chrome Extension installed.');
 
@@ -88,6 +90,52 @@ const urlToResponsePayloadMap = new Map();
 const urlToRequestPayloadMap = new Map();
 const requestCompletedMap = new Map();
 const captureResponseComplete=new Map();
+
+const recentConsoleLogs = [];
+const MAX_LOGS = 100;
+
+function pushLog(type, ...args) {
+    const msg = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+    recentConsoleLogs.push({
+        type,
+        msg,
+        timestamp: Date.now()
+    });
+    if (recentConsoleLogs.length > MAX_LOGS) recentConsoleLogs.shift();
+}
+
+['log', 'warn', 'error', 'info'].forEach(type => {
+    const orig = console[type];
+    console[type] = function(...args) {
+        pushLog(type, ...args);
+        orig.apply(console, args);
+    };
+});
+
+// Expose for background-websockets.js
+self.getRecentConsoleLogs = function({ level, count, sinceTimestamp } = {}) {
+    let logs = recentConsoleLogs;
+    if (level) {
+        // Define log level order
+        const levelOrder = ['log', 'info', 'warn', 'error'];
+        const minIdx = levelOrder.indexOf(level);
+        if (minIdx !== -1) {
+            logs = logs.filter(l => levelOrder.indexOf(l.type) >= minIdx);
+        }
+    }
+    if (sinceTimestamp) {
+        logs = logs.filter(l => l.timestamp >= sinceTimestamp);
+    }
+    if (count) {
+        logs = logs.slice(-count);
+    }
+    // Return as array of ConsoleLogItem
+    return logs.map(l => ({
+        level: l.type,
+        timestamp: l.timestamp,
+        message: l.msg
+    }));
+};
 
 async function getTrackingIdCookie() {
     try {
@@ -671,6 +719,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     return true; // Keep async channel open
   }
+
+  if (message.type === 'send_to_vscode' && self.vscodeSocket && self.vscodeSocket.readyState === 1) {
+    self.vscodeSocket.send(JSON.stringify(message.payload));
+  }
+
+  if (message.type === 'capture_viewport_screenshot') {
+    console.log('[background] capture_viewport_screenshot received');
+    chrome.tabs.captureVisibleTab({ format: 'png' }, (dataUrl) => {
+        console.log('[background] captureVisibleTab result:', !!dataUrl, dataUrl ? dataUrl.length : 0);
+        sendResponse({ dataUrl });
+    });
+    return true; // Keep the message channel open for async response
+  }
 });
 
 const cleanKey = (key) => {
@@ -988,3 +1049,79 @@ importScripts('localRun.js');
 
 // Call the function to load the context menu
 loadContextMenu();
+
+// --- Global connection status ---
+var vscodeConnected = false;
+var mcpConnected = false;
+
+// Unified status notification
+function notifyStatus() {
+    console.log("[notifyStatus] vscodeConnected:", self.vscodeConnected, "mcpConnected:", self.mcpConnected);
+    chrome.runtime.sendMessage({
+        type: 'connection_status',
+        vscodeConnected: self.vscodeConnected,
+        mcpConnected: self.mcpConnected
+    });
+}
+self.notifyStatus = notifyStatus;
+
+// VSCode WebSocket connection logic
+let vscodeSocket = null;
+
+function connectVSCode() {
+    vscodeSocket = new WebSocket('ws://localhost:8765');
+    self.vscodeSocket = vscodeSocket; // Always update reference on (re)connect
+    vscodeSocket.onopen = () => {
+        self.vscodeConnected = true;
+        console.log('WebSocket connected to VSCode extension');
+        self.notifyStatus();
+    };
+    vscodeSocket.onclose = () => {
+        self.vscodeConnected = false;
+        console.log('WebSocket disconnected from VSCode extension');
+        self.notifyStatus();
+        setTimeout(connectVSCode, 3000);
+    };
+    vscodeSocket.onerror = (e) => {
+        self.vscodeConnected = false;
+        console.error('VSCode WebSocket error', e);
+        self.notifyStatus();
+    };
+    vscodeSocket.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            if (data && data.type === 'ack_message') {
+                console.log('[background] Received ack_message from VS Code:', data);
+                chrome.runtime.sendMessage(data);
+                // Relay to all tabs (so sidebar receives it)
+                chrome.tabs.query({}, function(tabs) {
+                    for (let tab of tabs) {
+                        chrome.tabs.sendMessage(tab.id, data);
+                    }
+                });
+            }
+            // handle other message types if needed
+        } catch (e) {
+            // handle parse error
+        }
+    };
+}
+
+// ... after connectMCP() ...
+connectVSCode();
+
+// ... after vscodeSocket is created ...
+self.vscodeSocket = vscodeSocket;
+
+// Unified message handler for sidebar status requests
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type === 'get_connection_status') {
+        sendResponse({ 
+            vscodeConnected: self.vscodeConnected, 
+            mcpConnected: self.mcpConnected 
+        });
+    }
+});
+
+// At the end of the main setup logic, after listeners and initialization:
+connectMCP();

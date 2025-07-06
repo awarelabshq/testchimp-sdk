@@ -5,7 +5,7 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 module.exports = {
   mode: 'production',
   entry: {
-    background: './background.js',   // Your background script (if this is still correct)
+    background: ['./background.js', './background-websockets.js'],
     index: './index-ext.mjs',   // Your background script (if this is still correct)
     sidebar: './sidebar.tsx',         // Update to point to the correct .tsx file
     injectSidebar: './injectSidebar.tsx',
@@ -58,7 +58,9 @@ module.exports = {
         { from: 'contextMenu.js', to: 'contextMenu.js' },
         { from: 'injectScript.js', to: 'injectScript.js' },
         { from: 'localRun.js', to: 'localRun.js' },
+        { from: 'background-websockets.js', to: 'background-websockets.js' },
         { from: 'images/', to: 'images/' },
+        { from: 'contentRelay.js', to: 'contentRelay.js' },
       ],
     }),
     //new Utf8BOMPlugin({ dir: 'dist' }), // Add this

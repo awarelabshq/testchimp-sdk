@@ -1,23 +1,6 @@
+import { formatTimeAgo } from './time_utils';
+
 const MAX_RECENT_SESSIONS = 10;
-
-// Function to format time
-function formatTimeAgo(timestamp) {
-    const now = Date.now();
-    const diff = Math.floor((now - timestamp) / 1000); // difference in seconds
-
-    if (diff < 60) {
-        return `${diff} seconds ago`;
-    } else if (diff < 3600) {
-        const minutes = Math.floor(diff / 60);
-        return `${minutes} minutes ago`;
-    } else if (diff < 86400) {
-        const hours = Math.floor(diff / 3600);
-        return `${hours} hours ago`;
-    } else {
-        const days = Math.floor(diff / 86400);
-        return `${days} days ago`;
-    }
-}
 
 function showRecentSessions() {
     const recentSessionsContainer = document.getElementById('recentSessions');

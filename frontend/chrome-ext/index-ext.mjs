@@ -69,6 +69,7 @@ function setTrackingIdCookie(sessionId) {
           console.log("Setting testchimp tracking id to " + sessionId);
           resolve(); // Resolve the promise when setting is complete
         });
+        chrome.storage.local.set({ recordingInProgress: true });
       } else {
         // If it already exists, resolve immediately
         resolve();
@@ -271,6 +272,8 @@ function clearTrackingIdCookie() {
       }
       console.log("TestChimp tracking id cleared");
     });
+    chrome.storage.local.set({ recordingInProgress: false });
+
   } catch (error) {
     console.error("Security error caught:", error);
   }
@@ -539,3 +542,31 @@ async function checkAndStartRecording() {
 
 // Check for the cookie when the page is loaded
 document.addEventListener('DOMContentLoaded', checkAndStartRecording);
+
+// Relay user/project info to sidebar for login state and project updates
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return;
+  if (event.data && (event.data.type === 'fetchProjects' || event.data.type === 'getUserAuthInfo')) {
+    chrome.storage.sync.get(['userAuthKey', 'currentUserId', 'projectId'], (result) => {
+      window.postMessage({
+        type: 'userAuthInfo',
+        userAuthKey: result.userAuthKey,
+        currentUserId: result.currentUserId,
+        projectId: result.projectId,
+      }, '*');
+    });
+  }
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'sync' && (changes.userAuthKey || changes.currentUserId || changes.projectId)) {
+    chrome.storage.sync.get(['userAuthKey', 'currentUserId', 'projectId'], (result) => {
+      window.postMessage({
+        type: 'userAuthInfo',
+        userAuthKey: result.userAuthKey,
+        currentUserId: result.currentUserId,
+        projectId: result.projectId,
+      }, '*');
+    });
+  }
+});
