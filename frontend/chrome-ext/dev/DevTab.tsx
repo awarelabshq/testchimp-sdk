@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Button, Input, Tooltip, Typography, Dropdown, Menu } from 'antd';
-import { PlusOutlined, SelectOutlined, BorderOutlined, DragOutlined, RightSquareOutlined } from '@ant-design/icons';
-import { UserInstructionMessage, ContextElementType, ContextElement, UIElementContext, BoundingBoxContext } from './datas';
-import { addOrUpdateContextElements, removeContextElementById, getBasicInfo, getBasicInfoForBoxElements } from './contextStore';
-import { useElementSelector } from './elementSelector';
+import { Button, Input, Tooltip, Typography, Dropdown, Menu, Select, Spin, Collapse } from 'antd';
+import { PlusOutlined, SelectOutlined, BorderOutlined, DragOutlined, RightSquareOutlined, ReloadOutlined } from '@ant-design/icons';
+import { UserInstructionMessage, ContextElementType, ContextElement, UIElementContext, BoundingBoxContext } from '../datas';
+import { addOrUpdateContextElements, removeContextElementById, getBasicInfo, getBasicInfoForBoxElements } from '../contextStore';
+import { useElementSelector } from '../elementSelector';
+import { ScratchPad, LocalTask } from './ScratchPad';
+import { getScreenForPage } from '../apiService';
+import { getScreenStates } from '../apiService';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -85,6 +88,29 @@ function formatMessageForAI(msg: UserInstructionMessage): string {
     return result;
 }
 
+// Helper to convert ContextElement to ContextTag
+function contextElementToContextTag(elem: ContextElement): ContextTag {
+    if ((elem as any).type === ContextElementType.UIElement) {
+        const ui = elem as UIElementContext;
+        return {
+            id: (ui as any).id,
+            type: ui.type,
+            value: (ui as any).querySelector || '',
+            role: (ui as any).role,
+            text: (ui as any).text,
+            tagName: (ui as any).tagName,
+        };
+    } else if ((elem as any).type === ContextElementType.BoundingBox) {
+        const box = elem as BoundingBoxContext;
+        return {
+            id: (box as any).id,
+            type: box.type,
+            value: box.value,
+        };
+    }
+    return { type: (elem as any).type, value: '' };
+}
+
 export const DevTab = () => {
     const [contextTags, setContextTags] = useState<ContextTag[]>([]);
     const [userMessage, setUserMessage] = useState('');
@@ -97,6 +123,54 @@ export const DevTab = () => {
     const [mcpConnected, setMCPConnected] = useState(false);
     const sendingRef = useRef(sending);
     const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [scratchPadTasks, setScratchPadTasks] = useState<LocalTask[]>([]);
+    const [currentScreenName, setCurrentScreenName] = useState<string | undefined>(undefined);
+    const [currentRelativeUrl, setCurrentRelativeUrl] = useState<string | undefined>(undefined);
+    const [saveLoading, setSaveLoading] = useState(false);
+    const [screenStates, setScreenStates] = useState<{ screen: string; states?: string[] }[]>([]);
+    const [selectedScreen, setSelectedScreen] = useState<string | undefined>(undefined);
+    const [screenLoading, setScreenLoading] = useState(false);
+    const [scratchPadOpen, setScratchPadOpen] = useState(false);
+
+    // Fetch screen states and current screen on mount
+    useEffect(() => {
+        setScreenLoading(true);
+        getScreenStates().then(data => {
+            // Filter out undefined screens
+            const validScreens = (data.screenStates || []).filter(s => !!s.screen) as { screen: string; states?: string[] }[];
+            setScreenStates(validScreens);
+            // After screen states, fetch current screen
+            const url = window.location.href;
+            getScreenForPage({ url }).then(res => {
+                setCurrentScreenName(res.screenName);
+                setCurrentRelativeUrl(res.normalizedUrl || url);
+                setSelectedScreen(res.screenName || (validScreens && validScreens[0]?.screen) || undefined);
+                setScreenLoading(false);
+            }).catch(() => {
+                setCurrentScreenName(undefined);
+                setCurrentRelativeUrl(url);
+                setSelectedScreen((validScreens && validScreens[0]?.screen) || undefined);
+                setScreenLoading(false);
+            });
+        });
+    }, []);
+
+    // Refresh current screen (for refresh icon)
+    const handleRefreshScreen = () => {
+        setScreenLoading(true);
+        const url = window.location.href;
+        getScreenForPage({ url }).then(res => {
+            setCurrentScreenName(res.screenName);
+            setCurrentRelativeUrl(res.normalizedUrl || url);
+            setSelectedScreen(res.screenName || (screenStates && screenStates[0]?.screen) || undefined);
+            setScreenLoading(false);
+        }).catch(() => {
+            setScreenLoading(false);
+        });
+    };
+
+    // Use selectedScreen for ScratchPad filtering
+    const scratchPadScreenName = selectedScreen;
 
     useEffect(() => { sendingRef.current = sending; }, [sending]);
 
@@ -285,34 +359,138 @@ export const DevTab = () => {
         }, 3000);
     };
 
-    // Layout: context window at top, then message box, then notification, then sticky button at bottom
+    // Add Save for later handler
+    const handleSaveForLater = async () => {
+        if (!userMessage.trim()) return;
+        setSaveLoading(true);
+        let relativeUrl = '';
+        let screenName = '';
+        const url = window.location.href;
+        try {
+            const res = await getScreenForPage({ url });
+            screenName = res.screenName || '';
+            relativeUrl = res.normalizedUrl || url;
+        } catch {
+            screenName = '';
+            relativeUrl = url;
+        }
+        // Prepare infoContext as in handleSend
+        let filePaths: string[] = [];
+        try {
+            const nodes = document.querySelectorAll('[data-filepath]');
+            const paths = Array.from(nodes)
+                .map(node => (node as HTMLElement).getAttribute('data-filepath'))
+                .filter((v): v is string => !!v);
+            filePaths = Array.from(new Set(paths));
+        } catch (e) { filePaths = []; }
+        const contextElements: ContextElement[] = contextTags.map(tag => {
+            const id = tag.id || hashContextTag(tag);
+            return { ...tag, id, contextId: (tag as any).contextId || id } as ContextElement;
+        });
+        const infoContext = {
+            screenInfo: { relativeUrl, filePaths },
+            contextElements
+        };
+        const newTask: LocalTask = {
+            prompt: userMessage.trim(),
+            context: infoContext,
+            creationTimestampMillis: Date.now(),
+            screenName: screenName || undefined,
+            relativeUrl: relativeUrl || undefined,
+        };
+        // Save to chrome.storage.sync
+        chrome.storage.sync.get(['localTasks'], (result) => {
+            const prev: LocalTask[] = result['localTasks'] || [];
+            const updated = [newTask, ...prev].sort((a, b) => b.creationTimestampMillis - a.creationTimestampMillis);
+            chrome.storage.sync.set({ localTasks: updated }, () => {
+                setScratchPadTasks(updated);
+                setScratchPadOpen(true);
+                setSaveLoading(false);
+            });
+        });
+    };
+
+    // Populate context and prompt from ScratchPad
+    const handleScratchPadSelect = (task: LocalTask) => {
+        setUserMessage(task.prompt || '');
+        setContextTags((task.context?.contextElements || []).map(contextElementToContextTag));
+    };
+    const handleScratchPadDelete = (task: LocalTask) => {
+        setScratchPadTasks(tasks => tasks.filter(t => t.creationTimestampMillis !== task.creationTimestampMillis));
+    };
+
+    // Custom expand icon for Collapse
+    const scratchPadExpandIcon = (panelProps: any) => (
+        <PlusOutlined rotate={Boolean(panelProps.isActive) ? 45 : 0} style={{ fontSize: 14, color: '#aaa', marginRight: 6 }} />
+    );
+
+    // Load scratch pad tasks from chrome.storage.sync on mount
+    useEffect(() => {
+      chrome.storage.sync.get(['localTasks'], (result) => {
+        const loaded = result['localTasks'] || [];
+        setScratchPadTasks(loaded.sort((a, b) => b.creationTimestampMillis - a.creationTimestampMillis));
+      });
+    }, []);
+
+    // Layout: Screen selector at top, ScratchPad grows to fill space, bottom sticky area contains status, button panel, prompt, context
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, position: 'relative' }}>
-            {/* Status row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 4, justifyContent: 'flex-end' }}>
-                <span style={{ fontSize: 12, color: '#888' }}>
-                    VSCode: {vscodeConnected ? (
-                        <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
-                    ) : (
-                        <Tooltip title="VSCode extension is not connected. (Update this text)">
-                            <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Disconnected</span>
-                        </Tooltip>
-                    )}
-                </span>
-                <span style={{ fontSize: 12, color: '#888' }}>
-                    MCP: {mcpConnected ? (
-                        <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
-                    ) : (
-                        <Tooltip title="MCP server is not connected. (Update this text)">
-                            <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Disconnected</span>
-                        </Tooltip>
-                    )}
-                </span>
-            </div>
-            {/* Main content: context window, message box, notification */}
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 0, overflow: 'hidden' }}>
-                {/* Context window (fills remaining space, scrollable if needed) */}
-                <div className="tc-section" style={{ flex: 1, minHeight: 120, overflowY: 'auto', marginTop: 0, marginBottom: 4, padding: 16, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', minHeight: 0, background: '#181818' }}>
+            {/* ScratchPad as accordion, always displayed */}
+            {(scratchPadTasks.length > 0) && (
+                <div style={{ flex: 1, minHeight: 120, display: 'flex', flexDirection: 'column', overflow: 'hidden', margin: '0 4px' }}>
+                    <Collapse
+                        activeKey={scratchPadOpen ? ['1'] : []}
+                        onChange={keys => setScratchPadOpen(keys.length > 0)}
+                        expandIcon={scratchPadExpandIcon}
+                        expandIconPosition="start"
+                        style={{ background: 'none', border: 'none', flex: 1, display: 'flex', flexDirection: 'column' }}
+                    >
+                        <Collapse.Panel
+                            header={<span style={{ fontWeight: 500, color: '#aaa', fontSize: 13, letterSpacing: 0.01, padding: 0, margin: 0 }}>Scratch Pad</span>}
+                            key="1"
+                            style={{ background: '#181818', border: 'none', borderRadius: 8, marginBottom: 4, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: 0, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+                        >
+                            {/* Screen selector as thin row at top of ScratchPad */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 4px 0', borderBottom: '1px solid #222', margin: 0 }}>
+                                <span style={{ fontSize: 12, color: '#aaa', fontWeight: 500, letterSpacing: 0.01, marginRight: 8 }}>Screen</span>
+                                <Select
+                                    style={{ minWidth: 140, flex: 1, fontSize: 12 }}
+                                    placeholder="Select screen"
+                                    value={selectedScreen}
+                                    onChange={val => setSelectedScreen(val)}
+                                    loading={screenLoading}
+                                    options={screenStates.filter(s => !!s.screen).map(s => ({ label: String(s.screen), value: String(s.screen) }))}
+                                    showSearch
+                                    optionFilterProp="label"
+                                    filterOption={(input, option) => (option?.label as string).toLowerCase().includes(input.toLowerCase())}
+                                    size="small"
+                                />
+                                <Button
+                                    icon={<ReloadOutlined style={{ fontSize: 12 }} />}
+                                    onClick={handleRefreshScreen}
+                                    loading={screenLoading}
+                                    style={{ marginLeft: 4, background: 'none', border: 'none', color: '#aaa', fontSize: 12, boxShadow: 'none', padding: 0, width: 20, height: 20, minWidth: 20 }}
+                                />
+                            </div>
+                            {/* ScratchPad content, scrollable, no extra margin/padding */}
+                            <div style={{ flex: 1, minHeight: 0, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: 0, margin: 0 }}>
+                                <ScratchPad
+                                    onSelect={handleScratchPadSelect}
+                                    onDelete={handleScratchPadDelete}
+                                    tasks={scratchPadTasks}
+                                    setTasks={setScratchPadTasks}
+                                    currentScreenName={scratchPadScreenName}
+                                    currentRelativeUrl={currentRelativeUrl}
+                                />
+                            </div>
+                        </Collapse.Panel>
+                    </Collapse>
+                </div>
+            )}
+            {/* Fixed bottom area: context, prompt, buttons, status */}
+            <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100, background: '#181818', boxShadow: '0 -2px 12px rgba(0,0,0,0.12)', padding: '0 4px 0 4px', borderTop: '1px solid #222' }}>
+                {/* Context window */}
+                <div className="tc-section" style={{ minHeight: 120, marginTop: 0, marginBottom: 4, padding: 8, display: 'flex', flexDirection: 'column', background: '#181818', border: '1.5px solid #333', borderRadius: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                         <div>
                             <div className="tc-context-title">Add Context</div>
@@ -330,7 +508,7 @@ export const DevTab = () => {
                                 style={{
                                     background: 'none',
                                     border: 'none',
-                                    color: '#888',
+                                    color: '#aaa',
                                     fontSize: 12,
                                     textDecoration: 'underline',
                                     cursor: 'pointer',
@@ -380,8 +558,8 @@ export const DevTab = () => {
                         </Dropdown>
                     </div>
                 </div>
-                {/* Message box and notification */}
-                <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: '0 0 auto', background: '#232323' }}>
+                {/* Prompt box */}
+                <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, background: '#181818', marginBottom: 0, padding: '0 4px' }}>
                     <Input.TextArea
                         value={userMessage}
                         onChange={e => setUserMessage(e.target.value)}
@@ -410,19 +588,62 @@ export const DevTab = () => {
                         </div>
                     )}
                 </div>
-            </div>
-            {/* Send to IDE button (always at bottom) */}
-            <div style={{ padding: 8, background: '#232323', borderTop: '1px solid #222', display: 'flex', justifyContent: 'flex-end' }}>
-                <Button
-                    type="primary"
-                    onClick={handleSend}
-                    loading={sending}
-                    style={{ backgroundColor: '#72BDA3', borderColor: '#72BDA3', color: '#fff', height: 32, width: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                    disabled={sending}
-                >
-                    Send to IDE
-                    <RightSquareOutlined style={{ fontSize: 14, marginLeft: 6 }} />
-                </Button>
+                {/* Button panel */}
+                <div style={{ width: '100%', background: '#181818', display: 'flex', gap: 8, padding: '8px 4px 4px 4px', borderTop: '1px solid #222' }}>
+                    <div style={{ flex: 1 }}>
+                        <Button
+                            onClick={handleSaveForLater}
+                            className="secondary-button"
+                            style={{ width: '100%', color: '#72BDA3', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                            disabled={sending || saveLoading || !userMessage.trim()}
+                            loading={saveLoading}
+                        >
+                            Save for later
+                        </Button>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <Tooltip
+                            title={!vscodeConnected ? 'VSCode extension must be installed and started.' : ''}
+                            placement="top"
+                            mouseEnterDelay={0.2}
+                        >
+                            <span style={{ display: 'block' }}>
+                                <Button
+                                    type="primary"
+                                    onClick={handleSend}
+                                    className="primary-button"
+                                    loading={sending}
+                                    style={{ width: '100%', color: '#fff', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                                    disabled={sending || !vscodeConnected}
+                                >
+                                    Send to IDE
+                                    <RightSquareOutlined style={{ fontSize: 14, marginLeft: 6 }} />
+                                </Button>
+                            </span>
+                        </Tooltip>
+                    </div>
+                </div>
+                {/* Status bar: always at the bottom of this container */}
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12 }}>
+                    <span style={{ fontSize: 12, color: '#aaa' }}>
+                        VSCode: {vscodeConnected ? (
+                            <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
+                        ) : (
+                            <Tooltip title="VSCode extension is not connected. (Update this text)">
+                                <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Disconnected</span>
+                            </Tooltip>
+                        )}
+                    </span>
+                    <span style={{ fontSize: 12, color: '#aaa', marginLeft: 16 }}>
+                        MCP: {mcpConnected ? (
+                            <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
+                        ) : (
+                            <Tooltip title="MCP server is not connected. (Update this text)">
+                                <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Disconnected</span>
+                            </Tooltip>
+                        )}
+                    </span>
+                </div>
             </div>
         </div>
     );

@@ -316,6 +316,7 @@ export const BugsTab = () => {
                 <Button
                   type="default"
                   size="small"
+                  className="secondary-button"
                   style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                   onClick={() => setAddingBug(true)}
                 >
@@ -327,7 +328,8 @@ export const BugsTab = () => {
                 <Button
                   type="primary"
                   size="small"
-                  style={{ width: '100%', height: 32, backgroundColor: '#72BDA3', borderColor: '#72BDA3', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  className="primary-button"
+                  style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                 >
                   <img
                     src={getTestChimpIcon()}

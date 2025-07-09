@@ -213,7 +213,7 @@ export const AddBugPanel: React.FC<AddBugPanelProps> = ({ screen, state, onCance
               <Button
                 type="default"
                 size="small"
-                style={{ border: '1px solid #72BDA3', borderRadius: 4, background: '#232323', color: '#72BDA3', fontWeight: 500, flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}
+                style={{ border: '1px solid #72BDA3', borderRadius: 4, background: '#181818', color: '#72BDA3', fontWeight: 500, flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}
                 onClick={() => setAddBugElement(null)}
                 disabled={addBugLoading}
               >
@@ -251,18 +251,16 @@ export const AddBugPanel: React.FC<AddBugPanelProps> = ({ screen, state, onCance
             <Button
               type="primary"
               loading={addBugLoading}
-              disabled={addBugLoading || !addBugTitle.trim() || !addBugSeverity || !addBugCategory || !addBugElement || !selectedRelease}
+              disabled={addBugLoading || !addBugTitle.trim() || !addBugSeverity || !addBugCategory || !selectedRelease}
               onClick={async () => {
-                if (!addBugElement) return;
                 setAddBugLoading(true);
                 try {
-                  const location = getUniqueSelector(addBugElement.element);
                   const bug: Bug = {
                     title: addBugTitle.trim(),
                     description: addBugDescription.trim(),
                     severity: addBugSeverity,
                     category: addBugCategory,
-                    location,
+                    location: addBugElement ? getUniqueSelector(addBugElement.element) : undefined,
                     screen: screen || undefined,
                     screenState: state || undefined,
                   };

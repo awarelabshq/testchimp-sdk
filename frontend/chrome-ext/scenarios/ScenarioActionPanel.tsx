@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button, Tooltip, Popover, Popconfirm } from 'antd';
 import { DeleteOutlined, CodeOutlined, CheckCircleOutlined, CloseOutlined, ExclamationCircleOutlined, StopOutlined, BugOutlined } from '@ant-design/icons';
 import { AgentTestScenarioWithStatus, ScenarioTestResult } from '../datas';
+import { getTestChimpIcon } from '../components/getTestChimpIcon';
 
 interface ScenarioActionPanelProps {
   scenario: AgentTestScenarioWithStatus;
@@ -43,7 +44,7 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
   const generateContent = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0, alignItems: 'stretch', justifyContent: 'flex-start', minWidth: 160, maxHeight: 180, overflowY: 'auto', overflowX: 'hidden' }}>
       <Button type="text" size="small" icon={<CodeOutlined />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); onGenerate && onGenerate('quick'); }}>Quick generate</Button>
-      <Button type="text" size="small" icon={<BugOutlined />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); onGenerate && onGenerate('agent'); }}>Run with agent</Button>
+      <Button type="text" size="small" icon={<img src={getTestChimpIcon()} alt="logo" style={{ width: 16, height: 16, marginRight: 2, verticalAlign: 'middle', objectFit: 'cover', display: 'inline-block' }} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<span style=\'font-size:16px;margin-right:2px;\'>🐞</span>'); }} />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); onGenerate && onGenerate('agent'); }}>Run with agent</Button>
     </div>
   );
   // Popover content for mark as tested

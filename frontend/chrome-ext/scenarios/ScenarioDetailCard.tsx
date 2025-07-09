@@ -111,7 +111,7 @@ export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario
         value={expected}
         onChange={e => setExpected(e.target.value)}
         placeholder="Expected behaviour"
-        style={{ fontSize: 14, color: '#fff', background: '#232323', border: '1px solid #333', marginBottom: 12 }}
+        style={{ fontSize: 14, color: '#fff', background: 'var(--tc-panel-bg)', border: '1px solid #333', marginBottom: 12 }}
         autoSize={{ minRows: 2, maxRows: 5 }}
       />
       {/* Steps list with up/down/delete */}
@@ -180,7 +180,7 @@ export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario
           type="dashed"
           icon={<PlusOutlined />}
           onClick={handleAddStep}
-          style={{ width: '100%', marginTop: 6, color: '#ff6b65', borderColor: '#ff6b65', background: '#232323' }}
+          style={{ width: '100%', marginTop: 6, color: '#ff6b65', borderColor: '#ff6b65', background: 'var(--tc-panel-bg)' }}
         >
           Add Step
         </Button>

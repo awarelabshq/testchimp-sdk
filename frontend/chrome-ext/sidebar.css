@@ -156,3 +156,28 @@
     display: flex !important;
     flex-direction: column !important;
   }
+
+.primary-button {
+  background-color: #72BDA3 !important;
+  border-color: #72BDA3 !important;
+  color: #fff !important;
+  font-weight: 600;
+  transition: background 0.2s, border 0.2s;
+}
+.primary-button:hover, .primary-button:focus {
+  background-color: #5bb18a !important;
+  border-color: #5bb18a !important;
+  color: #fff !important;
+}
+.secondary-button {
+  background: transparent !important;
+  border: 1.5px solid #72BDA3 !important;
+  color: #72BDA3 !important;
+  font-weight: 600;
+  transition: background 0.2s, border 0.2s, color 0.2s;
+}
+.secondary-button:hover, .secondary-button:focus {
+  background: rgba(114, 189, 163, 0.08) !important;
+  border-color: #5bb18a !important;
+  color: #5bb18a !important;
+}

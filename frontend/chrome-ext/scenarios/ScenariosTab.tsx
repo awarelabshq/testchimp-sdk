@@ -175,7 +175,7 @@ export const ScenariosTab = () => {
           <div style={{
             padding: '8px 0',
             borderTop: '1px solid #333',
-            background: '#1a1a1a',
+            background: 'var(--tc-bg-darker)',
             marginTop: 'auto',
             width: '100%',
           }}>
@@ -184,6 +184,7 @@ export const ScenariosTab = () => {
                 <Button
                   type="default"
                   size="small"
+                  className="secondary-button"
                   style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                 // TODO: Add onClick for Add Scenario
                 >
@@ -195,13 +196,14 @@ export const ScenariosTab = () => {
                 <Button
                   type="primary"
                   size="small"
-                  style={{ width: '100%', height: 32, backgroundColor: '#72BDA3', borderColor: '#72BDA3', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  className="primary-button"
+                  style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                 // TODO: Add onClick for Suggest Scenarios
                 >
                   <img
                     src={getTestChimpIcon()}
                     alt="logo"
-                    style={{ width: 18, height: 18, marginRight: 4, verticalAlign: 'middle', objectFit: 'cover', display: 'inline-block' }}
+                    style={{ width: 18, height: 18, marginRight: 4, verticalAlign: 'middle', objectFit: 'cover', display: 'inline-block', paddingLeft: "2px", paddingRight: "2px" }}
                     onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<span style=\'font-size:16px;margin-right:4px;\'>🐞</span>'); }}
                   />
                   Suggest Scenarios

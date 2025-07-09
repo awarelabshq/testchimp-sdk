@@ -160,22 +160,13 @@ export async function getScreenForPage(req: GetScreenForPageRequest): Promise<Ge
 
 export async function listBugs(req: ListBugsRequest): Promise<ListBugsResponse> {
   const headers = await getAuthHeaders();
-  // Convert camelCase to snake_case for screenStates
-  const screen_states = (req.screenStates || []).map(s => ({
-    name: s.name,
-    state: s.state,
-  }));
   const res = await fetch(`${BASE_URL}/ext/list_bugs`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...headers,
     },
-    body: JSON.stringify({
-      severities: req.severities,
-      screen_states,
-      title: req.title,
-    }),
+    body: JSON.stringify(req),
   });
   const data = await res.json();
   return {
@@ -185,34 +176,13 @@ export async function listBugs(req: ListBugsRequest): Promise<ListBugsResponse> 
 
 export async function updateBugs(req: UpdateBugsRequest): Promise<UpdateBugsResponse> {
   const headers = await getAuthHeaders();
-  // For status updates, only bug_hash is required. For inserts, send full bug object.
-  const updated_bugs = (req.updatedBugs || []).map(bug => {
-    const result: any = {};
-    if (bug.bugHash) result.bug_hash = bug.bugHash;
-    if (bug.title) result.title = bug.title;
-    if (bug.description) result.description = bug.description;
-    if (bug.category) result.category = bug.category;
-    if (bug.severity) result.severity = bug.severity;
-    if (bug.evalCommand) result.eval_command = bug.evalCommand;
-    if (bug.location) result.location = bug.location;
-    if (bug.screen) result.screen = bug.screen;
-    if (bug.screenState) result.screen_state = bug.screenState;
-    if (bug.rule) result.rule = bug.rule;
-    if (bug.boundingBox) result.bounding_box = bug.boundingBox;
-    if (bug.scenarioId) result.scenario_id = bug.scenarioId;
-    return result;
-  });
-  const body = {
-    updated_bugs,
-    new_status: req.newStatus,
-  };
   await fetch(`${BASE_URL}/ext/update_bugs`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...headers,
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(req),
   });
   return {};
 }
@@ -299,21 +269,13 @@ export interface ListAgentTestScenariosResponse {
 
 export async function listAgentTestScenarios(req: ListAgentTestScenariosRequest): Promise<ListAgentTestScenariosResponse> {
   const headers = await getAuthHeaders();
-  const screen_states = (req.screenStates || []).map(s => ({
-    name: s.name,
-    state: s.state,
-  }));
   const res = await fetch(`${BASE_URL}/ext/list_test_scenarios`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...headers,
     },
-    body: JSON.stringify({
-      priorities: req.priorities,
-      screen_states,
-      title: req.title,
-    }),
+    body: JSON.stringify(req),
   });
   const data = await res.json();
   return {

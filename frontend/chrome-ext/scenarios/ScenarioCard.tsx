@@ -40,8 +40,8 @@ export const ScenarioCard = ({ scenario }: { scenario: AgentTestScenarioWithStat
   // Test result icon logic (stub)
   const lastResult = scenario.resultHistory && scenario.resultHistory.length > 0 ? scenario.resultHistory[scenario.resultHistory.length - 1].result : undefined;
   let testResultIcon = <ExclamationCircleOutlined style={{ color: '#888', fontSize: 16 }} />;
-  if (lastResult === 2) testResultIcon = <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 16 }} />;
-  else if (lastResult === 3) testResultIcon = <CloseOutlined style={{ color: '#ff4d4f', fontSize: 16 }} />;
+  if (lastResult === 2) testResultIcon = <CheckCircleOutlined style={{ color: 'var(--tc-success)', fontSize: 16 }} />;
+  else if (lastResult === 3) testResultIcon = <CloseOutlined style={{ color: 'var(--tc-error)', fontSize: 16 }} />;
 
   // Generate script menu
   const generateScriptMenu = (
@@ -55,8 +55,8 @@ export const ScenarioCard = ({ scenario }: { scenario: AgentTestScenarioWithStat
   const markTestedMenu = (
     <Menu onClick={() => setTestMenuVisible(false)}>
       <Menu.Item key="untested" icon={<ExclamationCircleOutlined />}>Mark as untested</Menu.Item>
-      <Menu.Item key="notworking" icon={<CloseOutlined style={{ color: '#ff4d4f' }} />}>Mark as tested not working</Menu.Item>
-      <Menu.Item key="working" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}>Mark as tested working</Menu.Item>
+      <Menu.Item key="notworking" icon={<CloseOutlined style={{ color: 'var(--tc-error)' }} />}>Mark as tested not working</Menu.Item>
+      <Menu.Item key="working" icon={<CheckCircleOutlined style={{ color: 'var(--tc-success)' }} />}>Mark as tested working</Menu.Item>
     </Menu>
   );
 
