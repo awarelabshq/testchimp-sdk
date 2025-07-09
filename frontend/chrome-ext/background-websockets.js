@@ -2,7 +2,6 @@
 // Uses global mcpConnected and notifyStatus from background.js
 
 import { FetchExtraInfoForContextItemRequest, FetchExtraInfoForContextItemResponse, GrabScreenshotRequest, GrabScreenshotResponse, GetRecentConsoleLogsRequest, GetRecentConsoleLogsResponse } from './datas';
-import { getExtraInfo } from './contextStore';
 
 const MCP_WS_URL = "ws://localhost:43449/ws";
 let mcpSocket = null;
@@ -23,12 +22,7 @@ const mcpHandlers = {
 // --- Handler implementations ---
 
 async function handleGrabScreenshot(ws, message) {
-    let req;
-    try {
-        req = JSON.parse(message);
-    } catch (e) {
-        return { error: 'Invalid request format' };
-    }
+    let req=message;
     return new Promise((resolve) => {
         chrome.tabs.captureVisibleTab(null, { format: 'png' }, (dataUrl) => {
             if (chrome.runtime.lastError) {
@@ -45,25 +39,15 @@ async function handleGrabScreenshot(ws, message) {
 
 // Handler for fetch_extra_info_for_context_item
 async function handleFetchExtraInfoForContextItem(ws, message) {
-    let req;
-    try {
-        req = JSON.parse(message);
-    } catch (e) {
-        return { error: 'Invalid request format' };
-    }
+    let req=message;
     const extraInfo = getExtraInfo(req.id) || {};
-    console.log(`[MCP] Request headers for type: fetch_extra_info_for_context_item, request_id: ${req.id}:`, req.headers);
+    console.log("Found extra info",extraInfo);
     return { extraInfo };
 }
 
 // Handler for get_recent_console_logs
 async function handleGetRecentConsoleLogs(ws, message) {
-    let req;
-    try {
-        req = JSON.parse(message);
-    } catch (e) {
-        return { error: 'Invalid request format' };
-    }
+    let req=message;
     // Get logs from background with filtering
     const logs = (typeof self.getRecentConsoleLogs === 'function') ? self.getRecentConsoleLogs(req) : [];
     return { logs };
@@ -112,9 +96,15 @@ function connectMCP() {
         if (handler) {
             try {
                 console.log(`[MCP] Dispatching handler for type: ${msg.type}`);
-                const response = await handler(mcpSocket, msg.data);
+                const response = await handler(mcpSocket, msg);
                 if (response && mcpSocket.readyState === WebSocket.OPEN) {
-                    mcpSocket.send(JSON.stringify(response));
+                    // Always include type and request_id in the response
+                    const responseWithMeta = {
+                        ...response,
+                        type: msg.type,
+                        request_id: msg.request_id
+                    };
+                    mcpSocket.send(JSON.stringify(responseWithMeta));
                     console.log(`[MCP] Sent response for type: ${msg.type}, request_id: ${msg.request_id}`);
                 } else {
                     console.warn(`[MCP] No response sent for type: ${msg.type}, request_id: ${msg.request_id}`);
@@ -168,6 +158,9 @@ self.notifyStatus = notifyStatus;
 // Export for use in background.js
 export { connectMCP, notifyStatus };
 
+// Add a global extraInfoStore for background access
+const extraInfoStore = {};
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === 'get_connection_status') {
         sendResponse({
@@ -175,5 +168,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             vscodeConnected: self.vscodeConnected,
             mcpConnected: self.mcpConnected
         });
+    } else if (msg.type === 'add_extra_info' && msg.id) {
+        extraInfoStore[msg.id] = msg.extraInfo;
+        // Optionally log for debug
+        console.log('[background] Stored extra info for id', msg.id, msg.extraInfo);
+    } else if (msg.type === 'get_extra_info' && msg.id) {
+        sendResponse({ extraInfo: extraInfoStore[msg.id] });
+    } else if (msg.type === 'remove_extra_info' && msg.id) {
+        delete extraInfoStore[msg.id];
+        console.log('[background] Removed extra info for id', msg.id);
     }
 }); 
+
+// Update getExtraInfo to use the background's extraInfoStore
+function getExtraInfo(id) {
+    return extraInfoStore[id];
+} 

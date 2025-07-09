@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button, Input, Tooltip, Typography, Dropdown, Menu } from 'antd';
-import { PlusOutlined, AppstoreOutlined, BorderOutlined, DragOutlined } from '@ant-design/icons';
+import { PlusOutlined, SelectOutlined, BorderOutlined, DragOutlined, RightSquareOutlined } from '@ant-design/icons';
 import { UserInstructionMessage, ContextElementType, ContextElement, UIElementContext, BoundingBoxContext } from './datas';
-import { addOrUpdateContextElements, removeContextElementById } from './contextStore';
+import { addOrUpdateContextElements, removeContextElementById, getBasicInfo, getBasicInfoForBoxElements } from './contextStore';
+import { useElementSelector } from './elementSelector';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -80,7 +81,7 @@ function formatMessageForAI(msg: UserInstructionMessage): string {
         }
     }
     result += '\nIf you need access to the current screenshot of the screen, invoke grab_screenshot mcp tool.';
-    result += '\nIf you need extra information about a particular context item (for better reasoning and targeting), invoke fetch_exta_info_for_context_item passing the id of the context item (For elements, extra info contains outerhtml, and for bounding boxes, extra info contains screenshot of the screen.).';
+    result += '\nIf you need extra information about a particular context item (for better reasoning and targeting), invoke fetch_exta_info_for_context_item passing the id of the context item (For elements, extra info contains computed styles, detailed attributes, and for bounding boxes, extra info contains screenshot of the screen.).';
     return result;
 }
 
@@ -99,94 +100,59 @@ export const DevTab = () => {
 
     useEffect(() => { sendingRef.current = sending; }, [sending]);
 
-    // Overlay for select/draw mode
-    useEffect(() => {
-        let overlayDiv: HTMLDivElement | null = null;
-        if (currentMode === 'select' || currentMode === 'box') {
-            overlayDiv = document.createElement('div');
-            overlayDiv.id = 'tc-mode-overlay';
-            Object.assign(overlayDiv.style, {
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                width: '100vw',
-                height: '100vh',
-                background: 'rgba(30,30,30,0.15)',
-                zIndex: 9999998,
-                pointerEvents: 'none',
-            });
-            document.body.appendChild(overlayDiv);
-            // Hide sidebar
-            window.postMessage({ type: 'tc-hide-sidebar' }, '*');
-        }
-        return () => {
-            if (overlayDiv && overlayDiv.parentNode) overlayDiv.parentNode.removeChild(overlayDiv);
-            const old = document.getElementById('tc-mode-overlay');
-            if (old && old.parentNode) old.parentNode.removeChild(old);
-        };
-    }, [currentMode]);
-
     // Listen for selection/drawing results from the page
     useEffect(() => {
         function onPageMessage(event: MessageEvent) {
             if (!event.data || typeof event.data.type !== 'string') return;
-            if (event.data.type === 'elementSelected' && event.data.selector) {
-                const newTag = {
+            if (event.data.type === 'elementSelected' && event.data.querySelector) {
+                const querySelector = event.data.querySelector;
+                const element = document.querySelector(querySelector) as HTMLElement | null;
+                let uiElem: UIElementContext & { value: string } = {
+                    contextId: hashContextTag(event.data),
                     type: ContextElementType.UIElement,
-                    value: event.data.selector,
-                    id: event.data.id,
+                    querySelector,
+                    value: querySelector,
                     role: event.data.role,
                     text: event.data.text,
-                    tagName: event.data.tagName
+                    tagName: event.data.tagName,
                 };
+                if (element) {
+                    // Use getBasicInfo for all fields
+                    const basicInfo = getBasicInfo(element);
+                    Object.assign(uiElem, basicInfo);
+                }
                 setContextTags(tags => {
-                    const updated = [...tags, newTag];
-                    // Add to contextStore
-                    addOrUpdateContextElements([
-                        {
-                            id: newTag.id || hashContextTag(newTag),
-                            type: ContextElementType.UIElement,
-                            selector: newTag.value as string,
-                            role: newTag.role,
-                            text: newTag.text,
-                            tagName: newTag.tagName
-                        }
-                    ]);
+                    const updated = [...tags, uiElem as ContextTag];
+                    const { value, ...uiElemForStore } = uiElem;
+                    addOrUpdateContextElements([uiElemForStore]);
                     return updated;
                 });
                 setCurrentMode('normal');
-                // Show sidebar
                 window.postMessage({ type: 'tc-show-sidebar' }, '*');
             }
             if (event.data.type === 'boxDrawn' && event.data.coords) {
                 const { left, top, width, height } = event.data.coords;
                 const vw = window.innerWidth || 1;
                 const vh = window.innerHeight || 1;
-                // Store as percentages
                 const xPct = (parseFloat(left) / vw) * 100;
                 const yPct = (parseFloat(top) / vh) * 100;
                 const wPct = (parseFloat(width) / vw) * 100;
                 const hPct = (parseFloat(height) / vh) * 100;
-                const newTag = {
+                const contextId = hashContextTag({ type: ContextElementType.BoundingBox, value: { xPct, yPct, wPct, hPct } });
+                // Use getBasicInfoForBoxElements for uiElementsInBox
+                const uiElementsInBox = getBasicInfoForBoxElements({ xPct, yPct, wPct, hPct }) as UIElementContext[];
+                const boundingBoxContext: BoundingBoxContext = {
+                    contextId,
                     type: ContextElementType.BoundingBox,
                     value: { xPct, yPct, wPct, hPct },
-                    id: undefined
+                    uiElementsInBox
                 };
                 setContextTags(tags => {
-                    const id = hashContextTag(newTag);
-                    const updated = [...tags, { ...newTag, id }];
-                    // Add to contextStore
-                    addOrUpdateContextElements([
-                        {
-                            id,
-                            type: ContextElementType.BoundingBox,
-                            value: newTag.value as { xPct: number; yPct: number; wPct: number; hPct: number }
-                        }
-                    ]);
+                    const updated = [...tags, boundingBoxContext];
+                    addOrUpdateContextElements([boundingBoxContext]);
                     return updated;
                 });
                 setCurrentMode('normal');
-                // Show sidebar
                 window.postMessage({ type: 'tc-show-sidebar' }, '*');
             }
         }
@@ -289,23 +255,8 @@ export const DevTab = () => {
         // Prepare infoContext for prompt formatting
         const contextElements: ContextElement[] = contextTags.map(tag => {
             const id = tag.id || hashContextTag(tag);
-            if (tag.type === ContextElementType.UIElement) {
-                return {
-                    id,
-                    type: ContextElementType.UIElement,
-                    selector: tag.value as string,
-                    role: tag.role,
-                    text: tag.text,
-                    tagName: tag.tagName
-                } as UIElementContext;
-            } else {
-                // BoundingBoxContext expects value as BoundingBoxValue
-                return {
-                    id,
-                    type: ContextElementType.BoundingBox,
-                    value: tag.value as { xPct: number; yPct: number; wPct: number; hPct: number }
-                } as BoundingBoxContext;
-            }
+            // Ensure contextId is present for all types
+            return { ...tag, id, contextId: (tag as any).contextId || id } as ContextElement;
         });
         const infoContext = {
             screenInfo: { relativeUrl, filePaths },
@@ -407,7 +358,7 @@ export const DevTab = () => {
                                 >
                                     {tag.type === ContextElementType.UIElement ? (
                                         <>
-                                            <AppstoreOutlined style={{ fontSize: 14, marginRight: 2 }} />
+                                            <SelectOutlined style={{ fontSize: 14, marginRight: 2 }} />
                                             {getElementLabel(tag)}
                                         </>
                                     ) : (
@@ -434,6 +385,12 @@ export const DevTab = () => {
                     <Input.TextArea
                         value={userMessage}
                         onChange={e => setUserMessage(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSend();
+                            }
+                        }}
                         placeholder="Say the change you want to see..."
                         autoSize={{ minRows: 6, maxRows: 12 }}
                         style={{ backgroundColor: '#2a2a2a', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', resize: 'none', marginBottom: 8 }}
@@ -460,10 +417,11 @@ export const DevTab = () => {
                     type="primary"
                     onClick={handleSend}
                     loading={sending}
-                    style={{ backgroundColor: '#72BDA3', borderColor: '#72BDA3', color: '#000', height: 32, width: 140 }}
+                    style={{ backgroundColor: '#72BDA3', borderColor: '#72BDA3', color: '#fff', height: 32, width: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                     disabled={sending}
                 >
                     Send to IDE
+                    <RightSquareOutlined style={{ fontSize: 14, marginLeft: 6 }} />
                 </Button>
             </div>
         </div>

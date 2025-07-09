@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
   "name": "TestChimp - Generate UI & API Automation Tests From Session Recordings",
-  "version": "0.51",
+  "version": "0.52",
   "description": "Capture UI + API activity during testing sessions. Easily convert them to automation tests. Export in any language!",
   "permissions": [
+    "tabs",
     "activeTab",
     "storage",
     "contextMenus",
@@ -42,7 +43,9 @@
       "resources": [
         "injectScript.js",
         "menu-config.json",
-        "images/icon-128.png"
+        "images/icon-128.png",
+        "images/icon-48.png",
+        "images/logo-white.svg"
       ],
       "matches": [
         "<all_urls>"

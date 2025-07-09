@@ -192,3 +192,50 @@ window.addEventListener('message', (event) => {
         });
     }
 });
+
+// --- SPA navigation detection injection ---
+(function() {
+  let lastHref = location.href;
+  function checkHref() {
+    if (location.href !== lastHref) {
+      console.log('[injectSidebar] Detected SPA navigation:', lastHref, '->', location.href);
+      lastHref = location.href;
+      window.postMessage({ type: 'tc-spa-url-changed', href: location.href }, '*');
+    }
+  }
+  // Observe DOM mutations (React Router, etc.)
+  if (document.body && document.body instanceof Node) {
+    const observer = new MutationObserver(checkHref);
+    observer.observe(document.body, { childList: true, subtree: true });
+  } else {
+    console.warn('[injectSidebar] document.body is not available or not a Node, skipping MutationObserver');
+  }
+  // Also patch pushState/replaceState
+  const origPushState = history.pushState;
+  const origReplaceState = history.replaceState;
+  history.pushState = function(...args) {
+    origPushState.apply(this, args);
+    checkHref();
+  };
+  history.replaceState = function(...args) {
+    origReplaceState.apply(this, args);
+    checkHref();
+  };
+  window.addEventListener('popstate', checkHref);
+  window.addEventListener('hashchange', checkHref);
+  setInterval(checkHref, 1000); // fallback for edge cases
+  console.log('[injectSidebar] SPA navigation observer injected');
+
+  // Forward tc-spa-url-changed messages as CustomEvents on the sidebar host
+  window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'tc-spa-url-changed') {
+      var host = document.getElementById('testchimp-sidebar');
+      if (host) {
+        console.log('[injectSidebar] Forwarding tc-spa-url-changed as CustomEvent to sidebar host', event.data);
+        host.dispatchEvent(new CustomEvent('tc-spa-url-changed', { detail: event.data }));
+      } else {
+        console.warn('[injectSidebar] Sidebar host not found for tc-spa-url-changed');
+      }
+    }
+  });
+})();

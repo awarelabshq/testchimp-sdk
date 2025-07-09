@@ -5,12 +5,9 @@ export enum ContextElementType {
 }
 
 export interface UIElementContext {
-    id: string;
+    contextId: string;
     type: ContextElementType.UIElement;
-    selector?: string;
-    role?: string;
-    text?: string;
-    tagName?: string;
+    [key: string]: any; // selector, role, text, textContent, tagName, boundingBox, ancestorHierarchy, attributes, computedStyles, etc.
 }
 
 // Strongly-typed bounding box value (percentages)
@@ -22,9 +19,11 @@ export interface BoundingBoxValue {
 }
 
 export interface BoundingBoxContext {
-    id: string;
+    contextId: string;
     type: ContextElementType.BoundingBox;
     value: BoundingBoxValue;
+    uiElementsInBox?: UIElementContext[];
+    [key: string]: any; // allow extra fields
 }
 
 export type ContextElement = UIElementContext | BoundingBoxContext;
@@ -58,7 +57,7 @@ export interface FetchExtraInfoForContextItemRequest {
     id: string;
 }
 export interface FetchExtraInfoForContextItemResponse {
-    extraInfo: Record<string, string>;
+    extraInfo: Record<string, any>;
 }
 
 // Grab screenshot
@@ -97,4 +96,83 @@ export interface GetRecentConsoleLogsRequest {
 }
 export interface GetRecentConsoleLogsResponse {
     logs: ConsoleLogItem[];
+}
+
+export enum BugCategory {
+  UNKNOWN_BUG_CATEGORY = "UNKNOWN_BUG_CATEGORY", // Unidentified or unclear bug
+  OTHER = "OTHER", // Not fitting any specified category
+  ACCESSIBILITY = "ACCESSIBILITY", // Accessibility issues
+  SECURITY = "SECURITY", // Security vulnerabilities
+  VISUAL = "VISUAL", // Visual issues such as layout concerns, contrast, overlapping elements
+  PERFORMANCE = "PERFORMANCE", // Slow load times, unoptimized assets, memory leaks
+  FUNCTIONAL = "FUNCTIONAL", // Broken functionality, like input validation errors, form submission issues
+  NETWORK = "NETWORK", // API failures, timeout errors, incorrect responses
+  USABILITY = "USABILITY", // UI is confusing or difficult to use, poor user feedback
+  COMPATIBILITY = "COMPATIBILITY", // Issues across different browsers/devices/resolutions
+  DATA_INTEGRITY = "DATA_INTEGRITY", // Corrupt or missing data, incorrect database states
+  INTERACTION = "INTERACTION", // Unresponsive UI elements, broken drag/drop, keyboard navigation issues
+  LOCALIZATION = "LOCALIZATION", // Language-specific issues, missing translations, incorrect currency formats
+  RESPONSIVENESS = "RESPONSIVENESS", // UI issues related to different screen sizes or devices
+  LAYOUT = "LAYOUT", // Alignment, spacing, and general layout issues
+}
+
+export enum TestPriority {
+  UNKNOWN_PRIORITY = 0,
+  LOWEST_PRIORITY = 1,
+  LOW_PRIORITY = 2,
+  MEDIUM_PRIORITY = 3,
+  HIGH_PRIORITY = 4,
+  HIGHEST_PRIORITY = 5,
+}
+
+export enum TestScenarioStatus {
+  UNKNOWN_TEST_SCENARIO_STATUS = 0,
+  ACTIVE_TEST_SCENARIO = 1,
+  DELETED_TEST_SCENARIO = 3,
+}
+
+export enum ScenarioTestResult {
+  UNKNOWN_TEST_SCENARIO_STATUS = 0,
+  UNTESTED = 1,
+  TESTED_WORKING = 2,
+  TESTED_NOT_WORKING = 3,
+  IGNORED_TEST_SCENARIO = 4,
+}
+
+export interface AgentCodeUnit {
+  semanticCode?: string;
+  description?: string;
+  agentCode?: string;
+  pythonCode?: string;
+}
+
+export interface ScenarioTestResultHistoryItem {
+  testedBy?: string;
+  timestampMillis?: number;
+  daysSinceTest?: number;
+  result?: ScenarioTestResult;
+  releaseId?: string;
+  releaseTimestampMillis?: string;
+}
+
+export interface TestScenario {
+  title?: string;
+  expectedBehaviour?: string;
+  assertionCode?: string;
+  description?: string; // deprecated
+  steps?: AgentCodeUnit[];
+  priority?: TestPriority;
+  id?: string;
+}
+
+export interface AgentTestScenarioWithStatus {
+  id?: string;
+  ordinalId?: number;
+  scenario?: TestScenario;
+  status?: TestScenarioStatus;
+  testCaseId?: string;
+  screenName?: string;
+  screenState?: string;
+  resultHistory?: ScenarioTestResultHistoryItem[];
+  creationTimestampMillis?: number;
 }

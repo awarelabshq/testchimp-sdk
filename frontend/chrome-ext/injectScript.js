@@ -292,11 +292,30 @@ XMLHttpRequest.prototype.open = function(...args) {
   let startX = 0, startY = 0, endX = 0, endY = 0;
   let drawing = false;
 
-  function getUniqueSelector(el) {
+  // Returns a valid CSS selector for use with document.querySelector
+  function getQuerySelector(el) {
     if (!el) return '';
     if (el.id) return `#${el.id}`;
-    if (el.className && typeof el.className === 'string') return `${el.tagName.toLowerCase()}.${el.className.trim().replace(/\s+/g, '.')}`;
-    return el.tagName.toLowerCase();
+    const testAttrs = ['data-testid', 'data-test-id', 'data-test', 'data-id'];
+    for (const attr of testAttrs) {
+      const val = el.getAttribute && el.getAttribute(attr);
+      if (val) return `[${attr}="${val}"]`;
+    }
+    let selector = el.tagName ? el.tagName.toLowerCase() : '';
+    if (el.className && typeof el.className === 'string') {
+      const classPart = el.className.trim().replace(/\s+/g, '.');
+      if (classPart) selector += `.${classPart}`;
+    }
+    if (el.parentElement) {
+      const siblings = Array.from(el.parentElement.children).filter(
+        (sib) => sib.tagName === el.tagName
+      );
+      if (siblings.length > 1) {
+        const idx = siblings.indexOf(el) + 1;
+        selector += `:nth-of-type(${idx})`;
+      }
+    }
+    return selector;
   }
 
   function cleanupElementSelect() {
@@ -319,14 +338,14 @@ XMLHttpRequest.prototype.open = function(...args) {
     e.stopPropagation();
     cleanupElementSelect();
     if (highlightEl) highlightEl.style.outline = '';
-    const selector = getUniqueSelector(e.target);
+    const querySelector = getQuerySelector(e.target);
     const id = e.target.id || '';
     const role = e.target.getAttribute ? e.target.getAttribute('role') : '';
     let text = '';
     if (e.target.innerText) text = e.target.innerText.trim();
     else if (e.target.textContent) text = e.target.textContent.trim();
     const tagName = e.target.tagName ? e.target.tagName.toLowerCase() : '';
-    window.postMessage({ type: 'elementSelected', selector, id, role, text, tagName }, '*');
+    window.postMessage({ type: 'elementSelected', querySelector, id, role, text, tagName }, '*');
   }
 
   function startElementSelect() {

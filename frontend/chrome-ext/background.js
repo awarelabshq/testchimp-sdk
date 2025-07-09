@@ -727,6 +727,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'capture_viewport_screenshot') {
     console.log('[background] capture_viewport_screenshot received');
     chrome.tabs.captureVisibleTab({ format: 'png' }, (dataUrl) => {
+        if (chrome.runtime.lastError) {
+            console.error('captureVisibleTab error:', chrome.runtime.lastError.message);
+        }
         console.log('[background] captureVisibleTab result:', !!dataUrl, dataUrl ? dataUrl.length : 0);
         sendResponse({ dataUrl });
     });

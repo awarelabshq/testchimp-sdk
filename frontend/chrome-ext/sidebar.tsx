@@ -15,17 +15,15 @@ import {
     Tabs
 } from 'antd';
 import { LogoutOutlined, BugOutlined, PartitionOutlined, PlusCircleOutlined, MessageOutlined, WarningOutlined, EditOutlined, ReloadOutlined, SendOutlined, AimOutlined, DragOutlined, BorderOutlined, InfoCircleOutlined, PlusOutlined, AppstoreOutlined, VideoCameraOutlined, ExperimentOutlined } from '@ant-design/icons';
-import { UserInstructionMessage, ContextElementType, ContextElement } from './datas';
 import { DevTab } from './DevTab';
 import { RecordTab } from './RecordTab';
-import { BugsTab } from './BugsTab';
-import { ScenariosTab } from './ScenariosTab';
-import { formatTimeAgo } from './time_utils';
+import { BugsTab } from './bugs/BugsTab';
+import { ScenariosTab } from './scenarios/ScenariosTab';
 
 const { Text } = Typography;
 const { TextArea } = Input;
 
-const BASE_URL = 'https://featureservice.testchimp.io';
+const BASE_URL = 'https://featureservice-staging.testchimp.io';
 
 export interface ListUserProjectConfigsResponse {
     configs: ExtProjectConfig[];
@@ -51,6 +49,7 @@ export const SidebarApp = () => {
     const [isUpdatingConfig, setUpdatingConfig] = useState<boolean>(false);
     const [urlRegexToCapture, setUrlRegexToCapture] = useState<string | undefined>(undefined);
     const [activeTabKey, setActiveTabKey] = useState('dev');
+    const [tabRefreshKey, setTabRefreshKey] = useState(0);
 
     useEffect(() => {
         const loadInitialState = async () => {
@@ -199,6 +198,71 @@ export const SidebarApp = () => {
         });
     }
 
+    // Listen for window URL changes and refresh bugs/scenarios tab if active
+    useEffect(() => {
+        let lastUrl = window.location.href;
+        const checkUrl = (forcedUrl?: string) => {
+            const currentUrl = forcedUrl || window.location.href;
+            console.log('[Sidebar] checkUrl called. lastUrl:', lastUrl, 'currentUrl:', currentUrl);
+            if (currentUrl !== lastUrl) {
+                console.log('[Sidebar] URL changed! lastUrl:', lastUrl, '-> currentUrl:', currentUrl);
+                lastUrl = currentUrl;
+                if (activeTabKey === 'bugs' || activeTabKey === 'scenarios') {
+                    console.log('[Sidebar] Refreshing tab due to URL change. activeTabKey:', activeTabKey);
+                    setTabRefreshKey(k => k + 1);
+                } else {
+                    console.log('[Sidebar] URL changed but not on bugs/scenarios tab. No refresh. activeTabKey:', activeTabKey);
+                }
+            } else {
+                console.log('[Sidebar] checkUrl: URL did not change.');
+            }
+        };
+        const onPopState = () => {
+            console.log('[Sidebar] popstate event detected');
+            checkUrl();
+        };
+        const onHashChange = () => {
+            console.log('[Sidebar] hashchange event detected');
+            checkUrl();
+        };
+        window.addEventListener('popstate', onPopState);
+        window.addEventListener('hashchange', onHashChange);
+        // Listen for SPA navigation CustomEvent from injectSidebar
+        const host = document.getElementById('testchimp-sidebar');
+        const onSpaUrlChanged = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            if (customEvent.detail && customEvent.detail.type === 'tc-spa-url-changed') {
+                console.log('[Sidebar] Received tc-spa-url-changed CustomEvent:', customEvent.detail);
+                checkUrl(customEvent.detail.href);
+            }
+        };
+        if (host) {
+            host.addEventListener('tc-spa-url-changed', onSpaUrlChanged);
+        } else {
+            console.warn('[Sidebar] Sidebar host element not found for tc-spa-url-changed event');
+        }
+        // Monkey-patch pushState/replaceState
+        const origPushState = window.history.pushState;
+        const origReplaceState = window.history.replaceState;
+        window.history.pushState = function (...args) {
+            console.log('[Sidebar] pushState called', args);
+            origPushState.apply(window.history, args);
+            checkUrl();
+        };
+        window.history.replaceState = function (...args) {
+            console.log('[Sidebar] replaceState called', args);
+            origReplaceState.apply(window.history, args);
+            checkUrl();
+        };
+        return () => {
+            window.removeEventListener('popstate', onPopState);
+            window.removeEventListener('hashchange', onHashChange);
+            if (host) host.removeEventListener('tc-spa-url-changed', onSpaUrlChanged);
+            window.history.pushState = origPushState;
+            window.history.replaceState = origReplaceState;
+        };
+    }, [activeTabKey]);
+
     return (
         <div className="tc-sidebar" style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: 8 }}>
             {!userAuthKey ? (
@@ -339,10 +403,10 @@ export const SidebarApp = () => {
                                 <DevTab />
                             </Tabs.TabPane>
                             <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><BugOutlined style={{ marginRight: 6 }} />Bugs</span>} key="bugs" style={{ height: '100%' }}>
-                                <BugsTab />
+                                <BugsTab key={activeTabKey === 'bugs' ? tabRefreshKey : undefined} />
                             </Tabs.TabPane>
                             <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><ExperimentOutlined style={{ marginRight: 6 }} />Scenarios</span>} key="scenarios" style={{ height: '100%' }}>
-                                <ScenariosTab />
+                                <ScenariosTab key={activeTabKey === 'scenarios' ? tabRefreshKey : undefined} />
                             </Tabs.TabPane>
                             <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><VideoCameraOutlined style={{ marginRight: 6 }} />Rec</span>} key="record" style={{ height: '100%' }}>
                                 <RecordTab active={activeTabKey === 'record'} />
