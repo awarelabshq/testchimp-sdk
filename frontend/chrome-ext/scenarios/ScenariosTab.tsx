@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Select, Input, Spin, Row, Col, Typography, Button } from 'antd';
+import { Select, Input, Spin, Row, Col, Typography, Button, Modal, Skeleton, message } from 'antd';
 import { PlusOutlined, BulbOutlined } from '@ant-design/icons';
-import { ScreenState, ScreenStates, getScreenStates, getScreenForPage, listAgentTestScenarios } from '../apiService';
+import { ScreenState, ScreenStates, getScreenStates, getScreenForPage, listAgentTestScenarios, suggestTestScenarioDescription } from '../apiService';
 import { ScreenStateSelector } from '../components/ScreenStateSelector';
 import { ScenarioCard } from './ScenarioCard';
 import { TestPriority, AgentTestScenarioWithStatus } from '../datas';
 import { getTestChimpIcon } from '../components/getTestChimpIcon';
+import { ScenarioDetailCard } from './ScenarioDetailCard';
 
 const { Text } = Typography;
 
@@ -20,6 +21,10 @@ export const ScenariosTab = () => {
   const [scenarios, setScenarios] = useState<AgentTestScenarioWithStatus[]>([]);
   const [filteredScenarios, setFilteredScenarios] = useState<AgentTestScenarioWithStatus[]>([]);
   const [screenForPageLoading, setScreenForPageLoading] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addDraft, setAddDraft] = useState<{ title: string; expected: string; steps: any[]; priority: TestPriority }>({ title: '', expected: '', steps: [], priority: TestPriority.MEDIUM_PRIORITY });
+  const [suggestLoading, setSuggestLoading] = useState(false);
 
   // Fetch screen states on mount
   useEffect(() => {
@@ -102,6 +107,60 @@ export const ScenariosTab = () => {
     setFilteredScenarios(filtered);
   }, [scenarios, searchText, selectedPriority]);
 
+  // Handler to show notification
+  const handleScenarioUpdated = useCallback(() => {
+    setNotification('Scenario updated successfully');
+    setTimeout(() => setNotification(null), 2500);
+  }, []);
+
+  // Handler to show notification and mutate list
+  const handleScenarioAction = useCallback((action: any) => {
+    if (action.type === 'delete') {
+      setScenarios(prev => prev.filter(s => s.id !== action.id));
+      setNotification('Scenario deleted');
+    } else if (action.type === 'markTested') {
+      setScenarios(prev => prev.map(s =>
+        s.id === action.id ? { ...s, resultHistory: action.resultHistory } : s
+      ));
+      setNotification('Scenario marked as tested');
+    }
+    setTimeout(() => setNotification(null), 2500);
+  }, []);
+
+  // Handler for Add Scenario button
+  const handleAddScenario = () => {
+    setAddDraft({ title: '', expected: '', steps: [], priority: TestPriority.MEDIUM_PRIORITY });
+    setAddModalOpen(true);
+  };
+
+  // Handler for cancel add
+  const handleAddCancel = () => {
+    setAddModalOpen(false);
+  };
+
+  // Handler for Write for me
+  const handleWriteForMe = async (title: string) => {
+    if (!selectedScreen) return;
+    setSuggestLoading(true);
+    try {
+      const res = await suggestTestScenarioDescription({
+        screenState: { name: selectedScreen, state: selectedState },
+        scenarioTitle: title,
+      });
+      // Ensure steps is always an array of { description: string }
+      setAddDraft(draft => ({
+        ...draft,
+        expected: res.expectedBehaviour || '',
+        steps: res.steps || [],
+        priority: draft.priority ?? TestPriority.MEDIUM_PRIORITY,
+      }));
+    } catch (e) {
+      message.error('Failed to get suggestion');
+    } finally {
+      setSuggestLoading(false);
+    }
+  };
+
   return (
     <div style={{ padding: '8px 0', color: '#aaa', height: '100%', display: 'flex', flexDirection: 'column' }}>
       <style>{`
@@ -111,6 +170,31 @@ export const ScenariosTab = () => {
       {(initLoading || screenForPageLoading) ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Spin size="large" />
+        </div>
+      ) : addModalOpen ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
+          <div style={{ flex: 1 }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, width: '100%', background: 'var(--tc-bg-darker)', boxShadow: '0 -2px 12px rgba(0,0,0,0.12)' }}>
+            <ScenarioDetailCard
+              scenario={{ scenario: { title: addDraft.title, expectedBehaviour: addDraft.expected, steps: addDraft.steps, priority: addDraft.priority }, resultHistory: [] }}
+              onClose={handleAddCancel}
+              cardWidth="100%"
+              addMode
+              addDraft={addDraft}
+              setAddDraft={setAddDraft}
+              suggestLoading={suggestLoading}
+              onWriteForMe={handleWriteForMe}
+              selectedScreen={selectedScreen}
+              selectedState={selectedState}
+            />
+            <Button
+              style={{ marginTop: 8, marginBottom: 8, marginRight: 16, float: 'right' }}
+              onClick={handleAddCancel}
+              size="small"
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       ) : (
         <>
@@ -147,6 +231,27 @@ export const ScenariosTab = () => {
               />
             </Col>
           </Row>
+          {/* Notification row */}
+          {notification && (
+            <div style={{
+              background: '#232323',
+              color: '#bbb',
+              textAlign: 'center',
+              fontSize: 12,
+              padding: '2px 0',
+              marginBottom: 8,
+              borderRadius: 4,
+              minHeight: 18,
+              letterSpacing: 0.1,
+              fontWeight: 400,
+              opacity: notification ? 1 : 0,
+              transition: 'opacity 0.5s',
+              boxShadow: 'none',
+              userSelect: 'none',
+            }}>
+              {notification}
+            </div>
+          )}
           {/* Scenario results panel */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 2px', position: 'relative' }}>
             {resultsLoading && (
@@ -166,6 +271,8 @@ export const ScenariosTab = () => {
                   <ScenarioCard
                     key={scenario.id || String(index)}
                     scenario={scenario}
+                    onUpdated={handleScenarioUpdated}
+                    onAction={handleScenarioAction}
                   />
                 ))}
               </div>
@@ -185,8 +292,8 @@ export const ScenariosTab = () => {
                   type="default"
                   size="small"
                   className="secondary-button"
-                  style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                // TODO: Add onClick for Add Scenario
+                  style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginLeft: 8, marginRight: 4 }}
+                  onClick={handleAddScenario}
                 >
                   <PlusOutlined style={{ fontSize: 16 }} />
                   Add Scenario
@@ -197,13 +304,13 @@ export const ScenariosTab = () => {
                   type="primary"
                   size="small"
                   className="primary-button"
-                  style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, paddingLeft: 12, paddingRight: 12, marginLeft: 4, marginRight: 8 }}
                 // TODO: Add onClick for Suggest Scenarios
                 >
                   <img
                     src={getTestChimpIcon()}
                     alt="logo"
-                    style={{ width: 18, height: 18, marginRight: 4, verticalAlign: 'middle', objectFit: 'cover', display: 'inline-block', paddingLeft: "2px", paddingRight: "2px" }}
+                    style={{ width: 18, height: 18, marginRight: 4, verticalAlign: 'middle', objectFit: 'cover', display: 'inline-block'}}
                     onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<span style=\'font-size:16px;margin-right:4px;\'>🐞</span>'); }}
                   />
                   Suggest Scenarios

@@ -26,7 +26,7 @@ const PRIORITY_COLORS: Record<TestPriority, string> = {
   [TestPriority.UNKNOWN_PRIORITY]: '#888',
 };
 
-export const ScenarioCard = ({ scenario }: { scenario: AgentTestScenarioWithStatus }) => {
+export const ScenarioCard = ({ scenario, onUpdated, onAction }: { scenario: AgentTestScenarioWithStatus, onUpdated?: () => void, onAction?: (action: any) => void }) => {
   const [expanded, setExpanded] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [genMenuVisible, setGenMenuVisible] = useState(false);
@@ -37,11 +37,14 @@ export const ScenarioCard = ({ scenario }: { scenario: AgentTestScenarioWithStat
   const tagLabel = PRIORITY_LABELS[priority] || '';
   const expected = scenario.scenario?.expectedBehaviour || '';
 
-  // Test result icon logic (stub)
+  // Test result icon logic (robust to string/enum)
   const lastResult = scenario.resultHistory && scenario.resultHistory.length > 0 ? scenario.resultHistory[scenario.resultHistory.length - 1].result : undefined;
   let testResultIcon = <ExclamationCircleOutlined style={{ color: '#888', fontSize: 16 }} />;
-  if (lastResult === 2) testResultIcon = <CheckCircleOutlined style={{ color: 'var(--tc-success)', fontSize: 16 }} />;
-  else if (lastResult === 3) testResultIcon = <CloseOutlined style={{ color: 'var(--tc-error)', fontSize: 16 }} />;
+  if ((typeof lastResult === 'number' && lastResult === 2) || (typeof lastResult === 'string' && lastResult === 'TESTED_WORKING')) {
+    testResultIcon = <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 16 }} />;
+  } else if ((typeof lastResult === 'number' && lastResult === 3) || (typeof lastResult === 'string' && lastResult === 'TESTED_NOT_WORKING')) {
+    testResultIcon = <CloseOutlined style={{ color: '#ff4d4f', fontSize: 16 }} />;
+  }
 
   // Generate script menu
   const generateScriptMenu = (
@@ -61,7 +64,7 @@ export const ScenarioCard = ({ scenario }: { scenario: AgentTestScenarioWithStat
   );
 
   if (expanded) {
-    return <ScenarioDetailCard scenario={scenario} onClose={() => setExpanded(false)} cardWidth="100%" />;
+    return <ScenarioDetailCard scenario={scenario} onClose={() => setExpanded(false)} cardWidth="100%" onUpdated={onUpdated} />;
   }
 
   return (
@@ -105,10 +108,14 @@ export const ScenarioCard = ({ scenario }: { scenario: AgentTestScenarioWithStat
               width: '100%',
               minWidth: 0,
               flex: 1,
+              whiteSpace: 'nowrap',
+              maxWidth: 'calc(100% - 28px)', // leave space for icon
             }}
           >
             {scenario.scenario?.title}
           </Text>
+          {/* Always show tested result icon at right end of title bar */}
+          <span style={{ marginLeft: 8, flexShrink: 0 }}>{testResultIcon}</span>
         </div>
         {/* Action buttons overlay - only on hover, shared component */}
         <ScenarioActionPanel
@@ -118,6 +125,10 @@ export const ScenarioCard = ({ scenario }: { scenario: AgentTestScenarioWithStat
           onGenerate={() => { /* TODO: handle generate */ }}
           onMarkTested={() => { /* TODO: handle mark tested */ }}
           showClose={false}
+          onAction={action => {
+            if (onUpdated) onUpdated();
+            if (onAction) onAction(action);
+          }}
         />
       </div>
       <div style={{ marginTop: 0, color: '#aaa', whiteSpace: 'pre-line', fontSize: 13, wordBreak: 'break-word', overflowWrap: 'break-word' }}>

@@ -255,6 +255,7 @@ import {
   AgentTestScenarioWithStatus,
   TestScenario,
   ScenarioTestResultHistoryItem,
+  AgentCodeUnit,
 } from './datas';
 
 export interface ListAgentTestScenariosRequest {
@@ -328,4 +329,28 @@ export async function insertTestScenarioResult(req: InsertTestScenarioResultRequ
     body: JSON.stringify(req),
   });
   return {};
+}
+
+export interface SuggestTestScenarioDescriptionRequest {
+  screenState?: ScreenState;
+  scenarioTitle?: string;
+}
+
+export interface SuggestTestScenarioDescriptionResponse {
+  steps: AgentCodeUnit[];
+  expectedBehaviour?: string;
+}
+
+export async function suggestTestScenarioDescription(req: SuggestTestScenarioDescriptionRequest): Promise<SuggestTestScenarioDescriptionResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/ext/suggest_test_scenario_description`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(req),
+  });
+  const data = await res.json();
+  return data;
 } 

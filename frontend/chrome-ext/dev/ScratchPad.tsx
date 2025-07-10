@@ -73,26 +73,31 @@ export const ScratchPad: React.FC<ScratchPadProps> = ({ onSelect, onDelete, task
         <div style={{ minHeight: 40 }} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0 }}>
-          {filteredTasks.map((task) => (
+          {filteredTasks.map((task, idx) => (
             <Card
               key={task.creationTimestampMillis}
               size="small"
               className="scratchpad-card"
               style={{
-                border: '1px solid #333',
-                borderRadius: 8,
-                boxShadow: hovered === task.creationTimestampMillis ? '0 4px 16px rgba(0,0,0,0.18)' : '0 2px 8px rgba(0,0,0,0.10)',
-                transition: 'all 0.25s cubic-bezier(.4,2,.6,1), opacity 0.35s',
+                border: '2px dashed #e6c200',
+                borderRadius: 10,
+                boxShadow: hovered === task.creationTimestampMillis
+                  ? '0 4px 16px rgba(230, 194, 0, 0.18)'
+                  : '0 2px 8px rgba(230, 194, 0, 0.10)',
                 cursor: 'pointer',
                 position: 'relative',
                 margin: 0,
                 width: '100%',
                 opacity: deleting === String(task.creationTimestampMillis) ? 0 : 1,
-                background: '#181818',
-                minHeight: 48,
+                background: 'transparent',
+                minHeight: 36,
                 filter: deleting === String(task.creationTimestampMillis) ? 'grayscale(0.7) opacity(0.7)' : undefined,
+                fontFamily: '"Comic Sans MS", "Comic Sans", "Chalkboard SE", "Comic Neue", cursive',
+                fontSize: 13,
+                padding: 0,
+                transition: 'box-shadow 0.18s, opacity 0.35s',
               }}
-              bodyStyle={{ padding: 8, minHeight: 36, display: 'flex', alignItems: 'center' }}
+              bodyStyle={{ padding: '8px 12px', minHeight: 24, display: 'flex', alignItems: 'center', position: 'relative' }}
               onMouseEnter={() => setHovered(task.creationTimestampMillis)}
               onMouseLeave={() => setHovered(null)}
               onClick={() => onSelect(task)}
@@ -104,19 +109,19 @@ export const ScratchPad: React.FC<ScratchPadProps> = ({ onSelect, onDelete, task
                 width: '100%',
                 position: 'relative',
               }}>
-                <div style={{ flex: 1, color: '#fff', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'pre-line', maxHeight: 60 }}>
+                <div style={{ flex: 1, color: '#bfa100', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'pre-line', maxHeight: 48, fontFamily: 'inherit', fontWeight: 500 }}>
                   {task.prompt && task.prompt.length > 300 ? task.prompt.slice(0, 300) + '…' : task.prompt || '(No prompt)'}
                 </div>
                 {/* Action panel (delete) - top right corner */}
                 <div
                   style={{
                     position: 'absolute',
-                    top: 4,
-                    right: 4,
+                    top: 6,
+                    right: 6,
                     opacity: hovered === task.creationTimestampMillis ? 1 : 0,
                     transition: 'opacity 0.18s',
                     zIndex: 2,
-                    background: 'linear-gradient(90deg, transparent, #181818 60%)',
+                    background: 'none',
                     borderRadius: 4,
                     display: 'flex',
                     alignItems: 'center',
@@ -129,7 +134,7 @@ export const ScratchPad: React.FC<ScratchPadProps> = ({ onSelect, onDelete, task
                       type="text"
                       size="small"
                       icon={<DeleteOutlined />}
-                      style={{ color: '#ff4d4f', padding: '2px 4px', fontSize: 14 }}
+                      style={{ color: '#e6c200', padding: '2px 4px', fontSize: 14 }}
                     />
                   </Tooltip>
                 </div>

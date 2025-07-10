@@ -132,4 +132,132 @@ export function getQuerySelector(el: HTMLElement): string {
     return selector;
 }
 
+/**
+ * Recursively walk the DOM and output a simplified, LLM-friendly JSON structure for bug analytics.
+ * - Outputs: tag, key attributes, computed styles, and children (recursive tree)
+ * - Prunes noisy elements, skips invisible nodes
+ * - Summarizes tables/lists to avoid repetition
+ * - Default: maxDepth=12, maxChildren=30
+ */
+export function simplifyDOMForLLM(
+  root: HTMLElement = document.body,
+  opts?: { maxDepth?: number; maxChildren?: number }
+): any {
+  const maxDepth = opts?.maxDepth ?? 12;
+  const maxChildren = opts?.maxChildren ?? 30;
+  const NOISY_TAGS = new Set([
+    'SCRIPT', 'STYLE', 'META', 'LINK', 'NOSCRIPT', 'IFRAME', 'SVG', 'CANVAS', 'HEAD', 'TITLE', 'OBJECT', 'EMBED',
+  ]);
+  // Subset of computed styles useful for bug analytics
+  const STYLE_KEYS = [
+    'display', 'visibility', 'color', 'background-color', 'font-size', 'font-weight', 'position', 'z-index',
+    'width', 'height', 'overflow', 'opacity', 'border', 'margin', 'padding', 'text-align', 'line-height',
+  ];
+
+  function isVisible(el: HTMLElement): boolean {
+    const style = window.getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+    if (el.getAttribute('aria-hidden') === 'true') return false;
+    let cur: HTMLElement | null = el;
+    while (cur) {
+      if (cur.hidden) return false;
+      cur = cur.parentElement;
+    }
+    return true;
+  }
+
+  function getKeyAttrs(el: HTMLElement): Record<string, string> {
+    const attrs: Record<string, string> = {};
+    for (const attr of Array.from(el.attributes)) {
+      if (/^(id|class|role|name|type|data-|aria-)/.test(attr.name)) {
+        attrs[attr.name] = attr.value;
+      }
+    }
+    return attrs;
+  }
+
+  function getStyles(el: HTMLElement): Record<string, string> {
+    const style = window.getComputedStyle(el);
+    const out: Record<string, string> = {};
+    for (const k of STYLE_KEYS) {
+      out[k] = style.getPropertyValue(k);
+    }
+    return out;
+  }
+
+  function getShortText(el: HTMLElement): string | undefined {
+    const txt = el.textContent?.trim() || '';
+    if (!txt) return undefined;
+    if (txt.length > 120) return txt.slice(0, 117) + '...';
+    return txt;
+  }
+
+  function summarizeTable(table: HTMLTableElement, depth: number): any {
+    // Show first row/cell, then summary counts
+    const out: any = { tag: 'table', attrs: getKeyAttrs(table), styles: getStyles(table) };
+    const rows = Array.from(table.rows);
+    if (rows.length > 0) {
+      out.firstRow = Array.from(rows[0].cells).map(cell => ({
+        tag: cell.tagName.toLowerCase(),
+        attrs: getKeyAttrs(cell),
+        styles: getStyles(cell),
+        text: getShortText(cell),
+      }));
+    }
+    out.rowCount = rows.length;
+    out.colCount = rows[0]?.cells.length || 0;
+    return out;
+  }
+
+  function summarizeList(list: HTMLElement, depth: number): any {
+    // Show first 3 items, then summary count
+    const out: any = { tag: list.tagName.toLowerCase(), attrs: getKeyAttrs(list), styles: getStyles(list) };
+    const items = Array.from(list.children).filter(
+      el => el.tagName === 'LI'
+    ) as HTMLElement[];
+    out.items = items.slice(0, 3).map(li => ({
+      tag: 'li',
+      attrs: getKeyAttrs(li),
+      styles: getStyles(li),
+      text: getShortText(li),
+    }));
+    if (items.length > 3) out.moreItems = items.length - 3;
+    return out;
+  }
+
+  function walk(el: HTMLElement, depth: number): any {
+    if (depth > maxDepth) return undefined;
+    if (NOISY_TAGS.has(el.tagName)) return undefined;
+    if (!isVisible(el)) return undefined;
+    // Table summarization
+    if (el.tagName === 'TABLE') return summarizeTable(el as HTMLTableElement, depth);
+    // List summarization
+    if ((el.tagName === 'UL' || el.tagName === 'OL') && el.children.length > 10) return summarizeList(el, depth);
+    const node: any = {
+      tag: el.tagName.toLowerCase(),
+      attrs: getKeyAttrs(el),
+      styles: getStyles(el),
+    };
+    const label = el.getAttribute('aria-label') || el.getAttribute('alt') || el.getAttribute('title');
+    if (label) node.label = label;
+    const text = getShortText(el);
+    if (text) node.text = text;
+    // Children
+    const children: any[] = [];
+    let count = 0;
+    for (const child of Array.from(el.children)) {
+      if (count >= maxChildren) break;
+      const c = walk(child as HTMLElement, depth + 1);
+      if (c) {
+        children.push(c);
+        count++;
+      }
+    }
+    if (children.length > 0) node.children = children;
+    return node;
+  }
+
+  return walk(root, 0);
+}
+
 // Add other shared helpers here as needed (attribute extraction, style extraction, ancestor hierarchy, etc.) 

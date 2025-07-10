@@ -176,3 +176,13 @@ export interface AgentTestScenarioWithStatus {
   resultHistory?: ScenarioTestResultHistoryItem[];
   creationTimestampMillis?: number;
 }
+
+export interface RequestResponsePair {
+  url: string;
+  method: string;
+  requestHeaders: Record<string, string>;
+  responseHeaders: Record<string, string>;
+  status: number;
+  responseTimeMs?: number;
+  timestamp: number;
+} 

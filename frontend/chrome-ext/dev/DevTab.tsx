@@ -3,10 +3,12 @@ import { Button, Input, Tooltip, Typography, Dropdown, Menu, Select, Spin, Colla
 import { PlusOutlined, SelectOutlined, BorderOutlined, DragOutlined, RightSquareOutlined, ReloadOutlined } from '@ant-design/icons';
 import { UserInstructionMessage, ContextElementType, ContextElement, UIElementContext, BoundingBoxContext } from '../datas';
 import { addOrUpdateContextElements, removeContextElementById, getBasicInfo, getBasicInfoForBoxElements } from '../contextStore';
-import { useElementSelector } from '../elementSelector';
 import { ScratchPad, LocalTask } from './ScratchPad';
+import { getFilePathsFromDOM } from '../domUtils';
 import { getScreenForPage } from '../apiService';
 import { getScreenStates } from '../apiService';
+import { useConnectionManager } from '../connectionManager';
+// Remove: import { useScreenInfoSync } from './useScreenInfoSync';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -119,8 +121,7 @@ export const DevTab = () => {
     const [currentMode, setCurrentMode] = useState<'normal' | 'select' | 'box'>('normal');
     const [contextMenuOpen, setContextMenuOpen] = useState(false);
     const lastMessageId = useRef<string | null>(null);
-    const [vscodeConnected, setVSCodeConnected] = useState(false);
-    const [mcpConnected, setMCPConnected] = useState(false);
+    const { vscodeConnected, mcpConnected } = useConnectionManager();
     const sendingRef = useRef(sending);
     const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [scratchPadTasks, setScratchPadTasks] = useState<LocalTask[]>([]);
@@ -132,7 +133,7 @@ export const DevTab = () => {
     const [screenLoading, setScreenLoading] = useState(false);
     const [scratchPadOpen, setScratchPadOpen] = useState(false);
 
-    // Fetch screen states and current screen on mount
+    // Fetch screen states and current screen on mount (replicate ScenariosTab logic)
     useEffect(() => {
         setScreenLoading(true);
         getScreenStates().then(data => {
@@ -155,24 +156,35 @@ export const DevTab = () => {
         });
     }, []);
 
-    // Refresh current screen (for refresh icon)
-    const handleRefreshScreen = () => {
-        setScreenLoading(true);
-        const url = window.location.href;
-        getScreenForPage({ url }).then(res => {
-            setCurrentScreenName(res.screenName);
-            setCurrentRelativeUrl(res.normalizedUrl || url);
-            setSelectedScreen(res.screenName || (screenStates && screenStates[0]?.screen) || undefined);
-            setScreenLoading(false);
-        }).catch(() => {
-            setScreenLoading(false);
-        });
-    };
-
-    // Use selectedScreen for ScratchPad filtering
-    const scratchPadScreenName = selectedScreen;
-
-    useEffect(() => { sendingRef.current = sending; }, [sending]);
+    // Listen for navigation events (SPA and reload) to update current screen info
+    useEffect(() => {
+        function updateScreenInfo() {
+            const url = window.location.href;
+            getScreenForPage({ url }).then(res => {
+                setCurrentScreenName(res.screenName);
+                setCurrentRelativeUrl(res.normalizedUrl || url);
+                setSelectedScreen(res.screenName || (screenStates && screenStates[0]?.screen) || undefined);
+            });
+        }
+        window.addEventListener('popstate', updateScreenInfo);
+        window.addEventListener('hashchange', updateScreenInfo);
+        const origPushState = window.history.pushState;
+        const origReplaceState = window.history.replaceState;
+        window.history.pushState = function (...args) {
+            origPushState.apply(this, args);
+            updateScreenInfo();
+        };
+        window.history.replaceState = function (...args) {
+            origReplaceState.apply(this, args);
+            updateScreenInfo();
+        };
+        return () => {
+            window.removeEventListener('popstate', updateScreenInfo);
+            window.removeEventListener('hashchange', updateScreenInfo);
+            window.history.pushState = origPushState;
+            window.history.replaceState = origReplaceState;
+        };
+    }, [screenStates]);
 
     // Listen for selection/drawing results from the page
     useEffect(() => {
@@ -255,24 +267,20 @@ export const DevTab = () => {
 
     // Listen for connection_status via window.postMessage and request initial status
     useEffect(() => {
-        function handleStatusEvent(event: MessageEvent) {
-            if (event.data && event.data.type === 'connection_status') {
-                if (typeof event.data.vscodeConnected !== 'undefined') setVSCodeConnected(!!event.data.vscodeConnected);
-                if (typeof event.data.mcpConnected !== 'undefined') setMCPConnected(!!event.data.mcpConnected);
-            }
+        // This useEffect is now handled by useVSCodeConnectionStatus
+    }, []);
+
+    // Listen for ack_message events from the IDE
+    useEffect(() => {
+        function handleAck(event: MessageEvent) {
             if (event.data && event.data.type === 'ack_message') {
-                if (errorTimeoutRef.current) {
-                    clearTimeout(errorTimeoutRef.current);
-                    errorTimeoutRef.current = null;
-                }
-                setSending(false);
-                setNotification('Copied prompt to IDE AI Chat');
+                setNotification('Prompt copied to IDE');
                 setTimeout(() => setNotification(''), 3000);
+                setSending(false);
             }
         }
-        window.addEventListener('message', handleStatusEvent);
-        // Request initial status
-        window.postMessage({ type: 'get_connection_status' }, '*');
+        window.addEventListener('message', handleAck);
+        return () => window.removeEventListener('message', handleAck);
     }, []);
 
     // Dropdown menu for context add
@@ -316,16 +324,7 @@ export const DevTab = () => {
             relativeUrl = '';
         }
         // Extract file paths from DOM
-        let filePaths: string[] = [];
-        try {
-            const nodes = document.querySelectorAll('[data-filepath]');
-            const paths = Array.from(nodes)
-                .map(node => (node as HTMLElement).getAttribute('data-filepath'))
-                .filter((v): v is string => !!v);
-            filePaths = Array.from(new Set(paths)); // deduplicate
-        } catch (e) {
-            filePaths = [];
-        }
+        const filePaths: string[] = getFilePathsFromDOM();
         // Prepare infoContext for prompt formatting
         const contextElements: ContextElement[] = contextTags.map(tag => {
             const id = tag.id || hashContextTag(tag);
@@ -363,17 +362,8 @@ export const DevTab = () => {
     const handleSaveForLater = async () => {
         if (!userMessage.trim()) return;
         setSaveLoading(true);
-        let relativeUrl = '';
-        let screenName = '';
-        const url = window.location.href;
-        try {
-            const res = await getScreenForPage({ url });
-            screenName = res.screenName || '';
-            relativeUrl = res.normalizedUrl || url;
-        } catch {
-            screenName = '';
-            relativeUrl = url;
-        }
+        // Use already-tracked currentRelativeUrl and selectedScreen
+        const relativeUrl = currentRelativeUrl || window.location.href;
         // Prepare infoContext as in handleSend
         let filePaths: string[] = [];
         try {
@@ -395,7 +385,7 @@ export const DevTab = () => {
             prompt: userMessage.trim(),
             context: infoContext,
             creationTimestampMillis: Date.now(),
-            screenName: screenName || undefined,
+            screenName: selectedScreen || undefined,
             relativeUrl: relativeUrl || undefined,
         };
         // Save to chrome.storage.sync
@@ -406,6 +396,7 @@ export const DevTab = () => {
                 setScratchPadTasks(updated);
                 setScratchPadOpen(true);
                 setSaveLoading(false);
+                setUserMessage('');
             });
         });
     };
@@ -437,7 +428,7 @@ export const DevTab = () => {
         <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', minHeight: 0, background: '#181818' }}>
             {/* ScratchPad as accordion, always displayed */}
             {(scratchPadTasks.length > 0) && (
-                <div style={{ flex: 1, minHeight: 120, display: 'flex', flexDirection: 'column', overflow: 'hidden', margin: '0 4px' }}>
+                <div style={{ flex: 1, minHeight: 120, display: 'flex', flexDirection: 'column', overflow: 'hidden', margin: '0' }}>
                     <Collapse
                         activeKey={scratchPadOpen ? ['1'] : []}
                         onChange={keys => setScratchPadOpen(keys.length > 0)}
@@ -467,7 +458,18 @@ export const DevTab = () => {
                                 />
                                 <Button
                                     icon={<ReloadOutlined style={{ fontSize: 12 }} />}
-                                    onClick={handleRefreshScreen}
+                                    onClick={() => {
+                                        setScreenLoading(true);
+                                        const url = window.location.href;
+                                        getScreenForPage({ url }).then(res => {
+                                            setCurrentScreenName(res.screenName);
+                                            setCurrentRelativeUrl(res.normalizedUrl || url);
+                                            setSelectedScreen(res.screenName || (screenStates && screenStates[0]?.screen) || undefined);
+                                            setScreenLoading(false);
+                                        }).catch(() => {
+                                            setScreenLoading(false);
+                                        });
+                                    }}
                                     loading={screenLoading}
                                     style={{ marginLeft: 4, background: 'none', border: 'none', color: '#aaa', fontSize: 12, boxShadow: 'none', padding: 0, width: 20, height: 20, minWidth: 20 }}
                                 />
@@ -479,7 +481,7 @@ export const DevTab = () => {
                                     onDelete={handleScratchPadDelete}
                                     tasks={scratchPadTasks}
                                     setTasks={setScratchPadTasks}
-                                    currentScreenName={scratchPadScreenName}
+                                    currentScreenName={selectedScreen}
                                     currentRelativeUrl={currentRelativeUrl}
                                 />
                             </div>
@@ -598,7 +600,7 @@ export const DevTab = () => {
                             disabled={sending || saveLoading || !userMessage.trim()}
                             loading={saveLoading}
                         >
-                            Save for later
+                            Save for  later
                         </Button>
                     </div>
                     <div style={{ flex: 1 }}>
@@ -647,4 +649,4 @@ export const DevTab = () => {
             </div>
         </div>
     );
-}; 
+};   

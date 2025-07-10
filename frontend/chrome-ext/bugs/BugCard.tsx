@@ -2,7 +2,8 @@ import React from 'react';
 import { Card, Tag, Button, Tooltip, Typography, Popconfirm } from 'antd';
 import { DislikeOutlined, CodeOutlined, CheckCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { BugStatus, BugSeverity } from '../apiService';
-import { getCategoryColorWhiteFont, formatCategoryLabel, getSeverityLabel, truncateText } from './bugUtils';
+import { getCategoryColorWhiteFont, formatCategoryLabel, getSeverityLabel, truncateText, formatMessageToAiIde, generateUuid } from './bugUtils';
+import { getFilePathsFromDOM } from '../domUtils';
 
 const { Text } = Typography;
 
@@ -20,6 +21,10 @@ export interface BugCardProps {
   setRemovingBugIds: any;
   setActionLoading: any;
   filteredBugs: any[];
+  vscodeConnected: boolean;
+  currentScreenName?: string;
+  currentRelativeUrl?: string;
+  onUpdated?: () => void;
 }
 
 export const BugCard: React.FC<BugCardProps> = ({
@@ -36,6 +41,10 @@ export const BugCard: React.FC<BugCardProps> = ({
   setRemovingBugIds,
   setActionLoading,
   filteredBugs,
+  vscodeConnected,
+  currentScreenName,
+  currentRelativeUrl,
+  onUpdated,
 }) => {
   const bugId = bug.bug?.bugHash || String(index);
   return (
@@ -118,6 +127,7 @@ export const BugCard: React.FC<BugCardProps> = ({
                     setBugs((prev: any[]) => prev.filter(b => (b.bug?.bugHash || String(index)) !== bugId));
                     setRemovingBugIds((ids: string[]) => ids.filter(id => id !== bugId));
                   }, 400);
+                  if (typeof onUpdated === 'function') onUpdated();
                 } catch (e) {
                   // Optionally show error
                 }
@@ -139,13 +149,30 @@ export const BugCard: React.FC<BugCardProps> = ({
             </Popconfirm>
           </Tooltip>
           <Tooltip title="Fix in IDE">
-            <Button
-              type="text"
-              size="small"
-              icon={<CodeOutlined />}
-              style={{ color: '#ff6b65', padding: '2px 4px', fontSize: 12 }}
-              onClick={() => {/* Handle fix in IDE action */}}
-            />
+            <Tooltip title={!vscodeConnected ? 'VSCode extension must be installed and started.' : ''} placement="top">
+              <span style={{ display: 'inline-block' }}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CodeOutlined />}
+                  style={{ color: '#ff6b65', padding: '2px 4px', fontSize: 12 }}
+                  disabled={!vscodeConnected}
+                  onClick={() => {
+                    if (!vscodeConnected) return;
+                    const filePaths: string[] = getFilePathsFromDOM();
+                    const message = formatMessageToAiIde(bug.bug, currentScreenName, filePaths, currentRelativeUrl);
+                    chrome.runtime.sendMessage({
+                      type: 'send_to_vscode',
+                      payload: {
+                        type: 'user_instruction',
+                        prompt: message,
+                        messageId: generateUuid()
+                      }
+                    });
+                  }}
+                />
+              </span>
+            </Tooltip>
           </Tooltip>
           <Tooltip title="Mark as fixed">
             <Button
@@ -167,6 +194,7 @@ export const BugCard: React.FC<BugCardProps> = ({
                     setBugs((prev: any[]) => prev.filter(b => (b.bug?.bugHash || String(index)) !== bugId));
                     setRemovingBugIds((ids: string[]) => ids.filter(id => id !== bugId));
                   }, 400);
+                  if (typeof onUpdated === 'function') onUpdated();
                 } catch (e) {
                   // Optionally show error
                 }

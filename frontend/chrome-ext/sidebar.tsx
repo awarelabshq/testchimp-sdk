@@ -15,10 +15,10 @@ import {
     Tabs
 } from 'antd';
 import { LogoutOutlined, BugOutlined, PartitionOutlined, PlusCircleOutlined, MessageOutlined, WarningOutlined, EditOutlined, ReloadOutlined, SendOutlined, AimOutlined, DragOutlined, BorderOutlined, InfoCircleOutlined, PlusOutlined, AppstoreOutlined, VideoCameraOutlined, ExperimentOutlined } from '@ant-design/icons';
-import { DevTab } from './DevTab';
 import { RecordTab } from './RecordTab';
 import { BugsTab } from './bugs/BugsTab';
 import { ScenariosTab } from './scenarios/ScenariosTab';
+import { DevTab } from './dev';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -207,11 +207,11 @@ export const SidebarApp = () => {
             if (currentUrl !== lastUrl) {
                 console.log('[Sidebar] URL changed! lastUrl:', lastUrl, '-> currentUrl:', currentUrl);
                 lastUrl = currentUrl;
-                if (activeTabKey === 'bugs' || activeTabKey === 'scenarios') {
+                if (activeTabKey === 'bugs' || activeTabKey === 'scenarios' || activeTabKey === 'dev') {
                     console.log('[Sidebar] Refreshing tab due to URL change. activeTabKey:', activeTabKey);
                     setTabRefreshKey(k => k + 1);
                 } else {
-                    console.log('[Sidebar] URL changed but not on bugs/scenarios tab. No refresh. activeTabKey:', activeTabKey);
+                    console.log('[Sidebar] URL changed but not on bugs/scenarios/dev tab. No refresh. activeTabKey:', activeTabKey);
                 }
             } else {
                 console.log('[Sidebar] checkUrl: URL did not change.');
@@ -400,7 +400,7 @@ export const SidebarApp = () => {
                             tabPosition="top"
                         >
                             <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><AppstoreOutlined style={{ marginRight: 6 }} />Dev</span>} key="dev" style={{ height: '100%' }}>
-                                <DevTab />
+                                <DevTab key={activeTabKey === 'dev' ? tabRefreshKey : undefined} />
                             </Tabs.TabPane>
                             <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><BugOutlined style={{ marginRight: 6 }} />Bugs</span>} key="bugs" style={{ height: '100%' }}>
                                 <BugsTab key={activeTabKey === 'bugs' ? tabRefreshKey : undefined} />

@@ -1,3 +1,24 @@
+/* Add Inter font import at the top */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Set Inter as the default font for the entire sidebar and all Ant Design components */
+* {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+/* Ensure typography elements specifically use Inter */
+.ant-typography h1,
+.ant-typography h2,
+.ant-typography h3,
+.ant-typography h4,
+.ant-typography h5,
+.ant-typography h6,
+.ant-typography p,
+.ant-typography span,
+.ant-typography div {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
 .tc-sidebar {
     padding: 16px;
     color: white;

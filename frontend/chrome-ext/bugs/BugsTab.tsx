@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Select, Input, Spin, Row, Col, Typography, List, Card, Tag, Button, Tooltip, Modal } from 'antd';
+import { Select, Input, Spin, Row, Col, Typography, List, Card, Tag, Button, Tooltip, Modal, Alert } from 'antd';
 import { DislikeOutlined, CodeOutlined, CheckCircleOutlined, PlusOutlined, CloseOutlined, SelectOutlined } from '@ant-design/icons';
 import {
   getScreenStates,
@@ -22,6 +22,7 @@ import { AddBugPanel } from './AddBugPanel';
 import { BugCard } from './BugCard';
 import { getCategoryColorWhiteFont, formatCategoryLabel, getSeverityLabel, truncateText, CATEGORY_COLORS, BUG_CATEGORY_OPTIONS, SEVERITY_OPTIONS } from './bugUtils';
 import { getTestChimpIcon } from '../components/getTestChimpIcon';
+import { useConnectionManager } from '../connectionManager';
 
 const { Text } = Typography;
 
@@ -45,10 +46,14 @@ export const BugsTab = () => {
   const [addBugCategory, setAddBugCategory] = useState<string | undefined>(undefined);
   const [addBugElement, setAddBugElement] = useState<{ element: HTMLElement, querySelector: string } | null>(null);
   const [addBugLoading, setAddBugLoading] = useState(false);
+  const [showCopiedNotification, setShowCopiedNotification] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
 
   const { selecting, startSelecting } = useElementSelector((element, querySelector) => {
     setAddBugElement({ element, querySelector });
   });
+
+  const { vscodeConnected } = useConnectionManager();
 
   // Fetch screen states on mount
   useEffect(() => {
@@ -175,6 +180,24 @@ export const BugsTab = () => {
     setFilteredBugs(filtered);
   }, [bugs, searchText, selectedSeverity]);
 
+  // Listen for ack messages from the IDE
+  useEffect(() => {
+    function handleAck(event: MessageEvent) {
+      if (event.data && event.data.type === 'ack_message') {
+        setShowCopiedNotification(true);
+        setTimeout(() => setShowCopiedNotification(false), 3000);
+      }
+    }
+    window.addEventListener('message', handleAck);
+    return () => window.removeEventListener('message', handleAck);
+  }, []);
+
+  // Handler to show notification
+  const handleBugUpdated = () => {
+    setNotification('Bug updated successfully');
+    setTimeout(() => setNotification(null), 2500);
+  };
+
   // Get states for selected screen
   const stateOptions = screenStates.find((s) => s.screen === selectedScreen)?.states || [];
 
@@ -271,6 +294,47 @@ export const BugsTab = () => {
               />
             </Col>
           </Row>
+          {/* Notification row */}
+          {notification && (
+            <div style={{
+              background: '#232323',
+              color: '#bbb',
+              textAlign: 'center',
+              fontSize: 12,
+              padding: '2px 0',
+              marginBottom: 8,
+              borderRadius: 4,
+              minHeight: 18,
+              letterSpacing: 0.1,
+              fontWeight: 400,
+              opacity: notification ? 1 : 0,
+              transition: 'opacity 0.5s',
+              boxShadow: 'none',
+              userSelect: 'none',
+            }}>
+              {notification}
+            </div>
+          )}
+          {showCopiedNotification && (
+            <div style={{
+              background: '#232323',
+              color: '#bbb',
+              textAlign: 'center',
+              fontSize: 12,
+              padding: '2px 0',
+              marginBottom: 8,
+              borderRadius: 4,
+              minHeight: 18,
+              letterSpacing: 0.1,
+              fontWeight: 400,
+              opacity: showCopiedNotification ? 1 : 0,
+              transition: 'opacity 0.5s',
+              boxShadow: 'none',
+              userSelect: 'none',
+            }}>
+              Prompt copied to IDE
+            </div>
+          )}
           {/* Bug results panel */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 2px' }}>
             {filteredBugs.length === 0 ? (
@@ -297,6 +361,10 @@ export const BugsTab = () => {
                     setRemovingBugIds={setRemovingBugIds}
                     setActionLoading={al => setActionLoading(al)}
                     filteredBugs={filteredBugs}
+                    vscodeConnected={vscodeConnected}
+                    currentScreenName={selectedScreen}
+                    currentRelativeUrl={window.location.pathname + window.location.search + window.location.hash}
+                    onUpdated={handleBugUpdated}
                   />
                 ))}
               </div>
