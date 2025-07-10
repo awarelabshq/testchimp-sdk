@@ -1,6 +1,5 @@
-import { BugSeverity } from '../apiService';
-import { BugCategory } from '../datas';
-import { Bug } from '../apiService';
+import { BugSeverity } from '../datas';
+import { BugCategory, Bug } from '../datas';
 
 export const CATEGORY_COLORS: Record<string, string> = {
   "UNKNOWN_BUG_CATEGORY": "#d45c57", // muted brand base
@@ -92,4 +91,4 @@ export function formatMessageToAiIde(
     result += filePaths.map(f => `\n- ${f}`).join('');
   }
   return result;
-} 
+}

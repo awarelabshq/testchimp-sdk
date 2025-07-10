@@ -5,24 +5,19 @@ import {
   getScreenStates,
   getScreenForPage,
   listBugs,
-  BugSeverity,
-  ScreenState,
-  ScreenStates,
-  BugDetail,
-  GetScreenStatesResponse,
-  GetScreenForPageResponse,
-  ListBugsRequest,
-  BugStatus,
   updateBugs,
+  getDomAnalysis, getConsoleAnalysis, getScreenshotAnalysis, getNetworkAnalysis, captureCurrentTabScreenshotBase64, GetScreenForPageResponse, ListBugsRequest, fetchRecentConsoleLogs, fetchRecentRequestResponsePairs,
+  ScreenState
 } from '../apiService';
 import { useElementSelector } from '../elementSelector';
-import { getUniqueSelector } from '../html_utils';
+import { getUniqueSelector, simplifyDOMForLLM } from '../html_utils';
 import { BugCategory } from '../datas';
 import { AddBugPanel } from './AddBugPanel';
 import { BugCard } from './BugCard';
 import { getCategoryColorWhiteFont, formatCategoryLabel, getSeverityLabel, truncateText, CATEGORY_COLORS, BUG_CATEGORY_OPTIONS, SEVERITY_OPTIONS } from './bugUtils';
 import { getTestChimpIcon } from '../components/getTestChimpIcon';
 import { useConnectionManager } from '../connectionManager';
+import { BugSeverity, BugStatus, ScreenStates, BugDetail } from '../datas';
 
 const { Text } = Typography;
 
@@ -48,6 +43,11 @@ export const BugsTab = () => {
   const [addBugLoading, setAddBugLoading] = useState(false);
   const [showCopiedNotification, setShowCopiedNotification] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [showAnalyzePanel, setShowAnalyzePanel] = useState(false);
+  const [analyzeSources, setAnalyzeSources] = useState({ dom: true, console: true, network: true, screenshot: true });
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeStep, setAnalyzeStep] = useState<string | null>(null); // 'dom' | 'console' | 'network' | 'screenshot' | null
+  const [analyzeLoading, setAnalyzeLoading] = useState(false);
 
   const { selecting, startSelecting } = useElementSelector((element, querySelector) => {
     setAddBugElement({ element, querySelector });
@@ -80,7 +80,7 @@ export const BugsTab = () => {
     console.log('Current URL:', url);
     setScreenForPageLoading(true);
     getScreenForPage({ url })
-      .then((data: GetScreenForPageResponse) => {
+      .then((data) => {
         console.log('Screen for page received:', data);
         if (data.screenName) {
           setSelectedScreen(data.screenName);
@@ -198,8 +198,107 @@ export const BugsTab = () => {
     setTimeout(() => setNotification(null), 2500);
   };
 
+  // Handler for Find Bugs button
+  const handleShowAnalyzePanel = () => {
+    setShowAnalyzePanel(true);
+  };
+
+  // Handler for Cancel in analyze panel
+  const handleCancelAnalyze = () => {
+    setShowAnalyzePanel(false);
+  };
+
+  // Handler for Analyze in analyze panel
+  const handleAnalyze = async () => {
+    setShowAnalyzePanel(false);
+    setAnalyzing(true);
+    setAnalyzeLoading(true);
+    const selectedSources = Object.entries(analyzeSources).filter(([k, v]) => v).map(([k]) => k);
+    const newBugs: BugDetail[] = [];
+    for (const source of selectedSources) {
+      setAnalyzeStep(source);
+      let response;
+      try {
+        if (source === 'dom') {
+          // Capture the DOM and get LLM-friendly version
+          const domSnapshot = JSON.stringify(simplifyDOMForLLM(document.body));
+          response = await getDomAnalysis({
+            screen: selectedScreen,
+            state: selectedState,
+            domSnapshot,
+            relativeUrl: window.location.pathname + window.location.search + window.location.hash,
+          });
+        } else if (source === 'console') {
+          // Fetch recent console logs from background
+          const logs = await fetchRecentConsoleLogs();
+          response = await getConsoleAnalysis({
+            screen: selectedScreen,
+            state: selectedState,
+            relativeUrl: window.location.pathname + window.location.search + window.location.hash,
+            logs,
+          });
+        } else if (source === 'network') {
+          const requestResponsePairs = await fetchRecentRequestResponsePairs(20);
+          response = await getNetworkAnalysis({
+            screen: selectedScreen,
+            state: selectedState,
+            relativeUrl: window.location.pathname + window.location.search + window.location.hash,
+            requestResponsePairs,
+          });
+        } else if (source === 'screenshot') {
+          const screenshot = await captureCurrentTabScreenshotBase64();
+          response = await getScreenshotAnalysis({
+            screen: selectedScreen,
+            state: selectedState,
+            relativeUrl: window.location.pathname + window.location.search + window.location.hash,
+            screenshot,
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight,
+          });
+        }
+        if (response && response.bugs && response.bugs.length > 0) {
+          // Prepend new bugs to the list
+          setBugs(prev => [...response.bugs, ...prev]);
+        }
+      } catch (e) {
+        setNotification(`Failed to analyze ${source}`);
+      }
+    }
+    setAnalyzeStep(null);
+    setAnalyzeLoading(false);
+    setAnalyzing(false);
+  };
+
   // Get states for selected screen
   const stateOptions = screenStates.find((s) => s.screen === selectedScreen)?.states || [];
+
+  // Notification for analysis step
+  const getAnalyzeNotification = () => {
+    if (!analyzeStep) return null;
+    let msg = '';
+    if (analyzeStep === 'dom') msg = 'Analyzing DOM...';
+    if (analyzeStep === 'console') msg = 'Analyzing console logs...';
+    if (analyzeStep === 'network') msg = 'Analyzing network...';
+    if (analyzeStep === 'screenshot') msg = 'Analyzing screenshot...';
+    return (
+      <div style={{
+        background: '#232323',
+        color: '#bbb',
+        textAlign: 'center',
+        fontSize: 12,
+        padding: '2px 0',
+        marginBottom: 8,
+        borderRadius: 4,
+        minHeight: 18,
+        letterSpacing: 0.1,
+        fontWeight: 400,
+        opacity: 1,
+        transition: 'opacity 0.5s',
+        boxShadow: 'none',
+        userSelect: 'none',
+      }}>{msg}</div>
+    );
+  };
 
   return (
     <div style={{ padding: '8px 0', color: '#aaa', height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -236,7 +335,7 @@ export const BugsTab = () => {
             setLoading(true);
             listBugs({
               severities: [],
-              screenStates: selectedScreen ? [{ name: selectedScreen, state: selectedState }] : [],
+              screenStates: selectedScreen ? (selectedState ? [{ name: selectedScreen, state: selectedState }] : [{ name: selectedScreen }]) : [],
               title: undefined,
             }).then((data) => {
               setBugs(data.bugs || []);
@@ -246,6 +345,44 @@ export const BugsTab = () => {
             });
           }}
         />
+      ) : showAnalyzePanel ? (
+        <>
+          <div style={{ flex: 1, minHeight: 0, position: 'relative' }} />
+          <div style={{
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1000,
+            width: '100%',
+            background: '#232323',
+            boxShadow: '0 -2px 12px rgba(0,0,0,0.18)',
+            borderTopLeftRadius: 12,
+            borderTopRightRadius: 12,
+            padding: 24,
+            maxWidth: 420,
+            margin: '0 auto',
+            animation: 'slideUp 0.25s',
+          }}>
+            <div style={{ fontWeight: 500, fontSize: 16, marginBottom: 16, color: '#fff' }}>Bug Capture Settings</div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 8 }}><input type="checkbox" checked={analyzeSources.dom} onChange={e => setAnalyzeSources(s => ({ ...s, dom: e.target.checked }))} /> DOM</label>
+              <label style={{ display: 'block', marginBottom: 8 }}><input type="checkbox" checked={analyzeSources.console} onChange={e => setAnalyzeSources(s => ({ ...s, console: e.target.checked }))} /> Console</label>
+              <label style={{ display: 'block', marginBottom: 8 }}><input type="checkbox" checked={analyzeSources.network} onChange={e => setAnalyzeSources(s => ({ ...s, network: e.target.checked }))} /> Network</label>
+              <label style={{ display: 'block', marginBottom: 8 }}><input type="checkbox" checked={analyzeSources.screenshot} onChange={e => setAnalyzeSources(s => ({ ...s, screenshot: e.target.checked }))} /> Screenshot</label>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button onClick={handleCancelAnalyze} size="small">Cancel</Button>
+              <Button type="primary" onClick={handleAnalyze} size="small">Analyze</Button>
+            </div>
+          </div>
+          <style>{`
+            @keyframes slideUp {
+              from { transform: translateY(100%); opacity: 0; }
+              to { transform: none; opacity: 1; }
+            }
+          `}</style>
+        </>
       ) : (
         <>
           {/* Row 1: Screen and State dropdowns */}
@@ -335,6 +472,12 @@ export const BugsTab = () => {
               Prompt copied to IDE
             </div>
           )}
+          {getAnalyzeNotification()}
+          {analyzeLoading && (
+            <div style={{ marginBottom: 12 }}>
+              <Card loading style={{ marginBottom: 8, borderRadius: 8 }} />
+            </div>
+          )}
           {/* Bug results panel */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 2px' }}>
             {filteredBugs.length === 0 ? (
@@ -398,6 +541,7 @@ export const BugsTab = () => {
                   size="small"
                   className="primary-button"
                   style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  onClick={handleShowAnalyzePanel}
                 >
                   <img
                     src={getTestChimpIcon()}

@@ -1,3 +1,4 @@
+
 export enum ContextElementType {
     UIElement = 'UIElement',
     BoundingBox = 'BoundingBox',
@@ -28,7 +29,7 @@ export interface BoundingBoxContext {
 
 export type ContextElement = UIElementContext | BoundingBoxContext;
 
-export interface InfoContext {
+export interface ScreenInfoContext {
     screenInfo:ScreenInfo;
     contextElements: ContextElement[];
 }
@@ -41,7 +42,7 @@ export interface ScreenInfo{
 export interface UserInstructionMessage {
     type: 'user_instruction';
     userInstruction: string;
-    infoContext?: InfoContext;
+    infoContext?: ScreenInfoContext;
     messageId?: string;
 }
 
@@ -51,22 +52,6 @@ export interface AckMessage {
 }
 
 // MCP <-> Extension request/response types
-
-// Fetch extra info for context item
-export interface FetchExtraInfoForContextItemRequest {
-    id: string;
-}
-export interface FetchExtraInfoForContextItemResponse {
-    extraInfo: Record<string, any>;
-}
-
-// Grab screenshot
-export interface GrabScreenshotRequest {
-}
-
-export interface GrabScreenshotResponse {
-    screenshotBase64: string;
-}
 
 // Console log item structure
 export interface ConsoleLogItem {
@@ -186,3 +171,143 @@ export interface RequestResponsePair {
   responseTimeMs?: number;
   timestamp: number;
 } 
+
+// --- Bug Analysis API Types ---
+
+export interface GetDomAnalysisRequest {
+  screen?: string;
+  state?: string;
+  domSnapshot?: string;
+  relativeUrl?: string;
+}
+
+export interface GetConsoleAnalysisRequest {
+  screen?: string;
+  state?: string;
+  relativeUrl?: string;
+  logs?: ConsoleLogItem[];
+}
+
+export interface GetScreenshotAnalysisRequest {
+  screen?: string;
+  state?: string;
+  relativeUrl?: string;
+  screenshot?: string;
+  viewportWidth?: number;
+  viewportHeight?: number;
+}
+
+export interface GetNetworkAnalysisRequest {
+  screen?: string;
+  state?: string;
+  relativeUrl?: string;
+  requestResponsePairs?: RequestResponsePair[];
+} 
+
+// --- Bug Data Types (moved from apiService.ts) ---
+
+export interface ScreenStates {
+  screen?: string;
+  states?: string[];
+}
+
+export enum BugSeverity {
+  Unknown = 'UNKNOWN_SEVERITY',
+  Low = 'LOW_SEVERITY',
+  Medium = 'MEDIUM_SEVERITY',
+  High = 'HIGH_SEVERITY',
+}
+
+export enum JourneyAgnotism {
+  UNKNOWN_JOURNEY_AGNOTISM = "UNKNOWN_JOURNEY_AGNOTISM",
+  IS_JOURNEY_AGNOSTIC = "IS_JOURNEY_AGNOSTIC",
+  NOT_JOURNEY_AGNOSTIC = "NOT_JOURNEY_AGNOSTIC"
+}
+
+export interface BoundingBox {
+  xPct?: number;
+  yPct?: number;
+  widthPct?: number;
+  heightPct?: number;
+}
+
+export interface Bug {
+  title?: string;
+  description?: string;
+  category?: string;
+  severity?: BugSeverity;
+  evalCommand?: string;
+  location?: string;
+  screen?: string;
+  screenState?: string;
+  rule?: string;
+  boundingBox?: BoundingBox;
+  elementSyntheticId?: string;
+  journeyAgnotism?: JourneyAgnotism;
+  bugHash?: string;
+  scenarioId?: string;
+}
+
+export interface BugDetail {
+  bug?: Bug;
+  sessionLink?: string;
+  environment?: string;
+  creationTimestampMillis?: number;
+  lastUpdatedTimestampMillis?: number;
+  status?: BugStatus;
+  ordinalId?: number;
+  reportedReleaseId?: string;
+}
+
+export enum BugStatus {
+  UNKNOWN = "UNKNOWN_BUG_STATUS",
+  ACTIVE = "ACTIVE",
+  IGNORED = "IGNORED",
+  FIXED = "FIXED",
+} 
+
+export enum InfoContextItemType {
+    UNKNOWN_INFO_CONTEXT_ITEM_TYPE = 0,
+    MINDMAP = 1,
+    TEXT_CONTEXT_ITEM = 2,
+    FIGMA_DESIGN = 3,
+    CONFLUENCE_DOC = 4,
+    SCREEN_INFO = 5,
+}
+
+export interface ContextData {
+    textContent?: string; // For TEXT_CONTEXT_ITEM or SCREEN_INFO (json serialization)
+    url?: string;
+    confluenceDocumentId?: string;
+    figmaContextElement?: any; // TODO: define if needed
+}
+
+export interface InfoContextItem {
+    id?: string;
+    type?: InfoContextItemType;
+    title?: string;
+    data?: ContextData;
+}
+
+export interface InfoContext {
+    contextItems: InfoContextItem[];
+}
+
+// Interface for bug requests (internal use)
+export interface ScreenState {
+  name?: string;
+  state?: string;
+}
+
+export interface SuggestTestScenariosRequest {
+    screenState?:ScreenState;
+    domSnapshot?: string;
+    context?: InfoContext;
+    prompt?: string;
+}
+
+export interface SuggestTestScenariosResponse {
+    suggestedTestScenarios: TestScenarioDetail[];
+} 
+
+export type TestScenarioDetail = AgentTestScenarioWithStatus; 

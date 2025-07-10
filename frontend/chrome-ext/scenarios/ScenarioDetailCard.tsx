@@ -1,33 +1,33 @@
 import React, { useState } from 'react';
 import { Card, Input, Button, Tooltip, Popover, Menu, Dropdown, Tag, Skeleton, Select } from 'antd';
-import { DeleteOutlined, CodeOutlined, CheckCircleOutlined, CloseOutlined, PlusOutlined, MoreOutlined, BugOutlined, ExclamationCircleOutlined, ArrowUpOutlined, ArrowDownOutlined, StopOutlined, BulbOutlined } from '@ant-design/icons';
+import { DeleteOutlined, CodeOutlined, CheckCircleOutlined, CloseOutlined, PlusOutlined, MoreOutlined, SaveOutlined, ExclamationCircleOutlined, ArrowUpOutlined, ArrowDownOutlined, StopOutlined, BulbOutlined } from '@ant-design/icons';
 import { AgentTestScenarioWithStatus, AgentCodeUnit, ScenarioTestResult, TestPriority } from '../datas';
 import { ScenarioActionPanel } from './ScenarioActionPanel';
-import { upsertAgentTestScenario } from '../apiService';
+import { upsertAgentTestScenario, listAgentTestScenarios } from '../apiService';
 import { TestScenarioStatus } from '../datas';
+import { suggestTestScenarioDescription } from '../apiService';
 
 interface ScenarioDetailCardProps {
   scenario: AgentTestScenarioWithStatus;
   onClose: () => void;
   cardWidth?: string;
-  onUpdated?: () => void;
-  addMode?: boolean;
-  addDraft?: { title: string; expected: string; steps: any[]; priority: TestPriority };
-  setAddDraft?: (draft: { title: string; expected: string; steps: any[]; priority: TestPriority }) => void;
+  onUpdated?: (updatedScenario?: AgentTestScenarioWithStatus) => void;
   suggestLoading?: boolean;
-  onWriteForMe?: (title: string) => void;
   selectedScreen?: string;
   selectedState?: string;
+  updateLoading?: boolean; // NEW
 }
 
-export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario, onClose, cardWidth = '100%', onUpdated, addMode, addDraft, setAddDraft, suggestLoading, onWriteForMe, selectedScreen, selectedState }) => {
-  // Only use local state if not in addMode
-  const [title, setTitle] = !addMode ? useState(scenario.scenario?.title || '') : [undefined, undefined];
-  const [expected, setExpected] = !addMode ? useState(scenario.scenario?.expectedBehaviour || '') : [undefined, undefined];
-  const [steps, setSteps] = !addMode ? useState(scenario.scenario?.steps ? [...scenario.scenario.steps] : []) : [undefined, undefined];
+export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario, onClose, cardWidth = '100%', onUpdated, selectedScreen, selectedState, updateLoading }) => {
+  // Always use local state
+  const [id, setId] = useState(scenario.id);
+  const [title, setTitle] = useState(scenario.scenario?.title || '');
+  const [expected, setExpected] = useState(scenario.scenario?.expectedBehaviour || '');
+  const [steps, setSteps] = useState(scenario.scenario?.steps ? [...scenario.scenario.steps] : []);
   const [updating, setUpdating] = useState(false);
   const [hoveredStep, setHoveredStep] = useState<number | null>(null);
-  const [priority, setPriority] = !addMode ? useState(scenario.scenario?.priority ?? TestPriority.MEDIUM_PRIORITY) : [undefined, undefined];
+  const [priority, setPriority] = useState(scenario.scenario?.priority ?? TestPriority.MEDIUM_PRIORITY);
+  const [localSuggestLoading, setLocalSuggestLoading] = useState(false);
 
   // Test result icon logic
   const lastResult = scenario.resultHistory && scenario.resultHistory.length > 0 ? scenario.resultHistory[scenario.resultHistory.length - 1].result : undefined;
@@ -52,28 +52,30 @@ export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario
     </Menu>
   );
 
-  // Update handler (stub)
+  // Update handler
   async function handleUpdate() {
     setUpdating(true);
     try {
-      if (addMode && addDraft) {
-        await upsertAgentTestScenario({
-          screenName: selectedScreen,
-          screenState: selectedState,
-          scenario: {
-            title: addDraft.title,
-            expectedBehaviour: addDraft.expected,
-            steps: addDraft.steps,
-            priority: addDraft.priority ?? TestPriority.MEDIUM_PRIORITY,
-          },
-        });
-      } else {
-        await upsertAgentTestScenario({
-          id: scenario.id,
-          status: scenario.status || TestScenarioStatus.ACTIVE_TEST_SCENARIO,
-          screenName: scenario.screenName,
-          screenState: scenario.screenState,
-          testCaseId: scenario.testCaseId,
+      const isAdd = !id;
+      const res = await upsertAgentTestScenario({
+        id,
+        status: scenario.status || TestScenarioStatus.ACTIVE_TEST_SCENARIO,
+        screenName: isAdd ? selectedScreen : scenario.screenName,
+        screenState: isAdd ? selectedState : scenario.screenState,
+        testCaseId: scenario.testCaseId,
+        scenario: {
+          ...scenario.scenario,
+          title,
+          expectedBehaviour: expected,
+          steps,
+          priority: priority ?? TestPriority.MEDIUM_PRIORITY,
+        },
+      });
+      if (res && res.id) setId(res.id);
+      if (typeof onUpdated === 'function') {
+        onUpdated({
+          ...scenario,
+          id: res && res.id ? res.id : id,
           scenario: {
             ...scenario.scenario,
             title,
@@ -81,68 +83,54 @@ export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario
             steps,
             priority: priority ?? TestPriority.MEDIUM_PRIORITY,
           },
+          screenName: isAdd ? selectedScreen : scenario.screenName,
+          screenState: isAdd ? selectedState : scenario.screenState,
         });
       }
-      if (typeof onUpdated === 'function') onUpdated();
     } finally {
       setUpdating(false);
     }
   }
 
-  // In addMode, update draft state on change
-  function handleTitleChange(e: any) {
-    if (addMode && setAddDraft && addDraft) setAddDraft({ ...addDraft, title: e.target.value });
-    else if (setTitle) setTitle(e.target.value);
-  }
-  function handleExpectedChange(e: any) {
-    if (addMode && setAddDraft && addDraft) setAddDraft({ ...addDraft, expected: e.target.value });
-    else if (setExpected) setExpected(e.target.value);
-  }
+  // Handlers
+  function handleTitleChange(e: any) { setTitle(e.target.value); }
+  function handleExpectedChange(e: any) { setExpected(e.target.value); }
   function handleStepsChange(idx: number, value: string) {
-    if (addMode && setAddDraft && addDraft) {
-      const newSteps = (addDraft.steps ?? []).map((step: any, i: number) => i === idx ? { ...step, description: value } : step);
-      setAddDraft({ ...addDraft, steps: newSteps });
-    } else if (setSteps) {
-      setSteps((prev: any[]) => prev.map((step, i) => i === idx ? { ...step, description: value } : step));
-    }
+    setSteps((prev: any[]) => prev.map((step, i) => i === idx ? { ...step, description: value } : step));
   }
-  function handleAddStep() {
-    if (addMode && setAddDraft && addDraft) {
-      setAddDraft({ ...addDraft, steps: [...(addDraft.steps ?? []), { description: '' }] });
-    } else if (setSteps) {
-      setSteps((prev: any[]) => [...prev, { description: '' }]);
-    }
-  }
-  function handleDeleteStep(idx: number) {
-    if (addMode && setAddDraft && addDraft) {
-      setAddDraft({ ...addDraft, steps: (addDraft.steps ?? []).filter((_: any, i: number) => i !== idx) });
-    } else if (setSteps) {
-      setSteps((prev: any[]) => prev.filter((_, i) => i !== idx));
-    }
-  }
-  function handlePriorityChange(val: TestPriority) {
-    if (addMode && setAddDraft && addDraft) setAddDraft({ ...addDraft, priority: val });
-    else if (setPriority) setPriority(val);
-  }
+  function handleAddStep() { setSteps((prev: any[]) => [...prev, { description: '' }]); }
+  function handleDeleteStep(idx: number) { setSteps((prev: any[]) => prev.filter((_, i) => i !== idx)); }
+  function handlePriorityChange(val: TestPriority) { setPriority(val); }
   function moveStep(idx: number, direction: 'up' | 'down') {
-    if (addMode && setAddDraft && addDraft) {
-      const newSteps = [...(addDraft.steps ?? [])];
+    setSteps((prev: any[]) => {
+      const newSteps = [...prev];
       if (direction === 'up' && idx > 0) {
         [newSteps[idx - 1], newSteps[idx]] = [newSteps[idx], newSteps[idx - 1]];
       } else if (direction === 'down' && idx < newSteps.length - 1) {
         [newSteps[idx + 1], newSteps[idx]] = [newSteps[idx], newSteps[idx + 1]];
       }
-      setAddDraft({ ...addDraft, steps: newSteps });
-    } else if (setSteps) {
-      setSteps((prev: any[]) => {
-        const newSteps = [...prev];
-        if (direction === 'up' && idx > 0) {
-          [newSteps[idx - 1], newSteps[idx]] = [newSteps[idx], newSteps[idx - 1]];
-        } else if (direction === 'down' && idx < newSteps.length - 1) {
-          [newSteps[idx + 1], newSteps[idx]] = [newSteps[idx], newSteps[idx + 1]];
-        }
-        return newSteps;
+      return newSteps;
+    });
+  }
+
+  // Show Write for me if steps is empty
+  const showWriteForMe = steps.length === 0;
+  const writeForMeDisabled = title.length < 20;
+  const saveDisabled = title.length < 20;
+
+  // Write for me handler (always local)
+  async function handleWriteForMe() {
+    if (writeForMeDisabled) return;
+    setLocalSuggestLoading(true);
+    try {
+      const res = await suggestTestScenarioDescription({
+        screenState: { name: selectedScreen, state: selectedState },
+        scenarioTitle: title,
       });
+      setExpected(res.expectedBehaviour || '');
+      setSteps(res.steps || []);
+    } finally {
+      setLocalSuggestLoading(false);
     }
   }
 
@@ -162,43 +150,31 @@ export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario
       bodyStyle={{ padding: 16 }}
     >
       {/* Action buttons overlay */}
-      {addMode ? (
-        <div style={{ position: 'absolute', top: 0, right: 0, zIndex: 2 }}>
-          <Button
-            type="text"
-            size="small"
-            icon={<CloseOutlined />}
-            style={{ color: '#888', padding: '2px 4px', fontSize: 12 }}
-            onClick={e => { e.stopPropagation(); onClose(); }}
-          />
-        </div>
-      ) : (
-        <ScenarioActionPanel
-          scenario={scenario}
-          showClose={true}
-          onClose={onClose}
-          onDelete={() => { /* TODO: handle delete */ }}
-          onGenerate={() => { /* TODO: handle generate */ }}
-          onMarkTested={() => { /* TODO: handle mark tested */ }}
-          hovered={true}
-        />
-      )}
+      <ScenarioActionPanel
+        scenario={scenario}
+        showClose={true}
+        onClose={onClose}
+        onDelete={() => { /* TODO: handle delete */ }}
+        onGenerate={() => { /* TODO: handle generate */ }}
+        onMarkTested={() => { /* TODO: handle mark tested */ }}
+        hovered={true}
+      />
       {/* Editable title */}
       <Input.TextArea
-        value={addMode && addDraft ? addDraft.title ?? '' : title ?? ''}
+        value={title}
         onChange={handleTitleChange}
         placeholder="Scenario title"
-        style={{ fontWeight: 600, fontSize: 16, color: '#fff', background: '#222', border: 'none', marginBottom: 8, resize: 'none' }}
+        style={{ fontWeight: 400, fontSize: 14, color: '#fff', background: '#222', border: 'none', marginBottom: 8, resize: 'none', overflowY: 'hidden' }}
         bordered={false}
-        autoSize={{ minRows: 1, maxRows: 2 }}
+        autoSize={{ minRows: 1, maxRows: 6 }}
         autoFocus
       />
-      {/* Priority dropdown */}
-      <div style={{ marginBottom: 12 }}>
+      {/* Priority and Write for me row */}
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ fontWeight: 500, color: '#aaa', marginBottom: 4 }}>Priority</div>
         <Select
-          style={{ width: 120 }}
-          value={addMode && addDraft ? (addDraft.priority ?? TestPriority.MEDIUM_PRIORITY) : priority ?? TestPriority.MEDIUM_PRIORITY}
+          style={{ width: 120, marginLeft: 8 }}
+          value={priority ?? TestPriority.MEDIUM_PRIORITY}
           onChange={(val) => handlePriorityChange(Number(val))}
           options={[
             { label: 'P0', value: TestPriority.HIGHEST_PRIORITY },
@@ -209,42 +185,31 @@ export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario
           ]}
           optionLabelProp="label"
         />
+        {showWriteForMe && (
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+            <Tooltip title={writeForMeDisabled ? 'Title must be at least 10 characters' : ''}>
+              <Button
+                type="primary"
+                size="small"
+                icon={<BulbOutlined style={{ color: '#FFD600' }} />} // yellow
+                loading={localSuggestLoading}
+                onClick={handleWriteForMe}
+                disabled={writeForMeDisabled}
+                className="secondary-button"
+              >
+                Write for me
+              </Button>
+            </Tooltip>
+          </div>
+        )}
       </div>
-      {/* Write for me button row (only in add mode) */}
-      {addMode && (
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-          <div style={{ flex: 1 }} />
-          <Tooltip title={addDraft && addDraft.title.length < 10 ? 'Title must be at least 10 characters' : ''}>
-            <Button
-              type="default"
-              size="small"
-              icon={<BulbOutlined style={{ color: '#fff' }} />}
-              disabled={!addDraft || (addDraft.title ?? '').length < 10 || !!suggestLoading}
-              loading={!!suggestLoading}
-              onClick={() => onWriteForMe && addDraft && onWriteForMe(addDraft.title ?? '')}
-              style={{
-                marginLeft: 8,
-                border: '1px solid #fff',
-                background: 'transparent',
-                color: '#fff',
-                fontWeight: 500,
-                boxShadow: 'none',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              Write for me
-            </Button>
-          </Tooltip>
-        </div>
-      )}
       {/* Editable expected behaviour */}
       <div style={{ fontWeight: 500, color: '#aaa', marginBottom: 4 }}>Expected behaviour</div>
-      {suggestLoading ? (
+      {localSuggestLoading ? (
         <Skeleton active paragraph={{ rows: 2 }} title={false} style={{ marginBottom: 12 }} />
       ) : (
         <Input.TextArea
-          value={addMode && addDraft ? addDraft.expected ?? '' : expected ?? ''}
+          value={expected}
           onChange={handleExpectedChange}
           placeholder="Expected behaviour"
           style={{ fontSize: 14, color: '#fff', background: 'var(--tc-panel-bg)', border: '1px solid #333', marginBottom: 12 }}
@@ -254,10 +219,10 @@ export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario
       {/* Steps list with up/down/delete */}
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontWeight: 500, color: '#aaa', marginBottom: 4, marginLeft: 8 }}>Steps</div>
-        {suggestLoading ? (
+        {localSuggestLoading ? (
           <Skeleton active paragraph={{ rows: 4 }} title={false} style={{ marginBottom: 12 }} />
         ) : (
-          (addMode && addDraft ? addDraft.steps ?? [] : steps ?? []).map((step: any, idx: number) => (
+          steps.map((step: any, idx: number) => (
             <div
               key={idx}
               style={{
@@ -301,8 +266,8 @@ export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario
                     type="text"
                     icon={<ArrowDownOutlined style={{ fontSize: 12 }} />}
                     size="small"
-                    style={{ color: idx === (addMode && addDraft ? (addDraft.steps?.length ?? 0) - 1 : (steps?.length ?? 0) - 1) ? '#888' : '#ff6b65', cursor: idx === (addMode && addDraft ? (addDraft.steps?.length ?? 0) - 1 : (steps?.length ?? 0) - 1) ? 'not-allowed' : 'pointer', padding: '0 4px', height: 20, minWidth: 20 }}
-                    disabled={idx === (addMode && addDraft ? (addDraft.steps?.length ?? 0) - 1 : (steps?.length ?? 0) - 1)}
+                    style={{ color: idx === (steps.length - 1) ? '#888' : '#ff6b65', cursor: idx === (steps.length - 1) ? 'not-allowed' : 'pointer', padding: '0 4px', height: 20, minWidth: 20 }}
+                    disabled={idx === (steps.length - 1)}
                     onClick={() => moveStep(idx, 'down')}
                   />
                 </>
@@ -326,20 +291,25 @@ export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario
           Add Step
         </Button>
       </div>
-      <Button
-        type="primary"
-        style={{
-          width: '100%',
-          background: 'transparent',
-          border: '1.5px solid #fff',
-          color: '#fff',
-          fontWeight: 600,
-        }}
-        loading={updating}
-        onClick={handleUpdate}
-      >
-        {addMode ? 'Save' : 'Update'}
-      </Button>
+      {/* Save button with tooltip if disabled */}
+      <Tooltip title={saveDisabled ? 'Title must be at least 20 characters' : ''}>
+        <Button
+          type="primary"
+          icon={<SaveOutlined />}
+          style={{
+            width: '100%',
+            background: 'transparent',
+            border: '1.5px solid #fff',
+            color: '#fff',
+            fontWeight: 600,
+          }}
+          loading={updating || updateLoading}
+          onClick={handleUpdate}
+          disabled={saveDisabled}
+        >
+          Save
+        </Button>
+      </Tooltip>
     </Card>
   );
 }; 

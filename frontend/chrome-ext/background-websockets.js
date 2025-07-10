@@ -2,6 +2,8 @@
 // Uses global mcpConnected and notifyStatus from background.js
 
 import { FetchExtraInfoForContextItemRequest, FetchExtraInfoForContextItemResponse, GrabScreenshotRequest, GrabScreenshotResponse, GetRecentConsoleLogsRequest, GetRecentConsoleLogsResponse } from './datas';
+import { RequestResponsePair } from './datas';
+import { simplifyDOMForLLM } from './html_utils';
 
 const MCP_WS_URL = "ws://localhost:43449/ws";
 let mcpSocket = null;
@@ -16,6 +18,8 @@ const mcpHandlers = {
     "grab_screenshot": handleGrabScreenshot,
     "get_recent_console_logs": handleGetRecentConsoleLogs,
     "fetch_extra_info_for_context_item": handleFetchExtraInfoForContextItem,
+    "get_recent_request_response_pairs": handleGetRecentRequestResponsePairs,
+    "get_simplified_dom": handleGetLLMFriendlyDOM,
     // Add more handlers here as needed
 };
 
@@ -51,6 +55,27 @@ async function handleGetRecentConsoleLogs(ws, message) {
     // Get logs from background with filtering
     const logs = (typeof self.getRecentConsoleLogs === 'function') ? self.getRecentConsoleLogs(req) : [];
     return { logs };
+}
+
+// Handler to get recent request/response pairs
+async function handleGetRecentRequestResponsePairs(ws, message) {
+    const size = typeof message.size === 'number' && message.size > 0 ? message.size : 20;
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['recentRequestResponsePairs'], (result) => {
+            const allPairs = result.recentRequestResponsePairs || [];
+            resolve({ pairs: allPairs.slice(0, size) });
+        });
+    });
+}
+
+// Handler to get LLM-friendly DOM
+async function handleGetLLMFriendlyDOM(ws, message) {
+    try {
+        const simplified = simplifyDOMForLLM(document.body);
+        return { dom: simplified };
+    } catch (e) {
+        return { error: e?.message || 'Failed to simplify DOM' };
+    }
 }
 
 // --- WebSocket connection logic ---
@@ -184,3 +209,87 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 function getExtraInfo(id) {
     return extraInfoStore[id];
 } 
+
+// --- Request/Response Pair Tracking ---
+let recentRequestResponsePairs = [];
+let uriRegexToIntercept = '.*'; // Default: match all
+let uriRegexObj = new RegExp(uriRegexToIntercept);
+
+// Keep uriRegexToIntercept updated from chrome.storage.sync
+function updateUriRegex() {
+    chrome.storage.sync.get(['uriRegexToIntercept'], (items) => {
+        if (items.uriRegexToIntercept) {
+            uriRegexToIntercept = items.uriRegexToIntercept;
+            try {
+                uriRegexObj = new RegExp(uriRegexToIntercept);
+            } catch (e) {
+                uriRegexObj = /.*/;
+            }
+        }
+    });
+}
+updateUriRegex();
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync' && changes.uriRegexToIntercept) {
+        updateUriRegex();
+    }
+});
+
+// On extension load, clear out any recentRequestResponsePairs older than 1 minute
+chrome.storage.local.get(['recentRequestResponsePairs'], (result) => {
+    const now = Date.now();
+    const arr = (result.recentRequestResponsePairs || []).filter(pair => now - pair.timestamp <= 60000);
+    chrome.storage.local.set({ recentRequestResponsePairs: arr });
+    recentRequestResponsePairs = arr;
+});
+
+// Load recentRequestResponsePairs from storage on startup
+chrome.storage.local.get(['recentRequestResponsePairs'], (result) => {
+    recentRequestResponsePairs = result.recentRequestResponsePairs || [];
+});
+
+// Intercept and persist matching request/response pairs
+chrome.webRequest.onCompleted.addListener(
+    function(details) {
+        if (!uriRegexObj.test(details.url)) return;
+        const pair = {
+            url: details.url,
+            method: details.method,
+            requestHeaders: details.requestHeaders ? Object.fromEntries(details.requestHeaders.map(h => [h.name, h.value])) : {},
+            responseHeaders: details.responseHeaders ? Object.fromEntries(details.responseHeaders.map(h => [h.name, h.value])) : {},
+            status: details.statusCode,
+            responseTimeMs: details.timeStamp,
+            timestamp: Date.now(),
+        };
+        recentRequestResponsePairs.unshift(pair);
+        if (recentRequestResponsePairs.length > 50) recentRequestResponsePairs = recentRequestResponsePairs.slice(0, 50);
+        chrome.storage.local.set({ recentRequestResponsePairs });
+    },
+    { urls: ['<all_urls>'] },
+    ['responseHeaders', 'extraHeaders']
+); 
+
+// Add a chrome.runtime.onMessage listener for get_recent_console_logs so both MCP and extension sidebar can use it
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type === 'get_recent_console_logs') {
+        const logs = (typeof self.getRecentConsoleLogs === 'function') ? self.getRecentConsoleLogs(msg) : [];
+        sendResponse({ logs });
+        return true; // Keep the port open for async response
+    }
+    if (msg.type === 'get_connection_status') {
+        sendResponse({
+            type: 'connection_status',
+            vscodeConnected: self.vscodeConnected,
+            mcpConnected: self.mcpConnected
+        });
+    } else if (msg.type === 'add_extra_info' && msg.id) {
+        extraInfoStore[msg.id] = msg.extraInfo;
+        // Optionally log for debug
+        console.log('[background] Stored extra info for id', msg.id, msg.extraInfo);
+    } else if (msg.type === 'get_extra_info' && msg.id) {
+        sendResponse({ extraInfo: extraInfoStore[msg.id] });
+    } else if (msg.type === 'remove_extra_info' && msg.id) {
+        delete extraInfoStore[msg.id];
+        console.log('[background] Removed extra info for id', msg.id);
+    }
+}); 

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Button, Tooltip, Empty } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
-import { InfoContext } from '../datas';
+import { InfoContext, ScreenInfoContext } from '../datas';
 
 export interface LocalTask {
   prompt?: string;
-  context?: InfoContext;
+  context?: ScreenInfoContext;
   creationTimestampMillis: number;
   screenName?: string;
   relativeUrl?: string;

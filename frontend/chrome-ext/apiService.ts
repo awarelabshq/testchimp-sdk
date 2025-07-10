@@ -1,21 +1,13 @@
 // API service for BugsTab and related features
 export const BASE_URL = 'https://featureservice-staging.testchimp.io';
 
-// Interfaces matching server-side definition
-export interface ScreenStates {
-  screen?: string;
-  states?: string[];
-}
+// Remove enums and data interfaces that are not request/response types from this file.
+// Only keep request/response interfaces here, and import all data types from datas.ts instead.
 
 export interface GetScreenStatesResponse {
   screenStates?: ScreenStates[];
 }
 
-// Interface for bug requests (internal use)
-export interface ScreenState {
-  name?: string;
-  state?: string;
-}
 
 export interface GetScreenForPageRequest {
   url?: string;
@@ -24,72 +16,6 @@ export interface GetScreenForPageRequest {
 export interface GetScreenForPageResponse {
   normalizedUrl?: string;
   screenName?: string;
-}
-
-export enum BugSeverity {
-  Unknown = 'UNKNOWN_SEVERITY',
-  Low = 'LOW_SEVERITY',
-  Medium = 'MEDIUM_SEVERITY',
-  High = 'HIGH_SEVERITY',
-}
-
-export interface ListBugsRequest {
-  severities?: BugSeverity[];
-  screenStates?: ScreenState[];
-  statuses?: BugStatus[];
-  title?: string;
-}
-
-export enum JourneyAgnotism {
-  UNKNOWN_JOURNEY_AGNOTISM = "UNKNOWN_JOURNEY_AGNOTISM",
-  IS_JOURNEY_AGNOSTIC = "IS_JOURNEY_AGNOSTIC",
-  NOT_JOURNEY_AGNOSTIC = "NOT_JOURNEY_AGNOSTIC"
-}
-
-export interface BoundingBox {
-  xPct?: number;
-  yPct?: number;
-  widthPct?: number;
-  heightPct?: number;
-}
-
-export interface Bug {
-  title?: string;
-  description?: string;
-  category?: string;
-  severity?: BugSeverity;
-  evalCommand?: string;
-  location?: string;
-  screen?: string;
-  screenState?: string;
-  rule?: string;
-  boundingBox?: BoundingBox;
-  elementSyntheticId?: string;
-  journeyAgnotism?: JourneyAgnotism;
-  bugHash?: string;
-  scenarioId?: string;
-}
-
-export interface BugDetail {
-  bug?: Bug;
-  sessionLink?: string;
-  environment?: string;
-  creationTimestampMillis?: number;
-  lastUpdatedTimestampMillis?: number;
-  status?: BugStatus;
-  ordinalId?: number;
-  reportedReleaseId?: string;
-}
-
-export interface ListBugsResponse {
-  bugs: BugDetail[];
-}
-
-export enum BugStatus {
-  UNKNOWN = "UNKNOWN_BUG_STATUS",
-  ACTIVE = "ACTIVE",
-  IGNORED = "IGNORED",
-  FIXED = "FIXED",
 }
 
 export interface UpdateBugsRequest {
@@ -251,11 +177,28 @@ export async function createNewRelease(req: CreateNewReleaseRequest): Promise<Cr
 import {
   TestPriority,
   TestScenarioStatus,
-  ScenarioTestResult,
   AgentTestScenarioWithStatus,
   TestScenario,
   ScenarioTestResultHistoryItem,
   AgentCodeUnit,
+  RequestResponsePair,
+  ScreenInfo,
+  // Bug-related types
+  Bug,
+  BugDetail,
+  BugStatus,
+  BugSeverity,
+  JourneyAgnotism,
+  BoundingBox,
+  ScreenStates,
+  // Value/data types
+  ConsoleLogItem,
+  // ...other imports as needed
+  ScenarioTestResult,
+  SuggestTestScenariosRequest,
+  SuggestTestScenariosResponse,
+  TestScenarioDetail,
+  ScreenState,
 } from './datas';
 
 export interface ListAgentTestScenariosRequest {
@@ -316,7 +259,7 @@ export interface InsertTestScenarioResultRequest {
   environment?: string;
 }
 
-export interface InsertTestScenarioResultResponse {}
+export interface InsertTestScenarioResultResponse { }
 
 export async function insertTestScenarioResult(req: InsertTestScenarioResultRequest): Promise<InsertTestScenarioResultResponse> {
   const headers = await getAuthHeaders();
@@ -353,4 +296,217 @@ export async function suggestTestScenarioDescription(req: SuggestTestScenarioDes
   });
   const data = await res.json();
   return data;
-} 
+}
+
+/**
+ * Captures a screenshot of the current tab's visible viewport and returns the base64 string (no data URL prefix).
+ * Uses the background script's 'capture_viewport_screenshot' message handler.
+ */
+export async function captureCurrentTabScreenshotBase64(): Promise<string | undefined> {
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.runtime.sendMessage({ type: 'capture_viewport_screenshot' }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Screenshot capture error:', chrome.runtime.lastError.message);
+          resolve(undefined);
+        } else if (response && response.dataUrl) {
+          // dataUrl is like 'data:image/png;base64,....'
+          const base64 = response.dataUrl.split(',')[1];
+          resolve(base64);
+        } else {
+          resolve(undefined);
+        }
+      });
+    } catch (e) {
+      console.error('Screenshot capture exception:', e);
+      resolve(undefined);
+    }
+  });
+}
+
+/**
+ * Fetches recent console logs from the background script.
+ * Returns an array of ConsoleLogItem.
+ */
+export async function fetchRecentConsoleLogs(): Promise<ConsoleLogItem[]> {
+  return new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ type: 'get_recent_console_logs' }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Console log fetch error:', chrome.runtime.lastError.message);
+          resolve([]);
+        } else if (response && response.logs) {
+          resolve(response.logs);
+        } else {
+          resolve([]);
+        }
+      });
+    } catch (e) {
+      console.error('Console log fetch exception:', e);
+      resolve([]);
+    }
+  });
+}
+
+/**
+ * Fetches the last N recent request/response pairs from the background script.
+ * @param {number} size - Number of pairs to fetch (default 20)
+ * @returns {Promise<RequestResponsePair[]>}
+ */
+export async function fetchRecentRequestResponsePairs(size = 20): Promise<RequestResponsePair[]> {
+  return new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ type: 'get_recent_request_response_pairs', size }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Request/response pair fetch error:', chrome.runtime.lastError.message);
+          resolve([]);
+        } else if (response && response.pairs) {
+          resolve(response.pairs.slice(0, size));
+        } else {
+          resolve([]);
+        }
+      });
+    } catch (e) {
+      console.error('Request/response pair fetch exception:', e);
+      resolve([]);
+    }
+  });
+}
+
+export async function getDomAnalysis(req: GetDomAnalysisRequest): Promise<GetDomAnalysisResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/ext/get_dom_analysis`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(req),
+  });
+  return await res.json();
+}
+
+export async function getConsoleAnalysis(req: GetConsoleAnalysisRequest): Promise<GetConsoleAnalysisResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/ext/get_console_analysis`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(req),
+  });
+  return await res.json();
+}
+
+export async function getScreenshotAnalysis(req: GetScreenshotAnalysisRequest): Promise<GetScreenshotAnalysisResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/ext/get_screenshot_analysis`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(req),
+  });
+  return await res.json();
+}
+
+export async function getNetworkAnalysis(req: GetNetworkAnalysisRequest): Promise<GetNetworkAnalysisResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/ext/get_network_analysis`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(req),
+  });
+  return await res.json();
+}
+
+export async function suggestTestScenarios(request: SuggestTestScenariosRequest): Promise<SuggestTestScenariosResponse> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${BASE_URL}/ext/suggest_test_scenarios`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) throw new Error('Failed to suggest test scenarios');
+  return response.json();
+}
+
+// --- API Request/Response Interfaces ---
+
+export interface ListBugsRequest {
+  severities?: BugSeverity[];
+  screenStates?: ScreenState[];
+  statuses?: BugStatus[];
+  title?: string;
+}
+
+export interface ListBugsResponse {
+  bugs: BugDetail[];
+}
+
+export interface GetDomAnalysisRequest {
+  screen?: string;
+  state?: string;
+  domSnapshot?: string;
+  relativeUrl?: string;
+}
+
+export interface GetDomAnalysisResponse {
+  bugs: BugDetail[];
+}
+
+export interface GetConsoleAnalysisRequest {
+  screen?: string;
+  state?: string;
+  relativeUrl?: string;
+  logs?: ConsoleLogItem[];
+}
+
+export interface GetConsoleAnalysisResponse {
+  bugs: BugDetail[];
+}
+
+export interface GetScreenshotAnalysisRequest {
+  screen?: string;
+  state?: string;
+  relativeUrl?: string;
+  screenshot?: string;
+  viewportWidth?: number;
+  viewportHeight?: number;
+}
+
+export interface GetScreenshotAnalysisResponse {
+  bugs: BugDetail[];
+}
+
+export interface GetNetworkAnalysisRequest {
+  screen?: string;
+  state?: string;
+  relativeUrl?: string;
+  requestResponsePairs?: RequestResponsePair[];
+}
+
+export interface GetNetworkAnalysisResponse {
+  bugs: BugDetail[];
+}
+
+export interface FetchExtraInfoForContextItemRequest {
+  id: string;
+}
+export interface FetchExtraInfoForContextItemResponse {
+  extraInfo: Record<string, any>;
+}
+
+export interface GrabScreenshotRequest { }
+export interface GrabScreenshotResponse {
+  screenshotBase64: string;
+}
+

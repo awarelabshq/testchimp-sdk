@@ -726,12 +726,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'capture_viewport_screenshot') {
     console.log('[background] capture_viewport_screenshot received');
-    chrome.tabs.captureVisibleTab({ format: 'png' }, (dataUrl) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs[0];
+      if (!tab) {
+        sendResponse({ error: 'No active tab found' });
+        return;
+      }
+      chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, (dataUrl) => {
         if (chrome.runtime.lastError) {
-            console.error('captureVisibleTab error:', chrome.runtime.lastError.message);
+          console.error('captureVisibleTab error:', chrome.runtime.lastError.message);
+          sendResponse({ error: chrome.runtime.lastError.message });
+          return;
         }
         console.log('[background] captureVisibleTab result:', !!dataUrl, dataUrl ? dataUrl.length : 0);
         sendResponse({ dataUrl });
+      });
     });
     return true; // Keep the message channel open for async response
   }

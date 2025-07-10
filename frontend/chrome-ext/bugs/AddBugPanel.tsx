@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Input, Select, Button, Modal, Spin } from 'antd';
 import { SelectOutlined } from '@ant-design/icons';
-import { BugSeverity, BugStatus, updateBugs, listReleases, createNewRelease, ReleaseInfo, ResourceType, Bug, JourneyAgnotism, BoundingBox } from '../apiService';
-import { BugCategory } from '../datas';
+import { updateBugs, listReleases, createNewRelease, ReleaseInfo, ResourceType } from '../apiService';
+import { BugSeverity, BugStatus, BugCategory, Bug, JourneyAgnotism, BoundingBox } from '../datas';
 import { useElementSelector } from '../elementSelector';
 import { getUniqueSelector } from '../html_utils';
 

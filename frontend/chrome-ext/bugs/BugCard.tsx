@@ -1,9 +1,9 @@
 import React from 'react';
 import { Card, Tag, Button, Tooltip, Typography, Popconfirm } from 'antd';
 import { DislikeOutlined, CodeOutlined, CheckCircleOutlined, CloseOutlined } from '@ant-design/icons';
-import { BugStatus, BugSeverity } from '../apiService';
 import { getCategoryColorWhiteFont, formatCategoryLabel, getSeverityLabel, truncateText, formatMessageToAiIde, generateUuid } from './bugUtils';
 import { getFilePathsFromDOM } from '../domUtils';
+import { BugSeverity, BugStatus } from '../datas';
 
 const { Text } = Typography;
 

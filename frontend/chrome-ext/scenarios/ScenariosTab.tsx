@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Select, Input, Spin, Row, Col, Typography, Button, Modal, Skeleton, message } from 'antd';
 import { PlusOutlined, BulbOutlined } from '@ant-design/icons';
-import { ScreenState, ScreenStates, getScreenStates, getScreenForPage, listAgentTestScenarios, suggestTestScenarioDescription } from '../apiService';
+import { getScreenStates, getScreenForPage, listAgentTestScenarios, suggestTestScenarioDescription, upsertAgentTestScenario } from '../apiService';
+import { ScreenState } from '../datas';
+import { ScreenStates } from '../datas';
 import { ScreenStateSelector } from '../components/ScreenStateSelector';
 import { ScenarioCard } from './ScenarioCard';
 import { TestPriority, AgentTestScenarioWithStatus } from '../datas';
 import { getTestChimpIcon } from '../components/getTestChimpIcon';
 import { ScenarioDetailCard } from './ScenarioDetailCard';
+import { SuggestScenariosPanel } from './SuggestScenariosPanel';
 
 const { Text } = Typography;
 
@@ -25,6 +28,8 @@ export const ScenariosTab = () => {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addDraft, setAddDraft] = useState<{ title: string; expected: string; steps: any[]; priority: TestPriority }>({ title: '', expected: '', steps: [], priority: TestPriority.MEDIUM_PRIORITY });
   const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestPanelOpen, setSuggestPanelOpen] = useState(false);
+  const [addAllLoading, setAddAllLoading] = useState(false);
 
   // Fetch screen states on mount
   useEffect(() => {
@@ -66,9 +71,10 @@ export const ScenariosTab = () => {
     setSelectedState(undefined);
   }, [selectedScreen]);
 
-  // Fetch scenarios when screen/state changes
-  useEffect(() => {
+  // Utility to refresh the scenario list for the current screen/state
+  const refreshScenarioList = useCallback(() => {
     if (!selectedScreen) return;
+    setResultsLoading(true);
     const screenObj = screenStates.find((s) => s.screen === selectedScreen);
     let screenStatesReq: ScreenState[] = [];
     if (selectedState) {
@@ -79,18 +85,18 @@ export const ScenariosTab = () => {
     } else if (selectedScreen) {
       screenStatesReq = [{ name: screenObj?.screen }];
     }
-    setResultsLoading(true);
-    listAgentTestScenarios({
-      priorities: [],
-      screenStates: screenStatesReq,
-      title: undefined,
-    })
+    listAgentTestScenarios({ priorities: [], screenStates: screenStatesReq, title: undefined })
       .then((data) => {
         setScenarios(data.scenarios || []);
         setResultsLoading(false);
       })
       .catch(() => setResultsLoading(false));
   }, [selectedScreen, selectedState, screenStates]);
+
+  // Fetch scenarios when screen/state changes
+  useEffect(() => {
+    refreshScenarioList();
+  }, [refreshScenarioList]);
 
   // Client-side filtering for search text and priority
   useEffect(() => {
@@ -161,6 +167,38 @@ export const ScenariosTab = () => {
     }
   };
 
+  // Handler for Add All from SuggestScenariosPanel
+  const handleAddAllScenarios = async (suggested) => {
+    setAddAllLoading(true);
+    try {
+      // Upsert each scenario (in parallel)
+      await Promise.all(suggested.map(s => upsertAgentTestScenario({
+        id: s.id,
+        status: s.status,
+        screenName: selectedScreen,
+        screenState: selectedState,
+        testCaseId: s.testCaseId,
+        scenario: s.scenario,
+      })));
+      // Refresh scenario list
+      if (selectedScreen) {
+        refreshScenarioList();
+      }
+      setSuggestPanelOpen(false);
+      message.success('Scenarios added');
+    } catch (e) {
+      message.error('Failed to add scenarios');
+    } finally {
+      setAddAllLoading(false);
+    }
+  };
+
+  // Handler to update a scenario in the local state after edit
+  const handleScenarioLocallyUpdated = useCallback((updatedScenario) => {
+    if (!updatedScenario || !updatedScenario.id) return;
+    setScenarios(prev => prev.map(s => s.id === updatedScenario.id ? updatedScenario : s));
+  }, []);
+
   return (
     <div style={{ padding: '8px 0', color: '#aaa', height: '100%', display: 'flex', flexDirection: 'column' }}>
       <style>{`
@@ -179,13 +217,15 @@ export const ScenariosTab = () => {
               scenario={{ scenario: { title: addDraft.title, expectedBehaviour: addDraft.expected, steps: addDraft.steps, priority: addDraft.priority }, resultHistory: [] }}
               onClose={handleAddCancel}
               cardWidth="100%"
-              addMode
-              addDraft={addDraft}
-              setAddDraft={setAddDraft}
               suggestLoading={suggestLoading}
-              onWriteForMe={handleWriteForMe}
               selectedScreen={selectedScreen}
               selectedState={selectedState}
+              onUpdated={(updatedScenario) => {
+                setAddModalOpen(false);
+                // Refresh scenario list after add
+                if (updatedScenario && !updatedScenario.id) return; // Defensive: skip if no id
+                refreshScenarioList();
+              }}
             />
             <Button
               style={{ marginTop: 8, marginBottom: 8, marginRight: 16, float: 'right' }}
@@ -252,32 +292,40 @@ export const ScenariosTab = () => {
               {notification}
             </div>
           )}
-          {/* Scenario results panel */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0 2px', position: 'relative' }}>
-            {resultsLoading && (
-              <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', zIndex: 2, background: 'rgba(30,30,30,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Spin size="large" />
-              </div>
-            )}
-            {filteredScenarios.length === 0 && !resultsLoading ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#888' }}>
-                <Text type="secondary">
-                  {scenarios.length === 0 ? 'No scenarios found.' : 'No scenarios match your filters.'}
-                </Text>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, opacity: resultsLoading ? 0.5 : 1 }}>
-                {filteredScenarios.map((scenario, index) => (
-                  <ScenarioCard
-                    key={scenario.id || String(index)}
-                    scenario={scenario}
-                    onUpdated={handleScenarioUpdated}
-                    onAction={handleScenarioAction}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          {!suggestPanelOpen && (
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 2px', position: 'relative' }}>
+              {resultsLoading && (
+                <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', zIndex: 2, background: 'rgba(30,30,30,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Spin size="large" />
+                </div>
+              )}
+              {filteredScenarios.length === 0 && !resultsLoading ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#888' }}>
+                  <Text type="secondary">
+                    {scenarios.length === 0 ? 'No scenarios found.' : 'No scenarios match your filters.'}
+                  </Text>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, opacity: resultsLoading ? 0.5 : 1 }}>
+                  {filteredScenarios.map((scenario, index) => (
+                    <ScenarioCard
+                      key={scenario.id || String(index)}
+                      scenario={scenario}
+                      onUpdated={handleScenarioLocallyUpdated}
+                      onAction={handleScenarioAction}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <SuggestScenariosPanel
+            visible={suggestPanelOpen}
+            onCancel={() => setSuggestPanelOpen(false)}
+            onAddAll={handleAddAllScenarios}
+            selectedScreen={selectedScreen}
+            selectedState={selectedState}
+          />
           {/* Sticky bottom buttons */}
           <div style={{
             padding: '8px 0',
@@ -305,13 +353,13 @@ export const ScenariosTab = () => {
                   size="small"
                   className="primary-button"
                   style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, paddingLeft: 12, paddingRight: 12, marginLeft: 4, marginRight: 8 }}
-                // TODO: Add onClick for Suggest Scenarios
+                  onClick={() => setSuggestPanelOpen(true)}
                 >
                   <img
                     src={getTestChimpIcon()}
                     alt="logo"
                     style={{ width: 18, height: 18, marginRight: 4, verticalAlign: 'middle', objectFit: 'cover', display: 'inline-block'}}
-                    onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<span style=\'font-size:16px;margin-right:4px;\'>🐞</span>'); }}
+                    onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', "<span style=\"font-size:16px;margin-right:4px;\">🐞</span>"); }}
                   />
                   Suggest Scenarios
                 </Button>

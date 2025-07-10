@@ -15,6 +15,7 @@ interface ScenarioActionPanelProps {
   style?: React.CSSProperties;
   hovered?: boolean;
   onAction?: (action: { type: 'delete' | 'markTested', id: string, result?: ScenarioTestResult, resultHistory?: any[] }) => void;
+  isSuggestion?: boolean; // NEW
 }
 
 export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
@@ -27,6 +28,7 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
   style,
   hovered = true,
   onAction,
+  isSuggestion,
 }) => {
   // Test result icon logic
   const lastResult = scenario.resultHistory && scenario.resultHistory.length > 0 ? scenario.resultHistory[scenario.resultHistory.length - 1].result : undefined;
@@ -160,22 +162,25 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
           onClick={e => e.stopPropagation()}
         />
       </Popover>
-      <Popover
-        content={markTestedContent}
-        trigger="click"
-        placement="bottom"
-        overlayStyle={{ minWidth: 180 }}
-        getPopupContainer={getCardContainer}
-      >
-        <Button
-          type="text"
-          size="small"
-          icon={testResultIcon}
-          style={{ color: '#aaa', padding: '2px 4px', fontSize: 12 }}
-          onClick={e => e.stopPropagation()}
-          loading={loading}
-        />
-      </Popover>
+      {/* Only show mark as tested if not a suggestion */}
+      {!isSuggestion && (
+        <Popover
+          content={markTestedContent}
+          trigger="click"
+          placement="bottom"
+          overlayStyle={{ minWidth: 180 }}
+          getPopupContainer={getCardContainer}
+        >
+          <Button
+            type="text"
+            size="small"
+            icon={testResultIcon}
+            style={{ color: '#aaa', padding: '2px 4px', fontSize: 12 }}
+            onClick={e => e.stopPropagation()}
+            loading={loading}
+          />
+        </Popover>
+      )}
       {showClose && (
         <Tooltip title="Close">
           <Button
