@@ -202,3 +202,20 @@
   border-color: #5bb18a !important;
   color: #5bb18a !important;
 }
+
+.scenario-notification {
+  background: #232323;
+  color: #bbb;
+  text-align: center;
+  font-size: 12px;
+  padding: 2px 0;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  min-height: 18px;
+  letter-spacing: 0.1px;
+  font-weight: 400;
+  opacity: 1;
+  transition: opacity 0.5s;
+  box-shadow: none;
+  user-select: none;
+}

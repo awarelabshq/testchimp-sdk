@@ -1,6 +1,6 @@
 import React from 'react';
 import { Row, Col, Select } from 'antd';
-import { ScreenStates } from '../apiService';
+import { ScreenStates } from '../datas';
 
 interface ScreenStateSelectorProps {
   screenStates: ScreenStates[];

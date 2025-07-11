@@ -132,6 +132,22 @@ export const DevTab = () => {
     const [selectedScreen, setSelectedScreen] = useState<string | undefined>(undefined);
     const [screenLoading, setScreenLoading] = useState(false);
     const [scratchPadOpen, setScratchPadOpen] = useState(false);
+    const [collapseActiveKey, setCollapseActiveKey] = useState<string[]>([]);
+    const scratchPadContainerRef = useRef<HTMLDivElement>(null);
+    const [scratchPadMaxHeight, setScratchPadMaxHeight] = useState<string>('calc(100vh - 320px)');
+    const stickyRef = useRef<HTMLDivElement>(null);
+    const [scratchPadHeight, setScratchPadHeight] = useState(400);
+
+    const updateScratchPadHeight = () => {
+        const stickyHeight = stickyRef.current?.offsetHeight || 0;
+        setScratchPadHeight(window.innerHeight - stickyHeight);
+    };
+
+    useEffect(() => {
+        updateScratchPadHeight();
+        window.addEventListener('resize', updateScratchPadHeight);
+        return () => window.removeEventListener('resize', updateScratchPadHeight);
+    }, []);
 
     // Fetch screen states and current screen on mount (replicate ScenariosTab logic)
     useEffect(() => {
@@ -287,8 +303,14 @@ export const DevTab = () => {
     const contextMenu = (
         <Menu
             onClick={({ key }) => {
-                if (key === 'select') setCurrentMode('select');
-                if (key === 'box') setCurrentMode('box');
+                if (key === 'select') {
+                    setCurrentMode('select');
+                    window.postMessage({ type: 'tc-hide-sidebar' }, '*');
+                }
+                if (key === 'box') {
+                    setCurrentMode('box');
+                    window.postMessage({ type: 'tc-hide-sidebar' }, '*');
+                }
                 setContextMenuOpen(false);
             }}
             items={[
@@ -394,6 +416,7 @@ export const DevTab = () => {
             const updated = [newTask, ...prev].sort((a, b) => b.creationTimestampMillis - a.creationTimestampMillis);
             chrome.storage.sync.set({ localTasks: updated }, () => {
                 setScratchPadTasks(updated);
+                setCollapseActiveKey(['1']);
                 setScratchPadOpen(true);
                 setSaveLoading(false);
                 setUserMessage('');
@@ -408,6 +431,12 @@ export const DevTab = () => {
     };
     const handleScratchPadDelete = (task: LocalTask) => {
         setScratchPadTasks(tasks => tasks.filter(t => t.creationTimestampMillis !== task.creationTimestampMillis));
+    };
+
+    // When a new item is added to the scratch pad, open the Collapse
+    const handleScratchPadAdd = () => {
+        setCollapseActiveKey(['1']);
+        setScratchPadOpen(true);
     };
 
     // Custom expand icon for Collapse
@@ -425,72 +454,80 @@ export const DevTab = () => {
 
     // Layout: Screen selector at top, ScratchPad grows to fill space, bottom sticky area contains status, button panel, prompt, context
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', minHeight: 0, background: '#181818' }}>
-            {/* ScratchPad as accordion, always displayed */}
-            {(scratchPadTasks.length > 0) && (
-                <div style={{ flex: 1, minHeight: 120, display: 'flex', flexDirection: 'column', overflow: 'hidden', margin: '0' }}>
-                    <Collapse
-                        activeKey={scratchPadOpen ? ['1'] : []}
-                        onChange={keys => setScratchPadOpen(keys.length > 0)}
-                        expandIcon={scratchPadExpandIcon}
-                        expandIconPosition="start"
-                        style={{ background: 'none', border: 'none', flex: 1, display: 'flex', flexDirection: 'column' }}
-                    >
-                        <Collapse.Panel
-                            header={<span style={{ fontWeight: 500, color: '#aaa', fontSize: 13, letterSpacing: 0.01, padding: 0, margin: 0 }}>Scratch Pad</span>}
-                            key="1"
-                            style={{ background: '#181818', border: 'none', borderRadius: 8, marginBottom: 4, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: 0, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
-                        >
-                            {/* Screen selector as thin row at top of ScratchPad */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 4px 0', borderBottom: '1px solid #222', margin: 0 }}>
-                                <span style={{ fontSize: 12, color: '#aaa', fontWeight: 500, letterSpacing: 0.01, marginRight: 8 }}>Screen</span>
-                                <Select
-                                    style={{ minWidth: 140, flex: 1, fontSize: 12 }}
-                                    placeholder="Select screen"
-                                    value={selectedScreen}
-                                    onChange={val => setSelectedScreen(val)}
-                                    loading={screenLoading}
-                                    options={screenStates.filter(s => !!s.screen).map(s => ({ label: String(s.screen), value: String(s.screen) }))}
-                                    showSearch
-                                    optionFilterProp="label"
-                                    filterOption={(input, option) => (option?.label as string).toLowerCase().includes(input.toLowerCase())}
-                                    size="small"
-                                />
-                                <Button
-                                    icon={<ReloadOutlined style={{ fontSize: 12 }} />}
-                                    onClick={() => {
-                                        setScreenLoading(true);
-                                        const url = window.location.href;
-                                        getScreenForPage({ url }).then(res => {
-                                            setCurrentScreenName(res.screenName);
-                                            setCurrentRelativeUrl(res.normalizedUrl || url);
-                                            setSelectedScreen(res.screenName || (screenStates && screenStates[0]?.screen) || undefined);
-                                            setScreenLoading(false);
-                                        }).catch(() => {
-                                            setScreenLoading(false);
-                                        });
-                                    }}
-                                    loading={screenLoading}
-                                    style={{ marginLeft: 4, background: 'none', border: 'none', color: '#aaa', fontSize: 12, boxShadow: 'none', padding: 0, width: 20, height: 20, minWidth: 20 }}
-                                />
-                            </div>
-                            {/* ScratchPad content, scrollable, no extra margin/padding */}
-                            <div style={{ flex: 1, minHeight: 0, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: 0, margin: 0 }}>
-                                <ScratchPad
-                                    onSelect={handleScratchPadSelect}
-                                    onDelete={handleScratchPadDelete}
-                                    tasks={scratchPadTasks}
-                                    setTasks={setScratchPadTasks}
-                                    currentScreenName={selectedScreen}
-                                    currentRelativeUrl={currentRelativeUrl}
-                                />
-                            </div>
-                        </Collapse.Panel>
-                    </Collapse>
-                </div>
-            )}
-            {/* Fixed bottom area: context, prompt, buttons, status */}
-            <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100, background: '#181818', boxShadow: '0 -2px 12px rgba(0,0,0,0.12)', padding: '0 4px 0 4px', borderTop: '1px solid #222' }}>
+        <div style={{ height: '100%', background: '#181818' }}>
+            {/* Collapse with ScratchPad */}
+            <Collapse
+                activeKey={collapseActiveKey}
+                onChange={keys => setCollapseActiveKey(keys as string[])}
+                style={{ height: 'calc(100% - 320px)', overflow: 'hidden', background: 'none', border: 'none' }}
+                expandIconPosition="start"
+            >
+                <Collapse.Panel
+                    header={<span style={{ fontWeight: 500, color: '#aaa', fontSize: 13, letterSpacing: 0.01, padding: 0, margin: 0 }}>Scratch Pad</span>}
+                    key="1"
+                    style={{ height: '100%', background: '#181818', border: 'none', borderRadius: 8, marginBottom: 4, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: 0 }}
+                >
+                    {/* Screen selector as thin row at top of ScratchPad */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 4px 0', borderBottom: '1px solid #222', margin: 0 }}>
+                        <span style={{ fontSize: 12, color: '#aaa', fontWeight: 500, letterSpacing: 0.01, marginRight: 8 }}>Screen</span>
+                        <Select
+                            style={{ minWidth: 140, flex: 1, fontSize: 12 }}
+                            placeholder="Select screen"
+                            value={selectedScreen}
+                            onChange={val => setSelectedScreen(val)}
+                            loading={screenLoading}
+                            options={screenStates.filter(s => !!s.screen).map(s => ({ label: String(s.screen), value: String(s.screen) }))}
+                            showSearch
+                            optionFilterProp="label"
+                            filterOption={(input, option) => (option?.label as string).toLowerCase().includes(input.toLowerCase())}
+                            size="small"
+                        />
+                        <Button
+                            icon={<ReloadOutlined style={{ fontSize: 12 }} />}
+                            onClick={() => {
+                                setScreenLoading(true);
+                                const url = window.location.href;
+                                getScreenForPage({ url }).then(res => {
+                                    setCurrentScreenName(res.screenName);
+                                    setCurrentRelativeUrl(res.normalizedUrl || url);
+                                    setSelectedScreen(res.screenName || (screenStates && screenStates[0]?.screen) || undefined);
+                                    setScreenLoading(false);
+                                }).catch(() => {
+                                    setScreenLoading(false);
+                                });
+                            }}
+                            loading={screenLoading}
+                            style={{ marginLeft: 4, background: 'none', border: 'none', color: '#aaa', fontSize: 12, boxShadow: 'none', padding: 0, width: 20, height: 20, minWidth: 20 }}
+                        />
+                    </div>
+                    <div style={{ height: scratchPadHeight, overflowY: 'auto', paddingBottom: 330, background: '#181818', paddingLeft: 4, paddingRight: 4 }}>
+                        <ScratchPad
+                            onSelect={handleScratchPadSelect}
+                            onDelete={handleScratchPadDelete}
+                            tasks={scratchPadTasks}
+                            setTasks={setScratchPadTasks}
+                            currentScreenName={selectedScreen}
+                            currentRelativeUrl={currentRelativeUrl}
+                            onAdd={handleScratchPadAdd}
+                        />
+                    </div>
+                </Collapse.Panel>
+            </Collapse>
+            {/* Sticky bottom area */}
+            <div ref={stickyRef} style={{
+                position: 'fixed',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 100,
+                height: 320,
+                background: '#181818',
+                boxShadow: '0 -2px 12px rgba(0,0,0,0.12)',
+                padding: '0 4px 0 4px',
+                borderTop: '1px solid #222',
+                display: 'flex',
+                flexDirection: 'column',
+            }}>
                 {/* Context window */}
                 <div className="tc-section" style={{ minHeight: 120, marginTop: 0, marginBottom: 4, padding: 8, display: 'flex', flexDirection: 'column', background: '#181818', border: '1.5px solid #333', borderRadius: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -561,7 +598,7 @@ export const DevTab = () => {
                     </div>
                 </div>
                 {/* Prompt box */}
-                <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, background: '#181818', marginBottom: 0, padding: '0 4px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, background: '#181818', marginBottom: 0, padding: '0 4px', maxHeight: 100, overflowY: 'hidden' }}>
                     <Input.TextArea
                         value={userMessage}
                         onChange={e => setUserMessage(e.target.value)}
@@ -577,21 +614,13 @@ export const DevTab = () => {
                         disabled={sending}
                     />
                     {notification && (
-                        <div
-                            style={{
-                                fontSize: 14,
-                                color: notification === 'Had an issue sending the message' ? '#ffb300' : '#aaa',
-                                fontWeight: 500,
-                                marginBottom: 8,
-                                textAlign: 'center'
-                            }}
-                        >
+                        <div className="scenario-notification">
                             {notification}
                         </div>
                     )}
                 </div>
                 {/* Button panel */}
-                <div style={{ width: '100%', background: '#181818', display: 'flex', gap: 8, padding: '8px 4px 4px 4px', borderTop: '1px solid #222' }}>
+                <div style={{ width: '100%', background: '#181818', display: 'flex', gap: 8, padding: '8px 4px 4px 4px', borderTop: '1px solid #222', marginTop: 4 }}>
                     <div style={{ flex: 1 }}>
                         <Button
                             onClick={handleSaveForLater}
@@ -626,7 +655,7 @@ export const DevTab = () => {
                     </div>
                 </div>
                 {/* Status bar: always at the bottom of this container */}
-                <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12 }}>
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12, marginTop: '4px' }}>
                     <span style={{ fontSize: 12, color: '#aaa' }}>
                         VSCode: {vscodeConnected ? (
                             <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>

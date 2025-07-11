@@ -502,6 +502,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   window.postMessage(message, "*");
 });
 
+// Relay host page console logs to background
+window.addEventListener('message', function(event) {
+  if (
+    event.source === window &&
+    event.data &&
+    event.data.type === 'testchimp-host-console-log'
+  ) {
+    chrome.runtime.sendMessage({
+      type: 'host_console_log',
+      logType: event.data.logType,
+      log: event.data.log,
+      timestamp: event.data.timestamp
+    });
+  }
+});
+
 async function checkAndStartRecording() {
 
 

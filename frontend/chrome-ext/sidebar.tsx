@@ -12,13 +12,15 @@ import {
     message as antdMessage,
     Dropdown,
     Menu,
-    Tabs
+    Tabs,
+    Collapse
 } from 'antd';
 import { LogoutOutlined, BugOutlined, PartitionOutlined, PlusCircleOutlined, MessageOutlined, WarningOutlined, EditOutlined, ReloadOutlined, SendOutlined, AimOutlined, DragOutlined, BorderOutlined, InfoCircleOutlined, PlusOutlined, AppstoreOutlined, VideoCameraOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { RecordTab } from './RecordTab';
 import { BugsTab } from './bugs/BugsTab';
 import { ScenariosTab } from './scenarios/ScenariosTab';
 import { DevTab } from './dev';
+import { simplifyDOMForLLM } from './html_utils';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -50,6 +52,12 @@ export const SidebarApp = () => {
     const [urlRegexToCapture, setUrlRegexToCapture] = useState<string | undefined>(undefined);
     const [activeTabKey, setActiveTabKey] = useState('dev');
     const [tabRefreshKey, setTabRefreshKey] = useState(0);
+    // --- Project selection and settings row ---
+    const [showInterceptSettings, setShowInterceptSettings] = useState<boolean>(false);
+    useEffect(() => {
+        // Show interception settings by default if not set
+        setShowInterceptSettings(!selectedProject?.urlRegexToCapture);
+    }, [selectedProject]);
 
     useEffect(() => {
         const loadInitialState = async () => {
@@ -263,6 +271,19 @@ export const SidebarApp = () => {
         };
     }, [activeTabKey]);
 
+    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+        if (msg.type === 'get_dom_snapshot') {
+            try {
+                // @ts-ignore: simplifyDOMForLLM may be imported or defined elsewhere
+                const dom = simplifyDOMForLLM(document.body);
+                sendResponse({ dom });
+            } catch (e) {
+                sendResponse({ error: e?.message || 'Failed to simplify DOM' });
+            }
+            return true; // Keep the message channel open for async response
+        }
+    });
+
     return (
         <div className="tc-sidebar" style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: 8 }}>
             {!userAuthKey ? (
@@ -300,96 +321,96 @@ export const SidebarApp = () => {
                 </div>
             ) : (
                 <div className="tc-panel" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', padding: 0 }}>
-                    {/* Project Select Panel */}
-                    <div className="tc-section" style={{ marginTop: 4, marginBottom: 4, padding: 8 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: '600' }}>Select Project</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <Tooltip title="Refresh Projects">
-                                    <Button icon={<ReloadOutlined />} type="text" onClick={fetchProjects} />
-                                </Tooltip>
-                                <Tooltip title="Logout">
-                                    <Button icon={<LogoutOutlined />} style={{ color: "#ff6b65" }} type="text" onClick={handleLogout} />
-                                </Tooltip>
-                            </div>
-                        </div>
-                        {selectedProjectId && projects.length > 0 && (
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <Select
-                                    style={{ width: '100%', margin: '0 2px' }}
-                                    value={selectedProjectId}
-                                    onChange={(id) => {
-                                        updateSelectedProject(id);
-                                        setEditingIntercept(false); // reset on project change
-                                    }}
-                                    options={projects.map((p) => ({
-                                        label: p.name ?? 'Unnamed Project',
-                                        value: p.projectId!,
-                                    }))}
-                                    dropdownStyle={{ zIndex: 9999 }}
-                                    getPopupContainer={(triggerNode) => triggerNode.parentElement!}
-                                />
-                                <div style={{ marginTop: 6, marginLeft: 4, marginRight: 4 }}>
-                                    {editingIntercept ? (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                            <Input
-                                                size="small"
-                                                placeholder="Enter URL regex to intercept"
-                                                value={interceptInput}
-                                                onChange={(e) => setInterceptInput(e.target.value)}
-                                            />
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                                                <Button
-                                                    loading={isUpdatingConfig}
-                                                    size="small"
-                                                    type="primary"
-                                                    onClick={() => {
-                                                        configureProjectIntercept(interceptInput);
-                                                    }}
-                                                >
-                                                    OK
-                                                </Button>
-                                                <Button
-                                                    size="small"
-                                                    onClick={() => {
-                                                        setEditingIntercept(false);
-                                                    }}
-                                                >
-                                                    Cancel
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ) : urlRegexToCapture ? (
-                                        <Tooltip title={urlRegexToCapture}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                <Text type="secondary" style={{ fontSize: 12, margin: 0 }} ellipsis>
-                                                    Intercepts: {urlRegexToCapture}
-                                                </Text>
-                                                <Button
-                                                    size="small"
-                                                    type="text"
-                                                    icon={<EditOutlined />}
-                                                    onClick={() => {
-                                                        setInterceptInput(selectedProject?.urlRegexToCapture || '');
-                                                        setEditingIntercept(true)
-                                                    }}
-                                                />
-                                            </div>
-                                        </Tooltip>
-                                    ) : (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            <WarningOutlined style={{ color: '#faad14' }} />
-                                            <Text type="warning" style={{ fontSize: 12 }}>
-                                                Interception not set
-                                            </Text>
-                                            <Button size="small" onClick={() => setEditingIntercept(true)} icon={<EditOutlined />} />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                    {/* Project selection row (no Collapse) */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        marginTop: 4,
+                        marginBottom: 8,
+                        padding: '8px 8px',
+                        border: '1.5px solid #333',
+                        borderRadius: 8,
+                        background: '#202124',
+                    }}>
+                        <Select
+                            style={{ flex: 1, minWidth: 0 }}
+                            value={selectedProjectId}
+                            onChange={(id) => {
+                                updateSelectedProject(id);
+                                setEditingIntercept(false);
+                            }}
+                            options={projects.map((p) => ({
+                                label: p.name ?? 'Unnamed Project',
+                                value: p.projectId!,
+                            }))}
+                            dropdownStyle={{ zIndex: 9999 }}
+                            getPopupContainer={(triggerNode) => triggerNode.parentElement!}
+                        />
+                        <Tooltip title="Project Interception Settings">
+                            <Button
+                                icon={<EditOutlined />}
+                                type={showInterceptSettings ? 'primary' : 'default'}
+                                onClick={() => setShowInterceptSettings(v => !v)}
+                                style={{ padding: '0 8px' }}
+                            />
+                        </Tooltip>
+                        <Tooltip title="Refresh Projects">
+                            <Button icon={<ReloadOutlined />} type="text" onClick={fetchProjects} />
+                        </Tooltip>
+                        <Tooltip title="Logout">
+                            <Button icon={<LogoutOutlined />} style={{ color: "#ff6b65" }} type="text" onClick={handleLogout} />
+                        </Tooltip>
                     </div>
-
+                    {/* Interception settings (shown by default if not set, or toggled by settings icon) */}
+                    {selectedProjectId && projects.length > 0 && showInterceptSettings && (
+                        <div style={{ fontSize: 12, color: '#aaa', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            {editingIntercept ? (
+                                <>
+                                    <Input
+                                        placeholder="Enter URL regex to intercept"
+                                        value={interceptInput}
+                                        onChange={(e) => setInterceptInput(e.target.value)}
+                                        style={{ flex: 1 }}
+                                    />
+                                    <Button
+                                        loading={isUpdatingConfig}
+                                        size="small"
+                                        type="primary"
+                                        onClick={() => configureProjectIntercept(interceptInput)}
+                                    >
+                                        OK
+                                    </Button>
+                                    <Button
+                                        size="small"
+                                        onClick={() => setEditingIntercept(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </>
+                            ) : urlRegexToCapture ? (
+                                <>
+                                    <span style={{ color: '#aaa' }}>Intercepts:</span>
+                                    <span style={{ color: '#e6c200', fontWeight: 500 }}>{urlRegexToCapture}</span>
+                                    <Button
+                                        size="small"
+                                        type="text"
+                                        icon={<EditOutlined />}
+                                        onClick={() => {
+                                            setInterceptInput(selectedProject?.urlRegexToCapture || '');
+                                            setEditingIntercept(true);
+                                        }}
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    <WarningOutlined style={{ color: '#faad14' }} />
+                                    <span style={{ color: '#faad14' }}>Interception not set</span>
+                                    <Button size="small" onClick={() => setEditingIntercept(true)} icon={<EditOutlined />} />
+                                </>
+                            )}
+                        </div>
+                    )}
                     {/* Tabs for Dev, Record, Bugs, Scenarios */}
                     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                         <Tabs

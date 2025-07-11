@@ -30,6 +30,7 @@ export const ScenariosTab = () => {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestPanelOpen, setSuggestPanelOpen] = useState(false);
   const [addAllLoading, setAddAllLoading] = useState(false);
+  const [expandedScenario, setExpandedScenario] = useState<AgentTestScenarioWithStatus | null>(null);
 
   // Fetch screen states on mount
   useEffect(() => {
@@ -129,6 +130,8 @@ export const ScenariosTab = () => {
         s.id === action.id ? { ...s, resultHistory: action.resultHistory } : s
       ));
       setNotification('Scenario marked as tested');
+    } else if (action.type === 'promptCopiedToIde') {
+      setNotification('Prompt copied to IDE');
     }
     setTimeout(() => setNotification(null), 2500);
   }, []);
@@ -142,29 +145,6 @@ export const ScenariosTab = () => {
   // Handler for cancel add
   const handleAddCancel = () => {
     setAddModalOpen(false);
-  };
-
-  // Handler for Write for me
-  const handleWriteForMe = async (title: string) => {
-    if (!selectedScreen) return;
-    setSuggestLoading(true);
-    try {
-      const res = await suggestTestScenarioDescription({
-        screenState: { name: selectedScreen, state: selectedState },
-        scenarioTitle: title,
-      });
-      // Ensure steps is always an array of { description: string }
-      setAddDraft(draft => ({
-        ...draft,
-        expected: res.expectedBehaviour || '',
-        steps: res.steps || [],
-        priority: draft.priority ?? TestPriority.MEDIUM_PRIORITY,
-      }));
-    } catch (e) {
-      message.error('Failed to get suggestion');
-    } finally {
-      setSuggestLoading(false);
-    }
   };
 
   // Handler for Add All from SuggestScenariosPanel
@@ -236,6 +216,17 @@ export const ScenariosTab = () => {
             </Button>
           </div>
         </div>
+      ) : expandedScenario ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
+          <ScenarioDetailCard
+            scenario={expandedScenario}
+            onClose={() => setExpandedScenario(null)}
+            cardWidth="100%"
+            selectedScreen={selectedScreen}
+            selectedState={selectedState}
+            onUpdated={handleScenarioLocallyUpdated}
+          />
+        </div>
       ) : (
         <>
           {/* Row 1: Screen and State dropdowns (shared component) */}
@@ -273,22 +264,7 @@ export const ScenariosTab = () => {
           </Row>
           {/* Notification row */}
           {notification && (
-            <div style={{
-              background: '#232323',
-              color: '#bbb',
-              textAlign: 'center',
-              fontSize: 12,
-              padding: '2px 0',
-              marginBottom: 8,
-              borderRadius: 4,
-              minHeight: 18,
-              letterSpacing: 0.1,
-              fontWeight: 400,
-              opacity: notification ? 1 : 0,
-              transition: 'opacity 0.5s',
-              boxShadow: 'none',
-              userSelect: 'none',
-            }}>
+            <div className="scenario-notification">
               {notification}
             </div>
           )}
@@ -313,6 +289,7 @@ export const ScenariosTab = () => {
                       scenario={scenario}
                       onUpdated={handleScenarioLocallyUpdated}
                       onAction={handleScenarioAction}
+                      onClick={() => setExpandedScenario(scenario)}
                     />
                   ))}
                 </div>

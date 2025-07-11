@@ -5,6 +5,7 @@ import { ContextWindowPanel, ContextTag } from '../components/ContextWindowPanel
 import { suggestTestScenarios } from '../apiService';
 import { ScenarioCard } from './ScenarioCard';
 import { simplifyDOMForLLM } from '../html_utils';
+import { getTestChimpIcon } from '../components/getTestChimpIcon';
 
 interface SuggestScenariosPanelProps {
     visible: boolean;
@@ -148,7 +149,14 @@ export const SuggestScenariosPanel: React.FC<SuggestScenariosPanelProps> = ({ vi
                     />
                     <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
                         <Button onClick={onCancel}>Cancel</Button>
-                        <Button type="primary" onClick={handleSuggest}>Suggest</Button>
+                        <Button type="primary" onClick={handleSuggest}>
+                            <img
+                                src={getTestChimpIcon()}
+                                alt="logo"
+                                style={{ width: 18, height: 18, marginRight: 4, verticalAlign: 'middle', objectFit: 'cover', display: 'inline-block' }}
+                                onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<span style=\'font-size:16px;margin-right:4px;\'>🐞</span>'); }}
+                            />
+                            Brainstorm...</Button>
                     </Space>
                 </div>
             </div>
@@ -159,7 +167,7 @@ export const SuggestScenariosPanel: React.FC<SuggestScenariosPanelProps> = ({ vi
         <Drawer
             open={visible}
             placement="bottom"
-            height={"80vh"}
+            height={"60vh"}
             closable={false}
             mask={false}
             style={{ zIndex: 1001 }}

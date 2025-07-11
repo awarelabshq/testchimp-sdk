@@ -4,6 +4,8 @@ import { DeleteOutlined, CodeOutlined, CheckCircleOutlined, CloseOutlined, Excla
 import { AgentTestScenarioWithStatus, TestScenarioStatus, ScenarioTestResult } from '../datas';
 import { getTestChimpIcon } from '../components/getTestChimpIcon';
 import { upsertAgentTestScenario, insertTestScenarioResult } from '../apiService';
+import { formatScenarioScriptForIde } from './scenarioUtils';
+import { useConnectionManager } from '../connectionManager';
 
 interface ScenarioActionPanelProps {
   scenario: AgentTestScenarioWithStatus;
@@ -14,8 +16,9 @@ interface ScenarioActionPanelProps {
   showClose?: boolean;
   style?: React.CSSProperties;
   hovered?: boolean;
-  onAction?: (action: { type: 'delete' | 'markTested', id: string, result?: ScenarioTestResult, resultHistory?: any[] }) => void;
+  onAction?: (action: { type: 'delete' | 'markTested' | 'promptCopiedToIde', id: string, result?: ScenarioTestResult, resultHistory?: any[] }) => void;
   isSuggestion?: boolean; // NEW
+  hideActions?: boolean; // NEW
 }
 
 export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
@@ -29,6 +32,7 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
   hovered = true,
   onAction,
   isSuggestion,
+  hideActions = false,
 }) => {
   // Test result icon logic
   const lastResult = scenario.resultHistory && scenario.resultHistory.length > 0 ? scenario.resultHistory[scenario.resultHistory.length - 1].result : undefined;
@@ -42,6 +46,8 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
   }
 
   const [loading, setLoading] = useState(false);
+  const [markTestedPopoverOpen, setMarkTestedPopoverOpen] = useState(false);
+  const { vscodeConnected } = useConnectionManager();
 
   // Helper to get the closest card container for popups
   function getCardContainer(trigger: HTMLElement) {
@@ -62,9 +68,9 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
   // Popover content for mark as tested
   const markTestedContent = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0, alignItems: 'stretch', justifyContent: 'flex-start', minWidth: 180, maxHeight: 220, overflowY: 'auto', overflowX: 'hidden' }}>
-      <Button type="text" size="small" icon={<StopOutlined />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); handleMarkTested(ScenarioTestResult.UNTESTED); }}>Mark as untested</Button>
-      <Button type="text" size="small" icon={<CloseOutlined style={{ color: '#ff4d4f' }} />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); handleMarkTested(ScenarioTestResult.TESTED_NOT_WORKING); }}>Mark as tested not working</Button>
-      <Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); handleMarkTested(ScenarioTestResult.TESTED_WORKING); }}>Mark as tested working</Button>
+      <Button type="text" size="small" icon={<StopOutlined />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); handleMarkTested(ScenarioTestResult.UNTESTED); setMarkTestedPopoverOpen(false); }}>Mark as untested</Button>
+      <Button type="text" size="small" icon={<CloseOutlined style={{ color: '#ff4d4f' }} />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); handleMarkTested(ScenarioTestResult.TESTED_NOT_WORKING); setMarkTestedPopoverOpen(false); }}>Mark as tested not working</Button>
+      <Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); handleMarkTested(ScenarioTestResult.TESTED_WORKING); setMarkTestedPopoverOpen(false); }}>Mark as tested working</Button>
     </div>
   );
 
@@ -103,6 +109,21 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
     }
   }
 
+  // Handler for generate script in IDE
+  function handleGenerateScript() {
+    if (!scenario.scenario?.steps?.length) return;
+    const prompt = formatScenarioScriptForIde(scenario);
+    chrome.runtime.sendMessage({ type: 'send_to_vscode', payload: { prompt } });
+    // Listen for ack_message once
+    function handleAck(event: MessageEvent) {
+      if (event.data && event.data.type === 'ack_message') {
+        if (onAction) onAction({ type: 'promptCopiedToIde', id: scenario.id || '' });
+        window.removeEventListener('message', handleAck);
+      }
+    }
+    window.addEventListener('message', handleAck);
+  }
+
   return (
     <div
       style={{
@@ -125,61 +146,64 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
       className="action-buttons-overlay"
       onClick={e => e.stopPropagation()}
     >
-      <Tooltip title="Delete">
-        <Popconfirm
-          title="Delete scenario"
-          description="Sure you want to delete?"
-          okText="Delete"
-          okType="danger"
-          cancelText="Cancel"
-          onConfirm={e => { e?.stopPropagation(); handleDelete(); }}
-          onCancel={e => e?.stopPropagation()}
-          placement="left"
-          getPopupContainer={getCardContainer}
-        >
-          <Button
-            type="text"
-            size="small"
-            icon={<DeleteOutlined />}
-            style={{ color: '#ff6b65', padding: '2px 4px', fontSize: 12 }}
-            onClick={e => e.stopPropagation()}
-            loading={loading}
-          />
-        </Popconfirm>
-      </Tooltip>
-      <Popover
-        content={generateContent}
-        trigger="click"
-        placement="bottom"
-        overlayStyle={{ minWidth: 160 }}
-        getPopupContainer={getCardContainer}
-      >
-        <Button
-          type="text"
-          size="small"
-          icon={<CodeOutlined />}
-          style={{ color: '#72BDA3', padding: '2px 4px', fontSize: 12 }}
-          onClick={e => e.stopPropagation()}
-        />
-      </Popover>
-      {/* Only show mark as tested if not a suggestion */}
-      {!isSuggestion && (
-        <Popover
-          content={markTestedContent}
-          trigger="click"
-          placement="bottom"
-          overlayStyle={{ minWidth: 180 }}
-          getPopupContainer={getCardContainer}
-        >
-          <Button
-            type="text"
-            size="small"
-            icon={testResultIcon}
-            style={{ color: '#aaa', padding: '2px 4px', fontSize: 12 }}
-            onClick={e => e.stopPropagation()}
-            loading={loading}
-          />
-        </Popover>
+      {!hideActions && (
+        <>
+          <Tooltip title="Delete">
+            <Popconfirm
+              title="Delete scenario"
+              description="Sure you want to delete?"
+              okText="Delete"
+              okType="danger"
+              cancelText="Cancel"
+              onConfirm={e => { e?.stopPropagation(); handleDelete(); }}
+              onCancel={e => e?.stopPropagation()}
+              placement="left"
+              getPopupContainer={getCardContainer}
+            >
+              <Button
+                type="text"
+                size="small"
+                icon={<DeleteOutlined />}
+                style={{ color: '#ff6b65', padding: '2px 4px', fontSize: 12 }}
+                onClick={e => e.stopPropagation()}
+                loading={loading}
+              />
+            </Popconfirm>
+          </Tooltip>
+          <Tooltip title={!vscodeConnected ? 'VSCode extension must be installed and started.' : (scenario.scenario?.steps?.length ? 'Send script to IDE' : 'Add steps to enable')} placement="top">
+            <span style={{ display: 'inline-block' }}>
+              <Button
+                type="text"
+                size="small"
+                icon={<CodeOutlined />}
+                style={{ color: '#72BDA3', padding: '2px 4px', fontSize: 12 }}
+                onClick={e => { e.stopPropagation(); handleGenerateScript(); }}
+                disabled={!vscodeConnected || !scenario.scenario?.steps?.length}
+              />
+            </span>
+          </Tooltip>
+          {/* Only show mark as tested if not a suggestion */}
+          {!isSuggestion && (
+            <Popover
+              content={markTestedContent}
+              trigger="click"
+              placement="bottom"
+              overlayStyle={{ minWidth: 180 }}
+              getPopupContainer={getCardContainer}
+              open={markTestedPopoverOpen}
+              onOpenChange={setMarkTestedPopoverOpen}
+            >
+              <Button
+                type="text"
+                size="small"
+                icon={testResultIcon}
+                style={{ color: '#aaa', padding: '2px 4px', fontSize: 12 }}
+                onClick={e => e.stopPropagation()}
+                loading={loading}
+              />
+            </Popover>
+          )}
+        </>
       )}
       {showClose && (
         <Tooltip title="Close">

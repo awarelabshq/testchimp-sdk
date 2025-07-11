@@ -1,20 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { Select, Input, Spin, Row, Col, Typography, List, Card, Tag, Button, Tooltip, Modal, Alert } from 'antd';
-import { DislikeOutlined, CodeOutlined, CheckCircleOutlined, PlusOutlined, CloseOutlined, SelectOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import {
   getScreenStates,
   getScreenForPage,
   listBugs,
   updateBugs,
-  getDomAnalysis, getConsoleAnalysis, getScreenshotAnalysis, getNetworkAnalysis, captureCurrentTabScreenshotBase64, GetScreenForPageResponse, ListBugsRequest, fetchRecentConsoleLogs, fetchRecentRequestResponsePairs,
-  ScreenState
+  getDomAnalysis, getConsoleAnalysis, getScreenshotAnalysis, getNetworkAnalysis, captureCurrentTabScreenshotBase64, GetScreenForPageResponse, ListBugsRequest, fetchRecentConsoleLogs, fetchRecentRequestResponsePairs
 } from '../apiService';
 import { useElementSelector } from '../elementSelector';
-import { getUniqueSelector, simplifyDOMForLLM } from '../html_utils';
-import { BugCategory } from '../datas';
+import { simplifyDOMForLLM } from '../html_utils';
+import { ScreenState } from '../datas';
 import { AddBugPanel } from './AddBugPanel';
 import { BugCard } from './BugCard';
-import { getCategoryColorWhiteFont, formatCategoryLabel, getSeverityLabel, truncateText, CATEGORY_COLORS, BUG_CATEGORY_OPTIONS, SEVERITY_OPTIONS } from './bugUtils';
+import { SEVERITY_OPTIONS } from './bugUtils';
 import { getTestChimpIcon } from '../components/getTestChimpIcon';
 import { useConnectionManager } from '../connectionManager';
 import { BugSeverity, BugStatus, ScreenStates, BugDetail } from '../datas';
@@ -35,12 +34,7 @@ export const BugsTab = () => {
   const [removingBugIds, setRemovingBugIds] = useState<string[]>([]);
   const [actionLoading, setActionLoading] = useState<{ [bugId: string]: boolean }>({});
   const [addingBug, setAddingBug] = useState(false);
-  const [addBugTitle, setAddBugTitle] = useState('');
-  const [addBugDescription, setAddBugDescription] = useState('');
-  const [addBugSeverity, setAddBugSeverity] = useState<BugSeverity | undefined>(undefined);
-  const [addBugCategory, setAddBugCategory] = useState<string | undefined>(undefined);
   const [addBugElement, setAddBugElement] = useState<{ element: HTMLElement, querySelector: string } | null>(null);
-  const [addBugLoading, setAddBugLoading] = useState(false);
   const [showCopiedNotification, setShowCopiedNotification] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [showAnalyzePanel, setShowAnalyzePanel] = useState(false);
@@ -281,22 +275,7 @@ export const BugsTab = () => {
     if (analyzeStep === 'network') msg = 'Analyzing network...';
     if (analyzeStep === 'screenshot') msg = 'Analyzing screenshot...';
     return (
-      <div style={{
-        background: '#232323',
-        color: '#bbb',
-        textAlign: 'center',
-        fontSize: 12,
-        padding: '2px 0',
-        marginBottom: 8,
-        borderRadius: 4,
-        minHeight: 18,
-        letterSpacing: 0.1,
-        fontWeight: 400,
-        opacity: 1,
-        transition: 'opacity 0.5s',
-        boxShadow: 'none',
-        userSelect: 'none',
-      }}>{msg}</div>
+      <div className="scenario-notification">{msg}</div>
     );
   };
 
@@ -364,7 +343,7 @@ export const BugsTab = () => {
             margin: '0 auto',
             animation: 'slideUp 0.25s',
           }}>
-            <div style={{ fontWeight: 500, fontSize: 16, marginBottom: 16, color: '#fff' }}>Bug Capture Settings</div>
+            <div style={{ fontWeight: 500, fontSize: 16, marginBottom: 16, color: '#fff' }}>Sources to analyze</div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 8 }}><input type="checkbox" checked={analyzeSources.dom} onChange={e => setAnalyzeSources(s => ({ ...s, dom: e.target.checked }))} /> DOM</label>
               <label style={{ display: 'block', marginBottom: 8 }}><input type="checkbox" checked={analyzeSources.console} onChange={e => setAnalyzeSources(s => ({ ...s, console: e.target.checked }))} /> Console</label>
@@ -373,7 +352,14 @@ export const BugsTab = () => {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <Button onClick={handleCancelAnalyze} size="small">Cancel</Button>
-              <Button type="primary" onClick={handleAnalyze} size="small">Analyze</Button>
+              <Button type="primary" onClick={handleAnalyze} size="small">
+                <img
+                  src={getTestChimpIcon()}
+                  alt="logo"
+                  style={{ width: 18, height: 18, verticalAlign: 'middle', objectFit: 'cover', display: 'inline-block' }}
+                  onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<span style=\'font-size:16px;margin-right:4px;\'>🐞</span>'); }}
+                />
+                Analyze</Button>
             </div>
           </div>
           <style>{`
@@ -433,42 +419,12 @@ export const BugsTab = () => {
           </Row>
           {/* Notification row */}
           {notification && (
-            <div style={{
-              background: '#232323',
-              color: '#bbb',
-              textAlign: 'center',
-              fontSize: 12,
-              padding: '2px 0',
-              marginBottom: 8,
-              borderRadius: 4,
-              minHeight: 18,
-              letterSpacing: 0.1,
-              fontWeight: 400,
-              opacity: notification ? 1 : 0,
-              transition: 'opacity 0.5s',
-              boxShadow: 'none',
-              userSelect: 'none',
-            }}>
+            <div className="scenario-notification">
               {notification}
             </div>
           )}
           {showCopiedNotification && (
-            <div style={{
-              background: '#232323',
-              color: '#bbb',
-              textAlign: 'center',
-              fontSize: 12,
-              padding: '2px 0',
-              marginBottom: 8,
-              borderRadius: 4,
-              minHeight: 18,
-              letterSpacing: 0.1,
-              fontWeight: 400,
-              opacity: showCopiedNotification ? 1 : 0,
-              transition: 'opacity 0.5s',
-              boxShadow: 'none',
-              userSelect: 'none',
-            }}>
+            <div className="scenario-notification">
               Prompt copied to IDE
             </div>
           )}

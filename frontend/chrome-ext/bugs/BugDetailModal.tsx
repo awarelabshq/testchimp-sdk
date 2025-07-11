@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Button, Tag, Typography } from 'antd';
 import { DislikeOutlined, CodeOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { BugDetail, BugSeverity } from '../apiService';
+import { BugDetail, BugSeverity } from '../datas';
 
 const { Text } = Typography;
 

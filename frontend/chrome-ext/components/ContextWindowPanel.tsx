@@ -115,8 +115,14 @@ export const ContextWindowPanel: React.FC<ContextWindowPanelProps> = ({
   const contextMenu = (
     <Menu
       onClick={({ key }) => {
-        if (key === 'select') setCurrentMode('select');
-        if (key === 'box') setCurrentMode('box');
+        if (key === 'select') {
+          window.postMessage({ type: 'tc-hide-sidebar' }, '*');
+          setCurrentMode('select');
+        }
+        if (key === 'box') {
+          window.postMessage({ type: 'tc-hide-sidebar' }, '*');
+          setCurrentMode('box');
+        }
         setContextMenuOpen(false);
       }}
       items={[

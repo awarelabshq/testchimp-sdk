@@ -158,6 +158,7 @@ export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario
         onGenerate={() => { /* TODO: handle generate */ }}
         onMarkTested={() => { /* TODO: handle mark tested */ }}
         hovered={true}
+        hideActions={!scenario.id}
       />
       {/* Editable title */}
       <Input.TextArea
@@ -192,6 +193,7 @@ export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario
                 type="primary"
                 size="small"
                 icon={<BulbOutlined style={{ color: '#FFD600' }} />} // yellow
+                style={{ marginRight: "8px", marginLeft: "8px" }}
                 loading={localSuggestLoading}
                 onClick={handleWriteForMe}
                 disabled={writeForMeDisabled}

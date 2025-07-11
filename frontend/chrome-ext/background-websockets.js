@@ -1,10 +1,6 @@
 // background-websockets.js
 // Uses global mcpConnected and notifyStatus from background.js
 
-import { FetchExtraInfoForContextItemRequest, FetchExtraInfoForContextItemResponse, GrabScreenshotRequest, GrabScreenshotResponse, GetRecentConsoleLogsRequest, GetRecentConsoleLogsResponse } from './datas';
-import { RequestResponsePair } from './datas';
-import { simplifyDOMForLLM } from './html_utils';
-
 const MCP_WS_URL = "ws://localhost:43449/ws";
 let mcpSocket = null;
 // Do NOT declare mcpConnected or notifyStatus here
@@ -19,7 +15,7 @@ const mcpHandlers = {
     "get_recent_console_logs": handleGetRecentConsoleLogs,
     "fetch_extra_info_for_context_item": handleFetchExtraInfoForContextItem,
     "get_recent_request_response_pairs": handleGetRecentRequestResponsePairs,
-    "get_simplified_dom": handleGetLLMFriendlyDOM,
+    "get_dom_snapshot": handleGetLLMFriendlyDOM,
     // Add more handlers here as needed
 };
 
@@ -51,31 +47,52 @@ async function handleFetchExtraInfoForContextItem(ws, message) {
 
 // Handler for get_recent_console_logs
 async function handleGetRecentConsoleLogs(ws, message) {
-    let req=message;
-    // Get logs from background with filtering
-    const logs = (typeof self.getRecentConsoleLogs === 'function') ? self.getRecentConsoleLogs(req) : [];
-    return { logs };
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['recentConsoleLogs'], (data) => {
+            let logs = Array.isArray(data.recentConsoleLogs) ? data.recentConsoleLogs : [];
+            if (typeof message.sinceTimestamp === 'number') {
+                logs = logs.filter(log => log.timestamp > message.sinceTimestamp);
+            }
+            const count = typeof message.count === 'number' && message.count > 0 ? message.count : MAX_CONSOLE_LOGS;
+            resolve({ logs: logs.slice(-count) });
+        });
+    });
 }
 
 // Handler to get recent request/response pairs
 async function handleGetRecentRequestResponsePairs(ws, message) {
-    const size = typeof message.size === 'number' && message.size > 0 ? message.size : 20;
+    const count = typeof message.count === 'number' && message.count > 0 ? message.count : 20;
     return new Promise((resolve) => {
         chrome.storage.local.get(['recentRequestResponsePairs'], (result) => {
             const allPairs = result.recentRequestResponsePairs || [];
-            resolve({ pairs: allPairs.slice(0, size) });
+            resolve({ pairs: allPairs.slice(0, count) });
         });
     });
 }
 
 // Handler to get LLM-friendly DOM
 async function handleGetLLMFriendlyDOM(ws, message) {
-    try {
-        const simplified = simplifyDOMForLLM(document.body);
-        return { dom: simplified };
-    } catch (e) {
-        return { error: e?.message || 'Failed to simplify DOM' };
-    }
+    return new Promise((resolve) => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (!tabs[0]?.id) {
+                resolve({ error: 'No active tab' });
+                return;
+            }
+            chrome.tabs.sendMessage(
+                tabs[0].id,
+                { type: 'get_dom_snapshot' },
+                (response) => {
+                    if (chrome.runtime.lastError) {
+                        resolve({ error: chrome.runtime.lastError.message });
+                    } else if (response?.error) {
+                        resolve({ error: response.error });
+                    } else {
+                        resolve({ dom: response?.dom });
+                    }
+                }
+            );
+        });
+    });
 }
 
 // --- WebSocket connection logic ---
@@ -269,27 +286,30 @@ chrome.webRequest.onCompleted.addListener(
     ['responseHeaders', 'extraHeaders']
 ); 
 
-// Add a chrome.runtime.onMessage listener for get_recent_console_logs so both MCP and extension sidebar can use it
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (msg.type === 'get_recent_console_logs') {
-        const logs = (typeof self.getRecentConsoleLogs === 'function') ? self.getRecentConsoleLogs(msg) : [];
-        sendResponse({ logs });
-        return true; // Keep the port open for async response
+// --- Console Log Tracking ---
+let recentConsoleLogs = [];
+const MAX_CONSOLE_LOGS = 100;
+const MAX_LOG_LENGTH = 5000;
+
+// Load logs from chrome.storage.local on startup
+chrome.storage.local.get(['recentConsoleLogs'], (data) => {
+    if (Array.isArray(data.recentConsoleLogs)) {
+        recentConsoleLogs = data.recentConsoleLogs;
+        console.log('[background-websockets] Loaded console logs from storage:', recentConsoleLogs.length);
     }
-    if (msg.type === 'get_connection_status') {
-        sendResponse({
-            type: 'connection_status',
-            vscodeConnected: self.vscodeConnected,
-            mcpConnected: self.mcpConnected
-        });
-    } else if (msg.type === 'add_extra_info' && msg.id) {
-        extraInfoStore[msg.id] = msg.extraInfo;
-        // Optionally log for debug
-        console.log('[background] Stored extra info for id', msg.id, msg.extraInfo);
-    } else if (msg.type === 'get_extra_info' && msg.id) {
-        sendResponse({ extraInfo: extraInfoStore[msg.id] });
-    } else if (msg.type === 'remove_extra_info' && msg.id) {
-        delete extraInfoStore[msg.id];
-        console.log('[background] Removed extra info for id', msg.id);
+});
+
+// Listen for host_console_log messages and store logs
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type === 'host_console_log') {
+        const newLog = {
+            logType: (msg.logType || '').toString(),
+            log: (msg.log || '').toString().slice(0, MAX_LOG_LENGTH),
+            timestamp: msg.timestamp
+        };
+        recentConsoleLogs.push(newLog);
+        if (recentConsoleLogs.length > MAX_CONSOLE_LOGS) recentConsoleLogs = recentConsoleLogs.slice(-MAX_CONSOLE_LOGS);
+        chrome.storage.local.set({ recentConsoleLogs });
+        if (sendResponse) sendResponse({ success: true });
     }
 }); 

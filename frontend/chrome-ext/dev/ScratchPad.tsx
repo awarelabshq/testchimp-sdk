@@ -18,11 +18,12 @@ interface ScratchPadProps {
   setTasks?: (tasks: LocalTask[]) => void;
   currentScreenName?: string;
   currentRelativeUrl?: string;
+  onAdd?: () => void;
 }
 
 const LOCAL_TASKS_KEY = 'localTasks';
 
-export const ScratchPad: React.FC<ScratchPadProps> = ({ onSelect, onDelete, tasks, setTasks, currentScreenName, currentRelativeUrl }) => {
+export const ScratchPad: React.FC<ScratchPadProps> = ({ onSelect, onDelete, tasks, setTasks, currentScreenName, currentRelativeUrl, onAdd }) => {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [internalTasks, setInternalTasks] = useState<LocalTask[]>([]);
@@ -38,6 +39,20 @@ export const ScratchPad: React.FC<ScratchPadProps> = ({ onSelect, onDelete, task
       setLoading(false);
     });
   }, []);
+
+  // Watch for new items being added and call onAdd
+  useEffect(() => {
+    if (!onAdd) return;
+    // Only call onAdd if the latest task was just added
+    if (taskList.length > 0) {
+      const lastTask = taskList[0];
+      if (lastTask && lastTask.creationTimestampMillis && lastTask.prompt && lastTask.prompt.length > 0) {
+        // Call onAdd when a new item is added (could be improved with a more robust check)
+        onAdd();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskList.length]);
 
   // Delete a task
   const handleDelete = (task: LocalTask) => {
@@ -66,13 +81,13 @@ export const ScratchPad: React.FC<ScratchPadProps> = ({ onSelect, onDelete, task
   const [hovered, setHovered] = useState<number | null>(null);
 
   return (
-    <div style={{ flex: 1, minHeight: 0, height: '100%', overflowY: 'auto', padding: 0, margin: 0 }}>
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 0, margin: 0 }}>
       {loading ? (
         <div style={{ color: '#aaa', textAlign: 'center', marginTop: 32 }}>Loading…</div>
       ) : filteredTasks.length === 0 ? (
         <div style={{ minHeight: 40 }} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, marginTop: '12px' }}>
           {filteredTasks.map((task, idx) => (
             <Card
               key={task.creationTimestampMillis}
@@ -92,7 +107,6 @@ export const ScratchPad: React.FC<ScratchPadProps> = ({ onSelect, onDelete, task
                 background: 'transparent',
                 minHeight: 36,
                 filter: deleting === String(task.creationTimestampMillis) ? 'grayscale(0.7) opacity(0.7)' : undefined,
-                fontFamily: '"Comic Sans MS", "Comic Sans", "Chalkboard SE", "Comic Neue", cursive',
                 fontSize: 13,
                 padding: 0,
                 transition: 'box-shadow 0.18s, opacity 0.35s',

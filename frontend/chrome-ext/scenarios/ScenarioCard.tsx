@@ -62,17 +62,11 @@ export const ScenarioCard = ({ scenario, onUpdated, onAction, titleWrap, onClick
     return (
       <div style={{ position: 'relative' }}>
         {showSuccess && (
-          <div style={{
+          <div className="scenario-notification" style={{
             position: 'absolute',
             top: -32,
             left: 0,
             right: 0,
-            background: '#52c41a',
-            color: '#fff',
-            textAlign: 'center',
-            borderRadius: 4,
-            padding: '4px 0',
-            fontWeight: 500,
             zIndex: 10,
           }}>
             Successfully updated
@@ -176,6 +170,7 @@ export const ScenarioCard = ({ scenario, onUpdated, onAction, titleWrap, onClick
             if (onAction) onAction(action);
           }}
           isSuggestion={isSuggestion}
+          hideActions={!scenario.id}
         />
       </div>
       <div style={{ marginTop: 0, color: '#aaa', whiteSpace: 'pre-line', fontSize: 13, wordBreak: 'break-word', overflowWrap: 'break-word' }}>

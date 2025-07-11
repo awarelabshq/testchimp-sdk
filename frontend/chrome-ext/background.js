@@ -91,52 +91,6 @@ const urlToRequestPayloadMap = new Map();
 const requestCompletedMap = new Map();
 const captureResponseComplete=new Map();
 
-const recentConsoleLogs = [];
-const MAX_LOGS = 100;
-
-function pushLog(type, ...args) {
-    const msg = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
-    recentConsoleLogs.push({
-        type,
-        msg,
-        timestamp: Date.now()
-    });
-    if (recentConsoleLogs.length > MAX_LOGS) recentConsoleLogs.shift();
-}
-
-['log', 'warn', 'error', 'info'].forEach(type => {
-    const orig = console[type];
-    console[type] = function(...args) {
-        pushLog(type, ...args);
-        orig.apply(console, args);
-    };
-});
-
-// Expose for background-websockets.js
-self.getRecentConsoleLogs = function({ level, count, sinceTimestamp } = {}) {
-    let logs = recentConsoleLogs;
-    if (level) {
-        // Define log level order
-        const levelOrder = ['log', 'info', 'warn', 'error'];
-        const minIdx = levelOrder.indexOf(level);
-        if (minIdx !== -1) {
-            logs = logs.filter(l => levelOrder.indexOf(l.type) >= minIdx);
-        }
-    }
-    if (sinceTimestamp) {
-        logs = logs.filter(l => l.timestamp >= sinceTimestamp);
-    }
-    if (count) {
-        logs = logs.slice(-count);
-    }
-    // Return as array of ConsoleLogItem
-    return logs.map(l => ({
-        level: l.type,
-        timestamp: l.timestamp,
-        message: l.msg
-    }));
-};
-
 async function getTrackingIdCookie() {
     try {
         const tabs = await new Promise((resolve, reject) => {
@@ -1055,6 +1009,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
 });
 
+
 // Import the contextMenu.js logic
 importScripts('contextMenu.js');
 importScripts('localRun.js');
@@ -1090,7 +1045,7 @@ self.notifyStatus = notifyStatus;
 let vscodeSocket = null;
 
 function connectVSCode() {
-    vscodeSocket = new WebSocket('ws://localhost:8765');
+    vscodeSocket = new WebSocket('ws://localhost:53333');
     self.vscodeSocket = vscodeSocket; // Always update reference on (re)connect
     vscodeSocket.onopen = () => {
         self.vscodeConnected = true;

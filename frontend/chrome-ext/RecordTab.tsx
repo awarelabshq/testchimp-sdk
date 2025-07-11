@@ -103,7 +103,7 @@ export const RecordTab = ({ active }: { active?: boolean }) => {
                 <span style={{ fontSize: 14, fontWeight: 500 }}>
                     {isRecording ? `Recording: ${formatDuration(elapsedSeconds)}` : ''}
                 </span>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-start', flex: 1 }}>
                     {!isRecording ? (
                         <Button type="primary" onClick={startRecording} loading={startingRecording} style={{ backgroundColor: '#72BDA3', borderColor: '#72BDA3', color: '#fff', marginTop: "12px" }}>
                             Start Recording

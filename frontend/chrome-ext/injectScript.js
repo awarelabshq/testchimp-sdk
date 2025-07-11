@@ -282,6 +282,33 @@ XMLHttpRequest.prototype.open = function(...args) {
   });
 })();
 
+// --- TestChimp: Host Page Console Log Capture ---
+(function() {
+  if (window.__testchimpConsoleLoggerInjected) return;
+  window.__testchimpConsoleLoggerInjected = true;
+  const methods = ['log', 'warn', 'error', 'info'];
+  methods.forEach(type => {
+    const orig = console[type];
+    console[type] = function(...args) {
+      // Join all args into a single string
+      let logStr = args.map(arg => {
+        try {
+          return typeof arg === 'string' ? arg : JSON.stringify(arg);
+        } catch (e) {
+          return '[Unserializable]';
+        }
+      }).join(' ');
+      window.postMessage({
+        type: 'testchimp-host-console-log',
+        logType: type,
+        log: logStr,
+        timestamp: Date.now()
+      }, '*');
+      orig.apply(console, args);
+    };
+  });
+})();
+
 // --- Element Selection and Bounding Box Drawing ---
 (function() {
   if (window.__tcElementSelectInjected) return;
