@@ -682,20 +682,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[background] capture_viewport_screenshot received');
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs[0];
-      if (!tab) {
+      if (!tab || !tab.id || !tab.windowId) {
         sendResponse({ error: 'No active tab found' });
         return;
       }
-      chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, (dataUrl) => {
+  
+      // Inject a no-op script to "touch" the tab and activate capture permission
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          console.log('[scripting] activating tab before screenshot');
+        }
+      }, () => {
         if (chrome.runtime.lastError) {
-          console.error('captureVisibleTab error:', chrome.runtime.lastError.message);
+          console.error('executeScript error:', chrome.runtime.lastError.message);
           sendResponse({ error: chrome.runtime.lastError.message });
           return;
         }
-        console.log('[background] captureVisibleTab result:', !!dataUrl, dataUrl ? dataUrl.length : 0);
-        sendResponse({ dataUrl });
+  
+        // Now safe to call captureVisibleTab
+        chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, (dataUrl) => {
+          if (chrome.runtime.lastError) {
+            console.error('captureVisibleTab error:', chrome.runtime.lastError.message);
+            sendResponse({ error: chrome.runtime.lastError.message });
+            return;
+          }
+          console.log('[background] captureVisibleTab result:', !!dataUrl, dataUrl ? dataUrl.length : 0);
+          sendResponse({ dataUrl });
+        });
       });
     });
+  
     return true; // Keep the message channel open for async response
   }
 });

@@ -28,29 +28,15 @@ export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario
   const [hoveredStep, setHoveredStep] = useState<number | null>(null);
   const [priority, setPriority] = useState(scenario.scenario?.priority ?? TestPriority.MEDIUM_PRIORITY);
   const [localSuggestLoading, setLocalSuggestLoading] = useState(false);
+  const [localScenario, setLocalScenario] = useState(scenario);
 
   // Test result icon logic
-  const lastResult = scenario.resultHistory && scenario.resultHistory.length > 0 ? scenario.resultHistory[scenario.resultHistory.length - 1].result : undefined;
+  const lastResult = localScenario.resultHistory && localScenario.resultHistory.length > 0 ? localScenario.resultHistory[localScenario.resultHistory.length - 1].result : undefined;
   let testResultIcon = <ExclamationCircleOutlined style={{ color: '#888', fontSize: 16 }} />;
   if (lastResult === ScenarioTestResult.TESTED_WORKING) testResultIcon = <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 16 }} />;
   else if (lastResult === ScenarioTestResult.TESTED_NOT_WORKING) testResultIcon = <CloseOutlined style={{ color: '#ff4d4f', fontSize: 16 }} />;
 
-  // Generate script menu
-  const generateScriptMenu = (
-    <Menu>
-      <Menu.Item key="quick">Generate script in IDE</Menu.Item>
-      <Menu.Item key="agent">Run with agent</Menu.Item>
-    </Menu>
-  );
 
-  // Mark as tested menu
-  const markTestedMenu = (
-    <Menu>
-      <Menu.Item key="untested" icon={<StopOutlined />}>Mark as untested</Menu.Item>
-      <Menu.Item key="notworking" icon={<CloseOutlined style={{ color: '#ff4d4f' }} />}>Mark as tested not working</Menu.Item>
-      <Menu.Item key="working" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}>Mark as tested working</Menu.Item>
-    </Menu>
-  );
 
   // Update handler
   async function handleUpdate() {
@@ -151,14 +137,40 @@ export const ScenarioDetailCard: React.FC<ScenarioDetailCardProps> = ({ scenario
     >
       {/* Action buttons overlay */}
       <ScenarioActionPanel
-        scenario={scenario}
+        scenario={localScenario}
         showClose={true}
         onClose={onClose}
-        onDelete={() => { /* TODO: handle delete */ }}
-        onGenerate={() => { /* TODO: handle generate */ }}
-        onMarkTested={() => { /* TODO: handle mark tested */ }}
         hovered={true}
-        hideActions={!scenario.id}
+        hideActions={!localScenario.id}
+        onAction={action => {
+          if (action.type === 'delete') {
+            if (typeof onUpdated === 'function') onUpdated(undefined);
+            if (typeof onClose === 'function') onClose();
+          } else if (action.type === 'markTested') {
+            // Update the local scenario state to reflect the new test result
+            const updatedScenario = {
+              ...localScenario,
+              id,
+              scenario: {
+                ...localScenario.scenario,
+                title,
+                expectedBehaviour: expected,
+                steps,
+                priority: priority ?? TestPriority.MEDIUM_PRIORITY,
+              },
+              resultHistory: action.resultHistory,
+              screenName: localScenario.screenName,
+              screenState: localScenario.screenState,
+            };
+            
+            // Update the local scenario state to trigger re-render
+            setLocalScenario(updatedScenario);
+            
+            if (typeof onUpdated === 'function') {
+              onUpdated(updatedScenario);
+            }
+          }
+        }}
       />
       {/* Editable title */}
       <Input.TextArea

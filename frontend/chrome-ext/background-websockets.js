@@ -11,7 +11,6 @@ self.mcpConnected = false;
 
 // --- Handler registry ---
 const mcpHandlers = {
-    "grab_screenshot": handleGrabScreenshot,
     "get_recent_console_logs": handleGetRecentConsoleLogs,
     "fetch_extra_info_for_context_item": handleFetchExtraInfoForContextItem,
     "get_recent_request_response_pairs": handleGetRecentRequestResponsePairs,
@@ -21,21 +20,6 @@ const mcpHandlers = {
 
 // --- Handler implementations ---
 
-async function handleGrabScreenshot(ws, message) {
-    let req=message;
-    return new Promise((resolve) => {
-        chrome.tabs.captureVisibleTab(null, { format: 'png' }, (dataUrl) => {
-            if (chrome.runtime.lastError) {
-                console.error('[MCP] Error capturing screenshot:', chrome.runtime.lastError);
-                resolve({ error: chrome.runtime.lastError.message });
-            } else {
-                console.log('[MCP] Screenshot captured successfully');
-                const resp = { screenshotBase64: dataUrl ? dataUrl.split(',')[1] : '' };
-                resolve(resp);
-            }
-        });
-    });
-}
 
 // Handler for fetch_extra_info_for_context_item
 async function handleFetchExtraInfoForContextItem(ws, message) {
@@ -229,28 +213,18 @@ function getExtraInfo(id) {
 
 // --- Request/Response Pair Tracking ---
 let recentRequestResponsePairs = [];
+let requestHeadersMap = {};
 let uriRegexToIntercept = '.*'; // Default: match all
 let uriRegexObj = new RegExp(uriRegexToIntercept);
 
-// Keep uriRegexToIntercept updated from chrome.storage.sync
-function updateUriRegex() {
-    chrome.storage.sync.get(['uriRegexToIntercept'], (items) => {
-        if (items.uriRegexToIntercept) {
-            uriRegexToIntercept = items.uriRegexToIntercept;
-            try {
-                uriRegexObj = new RegExp(uriRegexToIntercept);
-            } catch (e) {
-                uriRegexObj = /.*/;
-            }
-        }
-    });
-}
-updateUriRegex();
-chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'sync' && changes.uriRegexToIntercept) {
-        updateUriRegex();
-    }
-});
+// Capture request headers by requestId
+chrome.webRequest.onBeforeSendHeaders.addListener(
+    function(details) {
+        requestHeadersMap[details.requestId] = details.requestHeaders || [];
+    },
+    { urls: ["<all_urls>"] },
+    ["requestHeaders", "extraHeaders"]
+);
 
 // On extension load, clear out any recentRequestResponsePairs older than 1 minute
 chrome.storage.local.get(['recentRequestResponsePairs'], (result) => {
@@ -269,10 +243,12 @@ chrome.storage.local.get(['recentRequestResponsePairs'], (result) => {
 chrome.webRequest.onCompleted.addListener(
     function(details) {
         if (!uriRegexObj.test(details.url)) return;
+        const reqHeadersArr = requestHeadersMap[details.requestId] || [];
+        const reqHeadersObj = reqHeadersArr.length ? Object.fromEntries(reqHeadersArr.map(h => [h.name, h.value])) : {};
         const pair = {
             url: details.url,
             method: details.method,
-            requestHeaders: details.requestHeaders ? Object.fromEntries(details.requestHeaders.map(h => [h.name, h.value])) : {},
+            requestHeaders: reqHeadersObj,
             responseHeaders: details.responseHeaders ? Object.fromEntries(details.responseHeaders.map(h => [h.name, h.value])) : {},
             status: details.statusCode,
             responseTimeMs: details.timeStamp,
@@ -281,6 +257,8 @@ chrome.webRequest.onCompleted.addListener(
         recentRequestResponsePairs.unshift(pair);
         if (recentRequestResponsePairs.length > 50) recentRequestResponsePairs = recentRequestResponsePairs.slice(0, 50);
         chrome.storage.local.set({ recentRequestResponsePairs });
+        // Clean up to avoid memory leaks
+        delete requestHeadersMap[details.requestId];
     },
     { urls: ['<all_urls>'] },
     ['responseHeaders', 'extraHeaders']

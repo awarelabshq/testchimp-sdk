@@ -275,7 +275,7 @@ export const SidebarApp = () => {
         if (msg.type === 'get_dom_snapshot') {
             try {
                 // @ts-ignore: simplifyDOMForLLM may be imported or defined elsewhere
-                const dom = simplifyDOMForLLM(document.body);
+                const dom = simplifyDOMForLLM(document.body,{includeStyles:true});
                 sendResponse({ dom });
             } catch (e) {
                 sendResponse({ error: e?.message || 'Failed to simplify DOM' });

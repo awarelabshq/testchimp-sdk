@@ -49,7 +49,7 @@ export const SuggestScenariosPanel: React.FC<SuggestScenariosPanelProps> = ({ vi
                 type: InfoContextItemType.SCREEN_INFO,
                 data: { textContent: JSON.stringify(tag) },
             }));
-            const domSnapshot = JSON.stringify(simplifyDOMForLLM(document.body));
+            const domSnapshot = JSON.stringify(simplifyDOMForLLM(document.body, { includeStyles: false }));
             const req: SuggestTestScenariosRequest = {
                 screenState: {
                     name: selectedScreen,
@@ -105,11 +105,14 @@ export const SuggestScenariosPanel: React.FC<SuggestScenariosPanelProps> = ({ vi
                                 <ScenarioCard
                                     scenario={{ ...s, screenName: selectedScreen, screenState: selectedState }}
                                     onUpdated={undefined}
-                                    onAction={undefined}
+                                    onAction={action => {
+                                        if (action.type === 'delete') {
+                                            handleScenarioDelete(idx);
+                                        }
+                                    }}
                                     // @ts-ignore
                                     titleWrap
                                     isSuggestion
-                                    onDelete={() => handleScenarioDelete(idx)}
                                     selectedScreen={selectedScreen}
                                     selectedState={selectedState}
                                     // New: update callback for edits/saves

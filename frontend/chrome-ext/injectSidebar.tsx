@@ -158,6 +158,16 @@ window.addEventListener('message', (event) => {
       btn.style.right = `${sidebarWidth + 10}px`;
     }
   }
+  if (event.data.type === 'tc-hide-toggle-button') {
+    if (btn) {
+      btn.style.display = 'none';
+    }
+  }
+  if (event.data.type === 'tc-show-toggle-button') {
+    if (btn) {
+      btn.style.display = 'block';
+    }
+  }
 });
 
 chrome.storage.local.get(['recordingInProgress', 'forceExpandSidebar'], (result) => {
@@ -190,6 +200,52 @@ window.addEventListener('message', (event) => {
                 window.postMessage({ type: 'connection_status', ...resp }, '*');
             }
         });
+    }
+});
+
+// Listen for screenshot capture requests from background script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'capture_screenshot_with_sidebar_hiding') {
+        // Import the shared function dynamically
+        import('./screenshotUtils').then(({ captureScreenshotWithSidebarHiding }) => {
+            const captureFunction = () => new Promise<string | undefined>((resolve) => {
+                // Use the windowId passed from the background script
+                const windowId = message.windowId;
+                if (windowId) {
+                    chrome.tabs.captureVisibleTab(windowId, { format: 'png' }, (dataUrl) => {
+                        if (chrome.runtime.lastError) {
+                            console.error('Screenshot capture error:', chrome.runtime.lastError.message);
+                            resolve(undefined);
+                        } else {
+                            resolve(dataUrl ? dataUrl : undefined);
+                        }
+                    });
+                } else {
+                    resolve(undefined);
+                }
+            });
+
+            captureScreenshotWithSidebarHiding(
+                captureFunction,
+                () => window.postMessage({ type: 'tc-hide-sidebar' }, '*'),
+                () => window.postMessage({ type: 'tc-show-sidebar' }, '*'),
+                () => {
+                    const toggleButton = document.getElementById('testchimp-sidebar-toggle');
+                    if (toggleButton) {
+                        toggleButton.style.display = 'none';
+                    }
+                },
+                () => {
+                    const toggleButton = document.getElementById('testchimp-sidebar-toggle');
+                    if (toggleButton) {
+                        toggleButton.style.display = 'block';
+                    }
+                }
+            ).then((screenshotBase64) => {
+                sendResponse({ screenshotBase64 });
+            });
+        });
+        return true; // Keep the message channel open for async response
     }
 });
 

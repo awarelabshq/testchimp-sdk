@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Select, Input, Spin, Row, Col, Typography, List, Card, Tag, Button, Tooltip, Modal, Alert } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import {
   getScreenStates,
   getScreenForPage,
   listBugs,
   updateBugs,
-  getDomAnalysis, getConsoleAnalysis, getScreenshotAnalysis, getNetworkAnalysis, captureCurrentTabScreenshotBase64, GetScreenForPageResponse, ListBugsRequest, fetchRecentConsoleLogs, fetchRecentRequestResponsePairs
+  getDomAnalysis, getConsoleAnalysis, getScreenshotAnalysis, getNetworkAnalysis, captureCurrentTabScreenshotBase64, GetScreenForPageResponse, ListBugsRequest, fetchRecentConsoleLogs, fetchRecentRequestResponsePairs,
+  getTeamDetails,
 } from '../apiService';
 import { useElementSelector } from '../elementSelector';
 import { simplifyDOMForLLM } from '../html_utils';
-import { ScreenState } from '../datas';
+import { OrgTier, ScreenState } from '../datas';
 import { AddBugPanel } from './AddBugPanel';
 import { BugCard } from './BugCard';
 import { SEVERITY_OPTIONS } from './bugUtils';
@@ -38,7 +39,9 @@ export const BugsTab = () => {
   const [showCopiedNotification, setShowCopiedNotification] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [showAnalyzePanel, setShowAnalyzePanel] = useState(false);
-  const [analyzeSources, setAnalyzeSources] = useState({ dom: true, console: true, network: true, screenshot: true });
+  const [analyzeSources, setAnalyzeSources] = useState({ dom: true, console: true, network: true, screenshot: false });
+  const [teamTier, setTeamTier] = useState(undefined);
+  const [showScreenshotUpgrade, setShowScreenshotUpgrade] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeStep, setAnalyzeStep] = useState<string | null>(null); // 'dom' | 'console' | 'network' | 'screenshot' | null
   const [analyzeLoading, setAnalyzeLoading] = useState(false);
@@ -64,6 +67,21 @@ export const BugsTab = () => {
       .catch((error) => {
         console.error('Error fetching screen states:', error);
         setLoading(false);
+      });
+  }, []);
+
+  // Fetch team details on mount
+  useEffect(() => {
+    getTeamDetails()
+      .then((resp) => {
+        chrome.storage.local.set({
+          teamPlan: resp.plan,
+          teamTier: resp.tier,
+        }, () => {
+        });
+      })
+      .catch((err) => {
+        console.error('Failed to fetch team details (BugsTab):', err);
       });
   }, []);
 
@@ -195,6 +213,9 @@ export const BugsTab = () => {
   // Handler for Find Bugs button
   const handleShowAnalyzePanel = () => {
     setShowAnalyzePanel(true);
+    chrome.storage.local.get(['teamTier'], (data) => {
+      setTeamTier(data.teamTier);
+    });
   };
 
   // Handler for Cancel in analyze panel
@@ -215,7 +236,7 @@ export const BugsTab = () => {
       try {
         if (source === 'dom') {
           // Capture the DOM and get LLM-friendly version
-          const domSnapshot = JSON.stringify(simplifyDOMForLLM(document.body));
+          const domSnapshot = JSON.stringify(simplifyDOMForLLM(document.body,{includeStyles:true}));
           response = await getDomAnalysis({
             screen: selectedScreen,
             state: selectedState,
@@ -263,6 +284,20 @@ export const BugsTab = () => {
     setAnalyzing(false);
   };
 
+  // Handler for screenshot checkbox
+  const handleScreenshotCheckbox = (e) => {
+    const checked = e.target.checked;
+    setAnalyzeSources(s => ({ ...s, screenshot: checked }));
+    if (checked) {
+      chrome.storage.local.get(['teamTier'], (data) => {
+        setTeamTier(data.teamTier);
+        setShowScreenshotUpgrade(data.teamTier === OrgTier.FREE_TIER); // 1 = FREE_TIER
+      });
+    } else {
+      setShowScreenshotUpgrade(false);
+    }
+  };
+
   // Get states for selected screen
   const stateOptions = screenStates.find((s) => s.screen === selectedScreen)?.states || [];
 
@@ -278,6 +313,7 @@ export const BugsTab = () => {
       <div className="scenario-notification">{msg}</div>
     );
   };
+  
 
   return (
     <div style={{ padding: '8px 0', color: '#aaa', height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -348,7 +384,32 @@ export const BugsTab = () => {
               <label style={{ display: 'block', marginBottom: 8 }}><input type="checkbox" checked={analyzeSources.dom} onChange={e => setAnalyzeSources(s => ({ ...s, dom: e.target.checked }))} /> DOM</label>
               <label style={{ display: 'block', marginBottom: 8 }}><input type="checkbox" checked={analyzeSources.console} onChange={e => setAnalyzeSources(s => ({ ...s, console: e.target.checked }))} /> Console</label>
               <label style={{ display: 'block', marginBottom: 8 }}><input type="checkbox" checked={analyzeSources.network} onChange={e => setAnalyzeSources(s => ({ ...s, network: e.target.checked }))} /> Network</label>
-              <label style={{ display: 'block', marginBottom: 8 }}><input type="checkbox" checked={analyzeSources.screenshot} onChange={e => setAnalyzeSources(s => ({ ...s, screenshot: e.target.checked }))} /> Screenshot</label>
+              <label style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                <input type="checkbox" checked={analyzeSources.screenshot} onChange={handleScreenshotCheckbox} />
+                Screenshot
+                <ThunderboltOutlined style={{ color: '#FFD600', fontSize: 16, marginLeft: 4 }} />
+                {teamTier === OrgTier.FREE_TIER && (
+                  <Button
+                    size="small"
+                    style={{ background: '#ff6b65', color: '#fff', border: 'none', marginLeft: 8, fontWeight: 600 }}
+                    onClick={() => window.open('https://prod.testchimp.io/signin?flow=upgrade', '_blank')}
+                  >
+                    Upgrade
+                  </Button>
+                )}
+              </label>
+              {showScreenshotUpgrade && (
+                <div style={{ background: '#ffebe6', color: '#d4380d', padding: '6px 12px', borderRadius: 6, marginTop: 4, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  Upgrade to enable screenshot analysis
+                  <Button
+                    size="small"
+                    style={{ background: '#ff6b65', color: '#fff', border: 'none', marginLeft: 8, fontWeight: 600 }}
+                    onClick={() => window.open('https://prod.testchimp.io/signin?flow=upgrade', '_blank')}
+                  >
+                    Upgrade
+                  </Button>
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <Button onClick={handleCancelAnalyze} size="small">Cancel</Button>

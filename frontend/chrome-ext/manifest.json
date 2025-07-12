@@ -4,7 +4,6 @@
   "version": "0.52",
   "description": "Capture UI + API activity during testing sessions. Easily convert them to automation tests. Export in any language!",
   "permissions": [
-    "tabs",
     "activeTab",
     "storage",
     "contextMenus",
@@ -36,7 +35,7 @@
   },
   "options_page": "options.html",
   "host_permissions": [
-    "*://*/*"
+    "<all_urls>"
   ],
   "web_accessible_resources": [
     {

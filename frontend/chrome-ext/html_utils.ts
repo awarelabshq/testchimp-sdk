@@ -134,17 +134,18 @@ export function getQuerySelector(el: HTMLElement): string {
 
 /**
  * Recursively walk the DOM and output a simplified, LLM-friendly JSON structure for bug analytics.
- * - Outputs: tag, key attributes, computed styles, and children (recursive tree)
+ * - Outputs: tag, key attributes, computed styles (optional), and children (recursive tree)
  * - Prunes noisy elements, skips invisible nodes
  * - Summarizes tables/lists to avoid repetition
- * - Default: maxDepth=12, maxChildren=30
+ * - Default: maxDepth=12, maxChildren=30, includeStyles=true
  */
 export function simplifyDOMForLLM(
   root: HTMLElement = document.body,
-  opts?: { maxDepth?: number; maxChildren?: number }
+  opts?: { maxDepth?: number; maxChildren?: number; includeStyles?: boolean }
 ): any {
   const maxDepth = opts?.maxDepth ?? 12;
   const maxChildren = opts?.maxChildren ?? 30;
+  const includeStyles = opts?.includeStyles ?? true;
   const NOISY_TAGS = new Set([
     'SCRIPT', 'STYLE', 'META', 'LINK', 'NOSCRIPT', 'IFRAME', 'SVG', 'CANVAS', 'HEAD', 'TITLE', 'OBJECT', 'EMBED',
   ]);
@@ -177,6 +178,7 @@ export function simplifyDOMForLLM(
   }
 
   function getStyles(el: HTMLElement): Record<string, string> {
+    if (!includeStyles) return {};
     const style = window.getComputedStyle(el);
     const out: Record<string, string> = {};
     for (const k of STYLE_KEYS) {
@@ -194,13 +196,14 @@ export function simplifyDOMForLLM(
 
   function summarizeTable(table: HTMLTableElement, depth: number): any {
     // Show first row/cell, then summary counts
-    const out: any = { tag: 'table', attrs: getKeyAttrs(table), styles: getStyles(table) };
+    const out: any = { tag: 'table', attrs: getKeyAttrs(table) };
+    if (includeStyles) out.styles = getStyles(table);
     const rows = Array.from(table.rows);
     if (rows.length > 0) {
       out.firstRow = Array.from(rows[0].cells).map(cell => ({
         tag: cell.tagName.toLowerCase(),
         attrs: getKeyAttrs(cell),
-        styles: getStyles(cell),
+        ...(includeStyles && { styles: getStyles(cell) }),
         text: getShortText(cell),
       }));
     }
@@ -211,14 +214,15 @@ export function simplifyDOMForLLM(
 
   function summarizeList(list: HTMLElement, depth: number): any {
     // Show first 3 items, then summary count
-    const out: any = { tag: list.tagName.toLowerCase(), attrs: getKeyAttrs(list), styles: getStyles(list) };
+    const out: any = { tag: list.tagName.toLowerCase(), attrs: getKeyAttrs(list) };
+    if (includeStyles) out.styles = getStyles(list);
     const items = Array.from(list.children).filter(
       el => el.tagName === 'LI'
     ) as HTMLElement[];
     out.items = items.slice(0, 3).map(li => ({
       tag: 'li',
       attrs: getKeyAttrs(li),
-      styles: getStyles(li),
+      ...(includeStyles && { styles: getStyles(li) }),
       text: getShortText(li),
     }));
     if (items.length > 3) out.moreItems = items.length - 3;
@@ -236,8 +240,8 @@ export function simplifyDOMForLLM(
     const node: any = {
       tag: el.tagName.toLowerCase(),
       attrs: getKeyAttrs(el),
-      styles: getStyles(el),
     };
+    if (includeStyles) node.styles = getStyles(el);
     const label = el.getAttribute('aria-label') || el.getAttribute('alt') || el.getAttribute('title');
     if (label) node.label = label;
     const text = getShortText(el);

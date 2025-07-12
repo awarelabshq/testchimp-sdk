@@ -199,7 +199,13 @@ import {
   SuggestTestScenariosResponse,
   TestScenarioDetail,
   ScreenState,
+  // Team details types
+  GetTeamDetailsRequest,
+  GetTeamDetailsResponse,
+  OrgTier,
+  OrgPlan,
 } from './datas';
+import { captureScreenshotWithSidebarHiding } from './screenshotUtils';
 
 export interface ListAgentTestScenariosRequest {
   priorities?: TestPriority[];
@@ -301,27 +307,39 @@ export async function suggestTestScenarioDescription(req: SuggestTestScenarioDes
 /**
  * Captures a screenshot of the current tab's visible viewport and returns the base64 string (no data URL prefix).
  * Uses the background script's 'capture_viewport_screenshot' message handler.
+ * Hides the sidebar and toggle button before taking the screenshot to avoid including them in the capture.
  */
 export async function captureCurrentTabScreenshotBase64(): Promise<string | undefined> {
-  return new Promise((resolve, reject) => {
-    try {
-      chrome.runtime.sendMessage({ type: 'capture_viewport_screenshot' }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.error('Screenshot capture error:', chrome.runtime.lastError.message);
-          resolve(undefined);
-        } else if (response && response.dataUrl) {
-          // dataUrl is like 'data:image/png;base64,....'
-          const base64 = response.dataUrl.split(',')[1];
-          resolve(base64);
-        } else {
-          resolve(undefined);
-        }
-      });
-    } catch (e) {
-      console.error('Screenshot capture exception:', e);
-      resolve(undefined);
-    }
+  const captureFunction = () => new Promise<string | undefined>((resolve) => {
+    chrome.runtime.sendMessage({ type: 'capture_viewport_screenshot' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Screenshot capture error:', chrome.runtime.lastError.message);
+        resolve(undefined);
+      } else if (response && response.dataUrl) {
+        resolve(response.dataUrl);
+      } else {
+        resolve(undefined);
+      }
+    });
   });
+
+  return captureScreenshotWithSidebarHiding(
+    captureFunction,
+    () => window.postMessage({ type: 'tc-hide-sidebar' }, '*'),
+    () => window.postMessage({ type: 'tc-show-sidebar' }, '*'),
+    () => {
+      const toggleButton = document.getElementById('testchimp-sidebar-toggle');
+      if (toggleButton) {
+        toggleButton.style.display = 'none';
+      }
+    },
+    () => {
+      const toggleButton = document.getElementById('testchimp-sidebar-toggle');
+      if (toggleButton) {
+        toggleButton.style.display = 'block';
+      }
+    }
+  );
 }
 
 /**
@@ -508,5 +526,19 @@ export interface FetchExtraInfoForContextItemResponse {
 export interface GrabScreenshotRequest { }
 export interface GrabScreenshotResponse {
   screenshotBase64: string;
+}
+
+// Get team details
+export async function getTeamDetails(req: GetTeamDetailsRequest = {}): Promise<GetTeamDetailsResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/ext/get_team_details`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(req),
+  });
+  return await res.json();
 }
 

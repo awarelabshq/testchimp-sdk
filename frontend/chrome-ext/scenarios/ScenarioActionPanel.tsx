@@ -9,23 +9,17 @@ import { useConnectionManager } from '../connectionManager';
 
 interface ScenarioActionPanelProps {
   scenario: AgentTestScenarioWithStatus;
-  onDelete?: () => void;
-  onGenerate?: (type: 'quick' | 'agent') => void;
-  onMarkTested?: (result: ScenarioTestResult) => void;
   onClose?: () => void;
   showClose?: boolean;
   style?: React.CSSProperties;
   hovered?: boolean;
   onAction?: (action: { type: 'delete' | 'markTested' | 'promptCopiedToIde', id: string, result?: ScenarioTestResult, resultHistory?: any[] }) => void;
-  isSuggestion?: boolean; // NEW
-  hideActions?: boolean; // NEW
+  isSuggestion?: boolean;
+  hideActions?: boolean;
 }
 
 export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
   scenario,
-  onDelete,
-  onGenerate,
-  onMarkTested,
   onClose,
   showClose,
   style,
@@ -34,6 +28,9 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
   isSuggestion,
   hideActions = false,
 }) => {
+  // Internal loading states
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [markTestedLoading, setMarkTestedLoading] = useState(false);
   // Test result icon logic
   const lastResult = scenario.resultHistory && scenario.resultHistory.length > 0 ? scenario.resultHistory[scenario.resultHistory.length - 1].result : undefined;
   let testResultIcon = <ExclamationCircleOutlined style={{ color: '#888', fontSize: 16 }} />;
@@ -45,7 +42,6 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
     testResultIcon = <CloseOutlined style={{ color: '#ff4d4f', fontSize: 16 }} />;
   }
 
-  const [loading, setLoading] = useState(false);
   const [markTestedPopoverOpen, setMarkTestedPopoverOpen] = useState(false);
   const { vscodeConnected } = useConnectionManager();
 
@@ -57,18 +53,9 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
     }
     return node || document.body;
   }
-
-  // Popover content for generate
-  const generateContent = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, alignItems: 'stretch', justifyContent: 'flex-start', minWidth: 160, maxHeight: 180, overflowY: 'auto', overflowX: 'hidden' }}>
-      <Button type="text" size="small" icon={<CodeOutlined />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); onGenerate && onGenerate('quick'); }}>Generate Script in IDE</Button>
-      <Button type="text" size="small" icon={<img src={getTestChimpIcon()} alt="logo" style={{ width: 16, height: 16, marginRight: 2, verticalAlign: 'middle', objectFit: 'cover', display: 'inline-block' }} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<span style=\'font-size:16px;margin-right:2px;\'>🐞</span>'); }} />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); onGenerate && onGenerate('agent'); }}>Run with agent</Button>
-    </div>
-  );
   // Popover content for mark as tested
   const markTestedContent = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0, alignItems: 'stretch', justifyContent: 'flex-start', minWidth: 180, maxHeight: 220, overflowY: 'auto', overflowX: 'hidden' }}>
-      <Button type="text" size="small" icon={<StopOutlined />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); handleMarkTested(ScenarioTestResult.UNTESTED); setMarkTestedPopoverOpen(false); }}>Mark as untested</Button>
       <Button type="text" size="small" icon={<CloseOutlined style={{ color: '#ff4d4f' }} />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); handleMarkTested(ScenarioTestResult.TESTED_NOT_WORKING); setMarkTestedPopoverOpen(false); }}>Mark as tested not working</Button>
       <Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />} style={{ color: '#f5f5f5', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', width: '100%', whiteSpace: 'normal', overflowX: 'hidden' }} onClick={e => { e.stopPropagation(); handleMarkTested(ScenarioTestResult.TESTED_WORKING); setMarkTestedPopoverOpen(false); }}>Mark as tested working</Button>
     </div>
@@ -76,36 +63,59 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
 
   // Handler for delete
   async function handleDelete() {
-    setLoading(true);
+    setDeleteLoading(true);
     try {
+      // For new scenarios without ID, just call onAction
+      if (!scenario.id) {
+        if (onAction) onAction({ type: 'delete', id: '' });
+        return;
+      }
+      
       await upsertAgentTestScenario({
         id: scenario.id,
         status: TestScenarioStatus.DELETED_TEST_SCENARIO,
       });
-      if (onDelete) onDelete();
-      if (onAction) onAction({ type: 'delete', id: scenario.id || '' });
+      if (onAction) onAction({ type: 'delete', id: scenario.id });
     } finally {
-      setLoading(false);
+      setDeleteLoading(false);
     }
   }
 
   // Handler for mark as tested
   async function handleMarkTested(result: ScenarioTestResult) {
-    setLoading(true);
+    setMarkTestedLoading(true);
     try {
+      // For new scenarios without ID, just update local state
+      if (!scenario.id) {
+        const newResultHistory = [
+          ...(scenario.resultHistory || []),
+          { result, timestampMillis: Date.now() },
+        ];
+        if (onAction) onAction({ 
+          type: 'markTested', 
+          id: '', 
+          result, 
+          resultHistory: newResultHistory 
+        });
+        return;
+      }
+      
       await insertTestScenarioResult({
         testScenarioId: scenario.id,
         result,
       });
-      // Simulate updated resultHistory (append new result)
       const newResultHistory = [
         ...(scenario.resultHistory || []),
         { result, timestampMillis: Date.now() },
       ];
-      if (onMarkTested) onMarkTested(result);
-      if (onAction) onAction({ type: 'markTested', id: scenario.id || '', result, resultHistory: newResultHistory });
+      if (onAction) onAction({ 
+        type: 'markTested', 
+        id: scenario.id, 
+        result, 
+        resultHistory: newResultHistory 
+      });
     } finally {
-      setLoading(false);
+      setMarkTestedLoading(false);
     }
   }
 
@@ -166,7 +176,7 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
                 icon={<DeleteOutlined />}
                 style={{ color: '#ff6b65', padding: '2px 4px', fontSize: 12 }}
                 onClick={e => e.stopPropagation()}
-                loading={loading}
+                loading={deleteLoading}
               />
             </Popconfirm>
           </Tooltip>
@@ -199,7 +209,7 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
                 icon={testResultIcon}
                 style={{ color: '#aaa', padding: '2px 4px', fontSize: 12 }}
                 onClick={e => e.stopPropagation()}
-                loading={loading}
+                loading={markTestedLoading}
               />
             </Popover>
           )}

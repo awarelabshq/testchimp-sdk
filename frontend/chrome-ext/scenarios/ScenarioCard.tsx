@@ -25,14 +25,13 @@ const PRIORITY_COLORS: Record<TestPriority, string> = {
   [TestPriority.UNKNOWN_PRIORITY]: '#888',
 };
 
-export const ScenarioCard = ({ scenario, onUpdated, onAction, titleWrap, onClick, isSuggestion, onDelete, selectedScreen, selectedState, onScenarioChange }: {
+export const ScenarioCard = ({ scenario, onUpdated, onAction, titleWrap, onClick, isSuggestion, selectedScreen, selectedState, onScenarioChange }: {
   scenario: AgentTestScenarioWithStatus,
   onUpdated?: (updatedScenario?: AgentTestScenarioWithStatus) => void,
   onAction?: (action: any) => void,
   titleWrap?: boolean,
   onClick?: () => void,
   isSuggestion?: boolean,
-  onDelete?: () => void,
   selectedScreen?: string,
   selectedState?: string,
   onScenarioChange?: (updated: AgentTestScenarioWithStatus) => void,
@@ -161,9 +160,6 @@ export const ScenarioCard = ({ scenario, onUpdated, onAction, titleWrap, onClick
         <ScenarioActionPanel
           scenario={scenario}
           hovered={hovered}
-          onDelete={onDelete}
-          onGenerate={() => { /* TODO: handle generate */ }}
-          onMarkTested={() => { /* TODO: handle mark tested */ }}
           showClose={false}
           onAction={action => {
             if (onUpdated) onUpdated();

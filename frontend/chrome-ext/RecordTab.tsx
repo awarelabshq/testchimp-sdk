@@ -21,7 +21,6 @@ export const RecordTab = ({ active }: { active?: boolean }) => {
             changes: { [key: string]: chrome.storage.StorageChange },
             areaName: string
         ) => {
-            console.log("Received storage change", changes);
             if (areaName === 'local' && changes.recordingInProgress) {
                 setIsRecording(!!changes.recordingInProgress.newValue);
             }

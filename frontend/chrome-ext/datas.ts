@@ -311,3 +311,23 @@ export interface SuggestTestScenariosResponse {
 } 
 
 export type TestScenarioDetail = AgentTestScenarioWithStatus; 
+
+// --- Team Details API Types ---
+export interface GetTeamDetailsRequest {}
+
+export interface GetTeamDetailsResponse {
+  tier?: OrgTier;
+  plan?: OrgPlan;
+}
+
+export enum OrgTier {
+  UNKNOWN_ORG_TIER = 0,
+  FREE_TIER = 1,
+  PRO_TIER = 2,
+}
+
+export enum OrgPlan {
+  UNKNOWN_PLAN = 0,
+  TEAM_PLAN = 1,
+  INDIE_PLAN = 2,
+} 
