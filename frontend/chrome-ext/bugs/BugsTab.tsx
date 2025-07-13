@@ -18,10 +18,17 @@ import { SEVERITY_OPTIONS } from './bugUtils';
 import { getTestChimpIcon } from '../components/getTestChimpIcon';
 import { useConnectionManager } from '../connectionManager';
 import { BugSeverity, BugStatus, ScreenStates, BugDetail } from '../datas';
+import { ScreenStateSelector } from '../components/ScreenStateSelector';
+import { MindMapUpdate } from '../components/MindMapUpdate';
+import { MindMapBuilder } from '../components/MindMapBuilder';
 
 const { Text } = Typography;
 
-export const BugsTab = () => {
+interface BugsTabProps {
+  setIsMindMapBuilding: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
   const [loading, setLoading] = useState(true);
   const [screenStates, setScreenStates] = useState<ScreenStates[]>([]);
   const [selectedScreen, setSelectedScreen] = useState<string | undefined>();
@@ -45,6 +52,13 @@ export const BugsTab = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeStep, setAnalyzeStep] = useState<string | null>(null); // 'dom' | 'console' | 'network' | 'screenshot' | null
   const [analyzeLoading, setAnalyzeLoading] = useState(false);
+  const [showMindMapUpdate, setShowMindMapUpdate] = useState<{
+    show: boolean;
+    initialScreen?: string;
+    initialState?: string;
+  }>({ show: false });
+  const [showMindMapBuilder, setShowMindMapBuilder] = useState(false);
+  const [newlyAddedBugs, setNewlyAddedBugs] = useState<Set<string>>(new Set());
 
   const { selecting, startSelecting } = useElementSelector((element, querySelector) => {
     setAddBugElement({ element, querySelector });
@@ -272,8 +286,39 @@ export const BugsTab = () => {
           });
         }
         if (response && response.bugs && response.bugs.length > 0) {
+          // Debug: Log the structure of the first bug
+          console.log('First bug structure:', response.bugs[0]);
+          console.log('Bug properties:', Object.keys(response.bugs[0] || {}));
+          
           // Prepend new bugs to the list
           setBugs(prev => [...response.bugs, ...prev]);
+          
+          // Mark newly added bugs for glow effect
+          const newBugIds = response.bugs.map(bug => bug.bug?.bugHash).filter((id): id is string => Boolean(id));
+          console.log('Newly added bug IDs:', newBugIds);
+          setNewlyAddedBugs(prev => {
+            const updated = new Set([...prev, ...newBugIds]);
+            console.log('Updated newlyAddedBugs:', Array.from(updated));
+            return updated;
+          });
+          
+          // Show notification about how many bugs were added
+          setNotification(`${response.bugs.length} bug${response.bugs.length === 1 ? '' : 's'} found from ${source} analysis`);
+          
+          // Auto-dismiss notification after 3 seconds
+          setTimeout(() => {
+            setNotification('');
+          }, 3000);
+          
+          // Remove glow effect after 3 seconds
+          setTimeout(() => {
+            setNewlyAddedBugs(prev => {
+              const updated = new Set(prev);
+              newBugIds.forEach(id => updated.delete(id));
+              console.log('Removed glow effect for bugs:', newBugIds);
+              return updated;
+            });
+          }, 3000);
         }
       } catch (e) {
         setNotification(`Failed to analyze ${source}`);
@@ -291,7 +336,7 @@ export const BugsTab = () => {
     if (checked) {
       chrome.storage.local.get(['teamTier'], (data) => {
         setTeamTier(data.teamTier);
-        setShowScreenshotUpgrade(data.teamTier === OrgTier.FREE_TIER); // 1 = FREE_TIER
+        setShowScreenshotUpgrade(data.teamTier === OrgTier.FREE_TIER); 
       });
     } else {
       setShowScreenshotUpgrade(false);
@@ -317,29 +362,39 @@ export const BugsTab = () => {
 
   return (
     <div style={{ padding: '8px 0', color: '#aaa', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <style>
-        {`
-          .ant-card:hover .action-buttons-overlay {
-            opacity: 1 !important;
-          }
-          .ant-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 6px 24px rgba(0,0,0,0.18);
-            transition: box-shadow 0.2s, transform 0.2s;
-          }
-          .add-bug-panel {
-            animation: fadeIn 0.3s;
-          }
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(16px); }
-            to { opacity: 1; transform: none; }
-          }
-        `}
-      </style>
       {(loading || screenForPageLoading) ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Spin size="large" />
         </div>
+      ) : showMindMapUpdate.show ? (
+        <>
+          {showMindMapBuilder ? (
+                            <MindMapBuilder onDone={() => { setShowMindMapUpdate({ show: false }); setShowMindMapBuilder(false); setIsMindMapBuilding(false); }} />
+          ) : (
+            <MindMapUpdate
+              initialScreen={showMindMapUpdate.initialScreen}
+              initialState={showMindMapUpdate.initialState}
+              onBack={() => {
+                setShowMindMapUpdate({ show: false });
+                setShowMindMapBuilder(false);
+                setIsMindMapBuilding(false);
+              }}
+              onContinue={(screen, state) => {
+                setShowMindMapUpdate({ show: false });
+                setShowMindMapBuilder(false);
+                setIsMindMapBuilding(false);
+                setSelectedScreen(screen);
+                setSelectedState(state);
+              }}
+              onStartBuilder={() => {
+                console.log('Start MindMap Builder clicked, setting showMindMapBuilder to true');
+                setShowMindMapBuilder(true);
+                setIsMindMapBuilding(true);
+                console.log('showMindMapBuilder state should now be true');
+              }}
+            />
+          )}
+        </>
       ) : addingBug ? (
         <AddBugPanel
           screen={selectedScreen}
@@ -354,6 +409,36 @@ export const BugsTab = () => {
               title: undefined,
             }).then((data) => {
               setBugs(data.bugs || []);
+              
+              // Mark newly created bugs for glow effect
+              // Since we don't know which specific bug was created, we'll mark the first few bugs as newly added
+              const newBugIds = (data.bugs || []).slice(0, 3).map(bug => bug.bug?.bugHash).filter((id): id is string => Boolean(id));
+              console.log('Manually created bug IDs:', newBugIds);
+              
+              setNewlyAddedBugs(prev => {
+                const updated = new Set([...prev, ...newBugIds]);
+                console.log('Updated newlyAddedBugs (manual):', Array.from(updated));
+                return updated;
+              });
+              
+              // Show notification about how many bugs were added
+              setNotification(`${newBugIds.length} bug${newBugIds.length === 1 ? '' : 's'} added successfully`);
+              
+              // Auto-dismiss notification after 3 seconds
+              setTimeout(() => {
+                setNotification('');
+              }, 3000);
+              
+              // Remove glow effect after 3 seconds
+              setTimeout(() => {
+                setNewlyAddedBugs(prev => {
+                  const updated = new Set(prev);
+                  newBugIds.forEach(id => updated.delete(id));
+                  console.log('Removed glow effect for manual bugs:', newBugIds);
+                  return updated;
+                });
+              }, 3000);
+              
               setLoading(false);
             }).catch((error) => {
               setLoading(false);
@@ -388,26 +473,21 @@ export const BugsTab = () => {
                 <input type="checkbox" checked={analyzeSources.screenshot} onChange={handleScreenshotCheckbox} />
                 Screenshot
                 <ThunderboltOutlined style={{ color: '#FFD600', fontSize: 16, marginLeft: 4 }} />
-                {teamTier === OrgTier.FREE_TIER && (
-                  <Button
-                    size="small"
-                    style={{ background: '#ff6b65', color: '#fff', border: 'none', marginLeft: 8, fontWeight: 600 }}
-                    onClick={() => window.open('https://prod.testchimp.io/signin?flow=upgrade', '_blank')}
-                  >
-                    Upgrade
-                  </Button>
-                )}
               </label>
               {showScreenshotUpgrade && (
-                <div style={{ background: '#ffebe6', color: '#d4380d', padding: '6px 12px', borderRadius: 6, marginTop: 4, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  Upgrade to enable screenshot analysis
-                  <Button
-                    size="small"
-                    style={{ background: '#ff6b65', color: '#fff', border: 'none', marginLeft: 8, fontWeight: 600 }}
-                    onClick={() => window.open('https://prod.testchimp.io/signin?flow=upgrade', '_blank')}
-                  >
-                    Upgrade
-                  </Button>
+                <div style={{ background: '#ffebe6', color: '#d4380d', padding: '6px 12px', borderRadius: 6, marginTop: 4, fontWeight: 500, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div>
+                    Upgrade your TestChimp account for screenshot analysis and more premium features.
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button
+                      size="small"
+                      style={{ background: '#ff6b65', color: '#fff', border: 'none', fontWeight: 600 }}
+                      onClick={() => window.open('https://prod.testchimp.io/signin?flow=upgrade', '_blank')}
+                    >
+                      Upgrade
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -433,30 +513,15 @@ export const BugsTab = () => {
       ) : (
         <>
           {/* Row 1: Screen and State dropdowns */}
-          <Row gutter={8} style={{ marginBottom: 12 }}>
-            <Col flex="auto">
-              <div style={{ marginBottom: 4, fontSize: 12, color: '#888' }}>Screen</div>
-              <Select
-                style={{ width: '100%' }}
-                placeholder="Select screen"
-                value={selectedScreen}
-                onChange={val => setSelectedScreen(val)}
-                options={screenStates.map(s => ({ label: s.screen, value: s.screen }))}
-              />
-            </Col>
-            <Col flex="auto">
-              <div style={{ marginBottom: 4, fontSize: 12, color: '#888' }}>State</div>
-              <Select
-                style={{ width: '100%' }}
-                placeholder="Select state"
-                value={selectedState}
-                onChange={val => setSelectedState(val)}
-                options={stateOptions.map((s) => ({ label: s, value: s }))}
-                allowClear
-                disabled={stateOptions.length === 0}
-              />
-            </Col>
-          </Row>
+          <ScreenStateSelector
+            screenStates={screenStates}
+            selectedScreen={selectedScreen}
+            setSelectedScreen={setSelectedScreen}
+            selectedState={selectedState}
+            setSelectedState={setSelectedState}
+            onAddScreen={() => setShowMindMapUpdate({ show: true })}
+            onAddState={() => setShowMindMapUpdate({ show: true, initialScreen: selectedScreen })}
+          />
           {/* Row 2: Search and Severity on same row */}
           <Row gutter={8} style={{ marginBottom: 12 }}>
             <Col span={18}>
@@ -525,6 +590,7 @@ export const BugsTab = () => {
                     currentScreenName={selectedScreen}
                     currentRelativeUrl={window.location.pathname + window.location.search + window.location.hash}
                     onUpdated={handleBugUpdated}
+                    newlyAdded={bug.bug?.bugHash ? newlyAddedBugs.has(bug.bug.bugHash) : false}
                   />
                 ))}
               </div>

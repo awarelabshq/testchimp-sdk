@@ -1,29 +1,19 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
     Button,
-    Checkbox,
-    ConfigProvider,
-    Modal,
     Select,
     Input,
     Tooltip,
-    Typography,
-    theme,
-    message as antdMessage,
-    Dropdown,
-    Menu,
     Tabs,
-    Collapse
 } from 'antd';
-import { LogoutOutlined, BugOutlined, PartitionOutlined, PlusCircleOutlined, MessageOutlined, WarningOutlined, EditOutlined, ReloadOutlined, SendOutlined, AimOutlined, DragOutlined, BorderOutlined, InfoCircleOutlined, PlusOutlined, AppstoreOutlined, VideoCameraOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { LogoutOutlined, BugOutlined, WarningOutlined, EditOutlined, ReloadOutlined, SettingOutlined, AppstoreOutlined, VideoCameraOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { ReleaseSelect } from './components/ReleaseSelect';
+import { EnvironmentSelect } from './components/EnvironmentSelect';
 import { RecordTab } from './RecordTab';
 import { BugsTab } from './bugs/BugsTab';
 import { ScenariosTab } from './scenarios/ScenariosTab';
 import { DevTab } from './dev';
 import { simplifyDOMForLLM } from './html_utils';
-
-const { Text } = Typography;
-const { TextArea } = Input;
 
 const BASE_URL = 'https://featureservice-staging.testchimp.io';
 
@@ -37,10 +27,6 @@ export interface ExtProjectConfig {
     sessionRecordApiKey?: string;
 }
 
-
-
-const MAX_RECENT_SESSIONS = 5;
-
 export const SidebarApp = () => {
     const [userAuthKey, setUserAuthKey] = useState<string | undefined>();
     const [projects, setProjects] = useState<ExtProjectConfig[]>([]);
@@ -52,6 +38,16 @@ export const SidebarApp = () => {
     const [urlRegexToCapture, setUrlRegexToCapture] = useState<string | undefined>(undefined);
     const [activeTabKey, setActiveTabKey] = useState('dev');
     const [tabRefreshKey, setTabRefreshKey] = useState(0);
+    const [isMindMapBuilding, setIsMindMapBuilding] = useState(false);
+    const [selectedEnvironment, setSelectedEnvironment] = useState<string>('QA');
+    const [selectedRelease, setSelectedRelease] = useState<string | undefined>(undefined);
+    const logoRef = useRef<HTMLImageElement>(null);
+    const textRef = useRef<HTMLDivElement>(null);
+
+    // Save environment and release to chrome storage when they change
+    useEffect(() => {
+        chrome.storage.local.set({ selectedEnvironment, selectedRelease });
+    }, [selectedEnvironment, selectedRelease]);
     // --- Project selection and settings row ---
     const [showInterceptSettings, setShowInterceptSettings] = useState<boolean>(false);
     useEffect(() => {
@@ -216,8 +212,12 @@ export const SidebarApp = () => {
                 console.log('[Sidebar] URL changed! lastUrl:', lastUrl, '-> currentUrl:', currentUrl);
                 lastUrl = currentUrl;
                 if (activeTabKey === 'bugs' || activeTabKey === 'scenarios' || activeTabKey === 'dev') {
-                    console.log('[Sidebar] Refreshing tab due to URL change. activeTabKey:', activeTabKey);
-                    setTabRefreshKey(k => k + 1);
+                    if (isMindMapBuilding) {
+                        console.log('[Sidebar] URL changed but MindMap building is in progress. Skipping tab refresh. activeTabKey:', activeTabKey);
+                    } else {
+                        console.log('[Sidebar] Refreshing tab due to URL change. activeTabKey:', activeTabKey);
+                        setTabRefreshKey(k => k + 1);
+                    }
                 } else {
                     console.log('[Sidebar] URL changed but not on bugs/scenarios/dev tab. No refresh. activeTabKey:', activeTabKey);
                 }
@@ -275,7 +275,7 @@ export const SidebarApp = () => {
         if (msg.type === 'get_dom_snapshot') {
             try {
                 // @ts-ignore: simplifyDOMForLLM may be imported or defined elsewhere
-                const dom = simplifyDOMForLLM(document.body,{includeStyles:true});
+                const dom = simplifyDOMForLLM(document.body, { includeStyles: true });
                 sendResponse({ dom });
             } catch (e) {
                 sendResponse({ error: e?.message || 'Failed to simplify DOM' });
@@ -285,7 +285,7 @@ export const SidebarApp = () => {
     });
 
     return (
-        <div className="tc-sidebar" style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: 8 }}>
+        <div className="tc-sidebar" data-testid="tc-ext-sidebar" style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: 8 }}>
             {!userAuthKey ? (
                 <div
                     style={{
@@ -303,9 +303,9 @@ export const SidebarApp = () => {
                         }}
                     >
                         <img
+                            ref={logoRef}
                             src={chrome.runtime.getURL('images/icon-128.png')}
                             alt="TestChimp Logo"
-                            className="fade-in-logo"
                             style={{ width: 48, height: 48, marginBottom: 12 }}
                         />
                         <Button
@@ -317,6 +317,19 @@ export const SidebarApp = () => {
                         >
                             <span className="fade-in">Login</span>
                         </Button>
+                        <div
+                            ref={textRef}
+                            style={{
+                                marginTop: 14,
+                                textAlign: 'center',
+                                color: '#aaa',
+                                fontSize: 14,
+                                fontWeight: 500,
+                                lineHeight: '18px'
+                            }}
+                        >
+                            The AI Co-Pilot for QA teams
+                        </div>
                     </div>
                 </div>
             ) : (
@@ -347,9 +360,9 @@ export const SidebarApp = () => {
                             dropdownStyle={{ zIndex: 9999 }}
                             getPopupContainer={(triggerNode) => triggerNode.parentElement!}
                         />
-                        <Tooltip title="Project Interception Settings">
+                        <Tooltip title="Project Settings">
                             <Button
-                                icon={<EditOutlined />}
+                                icon={<SettingOutlined />}
                                 type={showInterceptSettings ? 'primary' : 'default'}
                                 onClick={() => setShowInterceptSettings(v => !v)}
                                 style={{ padding: '0 8px' }}
@@ -364,51 +377,74 @@ export const SidebarApp = () => {
                     </div>
                     {/* Interception settings (shown by default if not set, or toggled by settings icon) */}
                     {selectedProjectId && projects.length > 0 && showInterceptSettings && (
-                        <div style={{ fontSize: 12, color: '#aaa', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                            {editingIntercept ? (
-                                <>
-                                    <Input
-                                        placeholder="Enter URL regex to intercept"
-                                        value={interceptInput}
-                                        onChange={(e) => setInterceptInput(e.target.value)}
-                                        style={{ flex: 1 }}
-                                    />
-                                    <Button
-                                        loading={isUpdatingConfig}
-                                        size="small"
-                                        type="primary"
-                                        onClick={() => configureProjectIntercept(interceptInput)}
-                                    >
-                                        OK
-                                    </Button>
-                                    <Button
-                                        size="small"
-                                        onClick={() => setEditingIntercept(false)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                </>
-                            ) : urlRegexToCapture ? (
-                                <>
-                                    <span style={{ color: '#aaa' }}>Intercepts:</span>
-                                    <span style={{ color: '#e6c200', fontWeight: 500 }}>{urlRegexToCapture}</span>
-                                    <Button
-                                        size="small"
-                                        type="text"
-                                        icon={<EditOutlined />}
-                                        onClick={() => {
-                                            setInterceptInput(selectedProject?.urlRegexToCapture || '');
-                                            setEditingIntercept(true);
-                                        }}
-                                    />
-                                </>
-                            ) : (
-                                <>
-                                    <WarningOutlined style={{ color: '#faad14' }} />
-                                    <span style={{ color: '#faad14' }}>Interception not set</span>
-                                    <Button size="small" onClick={() => setEditingIntercept(true)} icon={<EditOutlined />} />
-                                </>
-                            )}
+                        <div style={{ fontSize: 12, color: '#aaa', marginBottom: 8 }}>
+                            {/* URL Regex Section */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                {editingIntercept ? (
+                                    <>
+                                        <Input
+                                            placeholder="Enter URL regex to intercept"
+                                            value={interceptInput}
+                                            onChange={(e) => setInterceptInput(e.target.value)}
+                                            style={{ flex: 1 }}
+                                        />
+                                        <Button
+                                            loading={isUpdatingConfig}
+                                            size="small"
+                                            type="primary"
+                                            onClick={() => configureProjectIntercept(interceptInput)}
+                                        >
+                                            OK
+                                        </Button>
+                                        <Button
+                                            size="small"
+                                            onClick={() => setEditingIntercept(false)}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </>
+                                ) : urlRegexToCapture ? (
+                                    <>
+                                        <span style={{ color: '#aaa', minWidth: 70, fontSize: 12, lineHeight: '32px' }}>Intercepts:</span>
+                                        <span style={{ color: '#e6c200', fontWeight: 500 }}>{urlRegexToCapture}</span>
+                                        <Button
+                                            size="small"
+                                            type="text"
+                                            icon={<EditOutlined />}
+                                            onClick={() => {
+                                                setInterceptInput(selectedProject?.urlRegexToCapture || '');
+                                                setEditingIntercept(true);
+                                            }}
+                                        />
+                                    </>
+                                ) : (
+                                    <>
+                                        <WarningOutlined style={{ color: '#faad14' }} />
+                                        <span style={{ color: '#faad14' }}>Interception not set</span>
+                                        <Button size="small" onClick={() => setEditingIntercept(true)} icon={<EditOutlined />} />
+                                    </>
+                                )}
+                            </div>
+                            {/* Environment Section */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                <span style={{ color: '#aaa', minWidth: 70, fontSize: 12, lineHeight: '32px' }}>Environment:</span>
+                                <EnvironmentSelect
+                                    value={selectedEnvironment}
+                                    onChange={(val) => setSelectedEnvironment(val || 'QA')}
+                                    placement="topLeft"
+                                    style={{ flex: 1 }}
+                                />
+                            </div>
+                            {/* Release Section */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ color: '#aaa', minWidth: 70, fontSize: 12, lineHeight: '32px' }}>Release:</span>
+                                <ReleaseSelect
+                                    value={selectedRelease}
+                                    onChange={setSelectedRelease}
+                                    label=""
+                                    style={{ flex: 1 }}
+                                />
+                            </div>
                         </div>
                     )}
                     {/* Tabs for Dev, Record, Bugs, Scenarios */}
@@ -424,10 +460,10 @@ export const SidebarApp = () => {
                                 <DevTab key={activeTabKey === 'dev' ? tabRefreshKey : undefined} />
                             </Tabs.TabPane>
                             <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><BugOutlined style={{ marginRight: 6 }} />Bugs</span>} key="bugs" style={{ height: '100%' }}>
-                                <BugsTab key={activeTabKey === 'bugs' ? tabRefreshKey : undefined} />
+                                <BugsTab key={activeTabKey === 'bugs' ? tabRefreshKey : undefined} setIsMindMapBuilding={setIsMindMapBuilding} />
                             </Tabs.TabPane>
                             <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><ExperimentOutlined style={{ marginRight: 6 }} />Scenarios</span>} key="scenarios" style={{ height: '100%' }}>
-                                <ScenariosTab key={activeTabKey === 'scenarios' ? tabRefreshKey : undefined} />
+                                <ScenariosTab key={activeTabKey === 'scenarios' ? tabRefreshKey : undefined} setIsMindMapBuilding={setIsMindMapBuilding} />
                             </Tabs.TabPane>
                             <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><VideoCameraOutlined style={{ marginRight: 6 }} />Rec</span>} key="record" style={{ height: '100%' }}>
                                 <RecordTab active={activeTabKey === 'record'} />

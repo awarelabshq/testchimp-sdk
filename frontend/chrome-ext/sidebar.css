@@ -219,3 +219,122 @@
   box-shadow: none;
   user-select: none;
 }
+
+.loading-notification {
+  color: #888;
+  font-style: italic;
+  font-size: 13px;
+  line-height: 18px;
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: rgba(136, 136, 136, 0.1);
+  border: 1px solid rgba(136, 136, 136, 0.2);
+  border-radius: 6px;
+  font-weight: 400;
+}
+
+/* Card hover effects */
+.ant-card:hover .action-buttons-overlay {
+  opacity: 1 !important;
+}
+
+.ant-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+/* Add bug panel animation */
+.add-bug-panel {
+  animation: fadeIn 0.3s;
+}
+
+/* Newly added bug glow effect */
+.newly-added-bug {
+  animation: bugGlow 3s ease-out;
+  box-shadow: 0 0 20px rgba(255, 107, 101, 0.6);
+  border: 1px solid rgba(255, 107, 101, 0.8);
+}
+
+@keyframes bugGlow {
+  0% {
+    box-shadow: 0 0 30px rgba(255, 107, 101, 0.8);
+    border-color: rgba(255, 107, 101, 1);
+    transform: scale(1.02);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(255, 107, 101, 0.7);
+    border-color: rgba(255, 107, 101, 0.9);
+    transform: scale(1.01);
+  }
+  100% {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-color: #333;
+    transform: scale(1);
+  }
+}
+
+/* Newly added scenario glow effect */
+.newly-added-scenario {
+  animation: scenarioGlow 3s ease-out;
+  box-shadow: 0 0 20px rgba(114, 189, 163, 0.6);
+  border: 1px solid rgba(114, 189, 163, 0.8);
+}
+
+@keyframes scenarioGlow {
+  0% {
+    box-shadow: 0 0 30px rgba(114, 189, 163, 0.8);
+    border-color: rgba(114, 189, 163, 1);
+    transform: scale(1.02);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(114, 189, 163, 0.7);
+    border-color: rgba(114, 189, 163, 0.9);
+    transform: scale(1.01);
+  }
+  100% {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-color: #333;
+    transform: scale(1);
+  }
+}
+
+/* Fade-in animation for new items */
+.fade-in-item {
+  animation: fadeInItem 0.5s ease-out;
+}
+
+@keyframes fadeInItem {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-slide-down {
+  animation: fadeInSlideDown 0.8s ease-out 0.3s forwards;
+}
+
+.pre-animate-logo {
+  opacity: 0;
+  transform: translateY(20px);
+}
+.pre-animate-text {
+  opacity: 0;
+  transform: translateY(-20px);
+}

@@ -25,6 +25,7 @@ export interface BugCardProps {
   currentScreenName?: string;
   currentRelativeUrl?: string;
   onUpdated?: () => void;
+  newlyAdded?: boolean;
 }
 
 export const BugCard: React.FC<BugCardProps> = ({
@@ -45,12 +46,20 @@ export const BugCard: React.FC<BugCardProps> = ({
   currentScreenName,
   currentRelativeUrl,
   onUpdated,
+  newlyAdded,
 }) => {
   const bugId = bug.bug?.bugHash || String(index);
+  
+  // Debug logging
+  if (newlyAdded) {
+    console.log('BugCard newlyAdded=true for bug:', bugId, 'bugHash:', bug.bug?.bugHash);
+  }
+  
   return (
     <Card
       key={bugId}
       size="small"
+      className={newlyAdded ? 'newly-added-bug fade-in-item' : 'fade-in-item'}
       style={{
         border: '1px solid #333',
         borderRadius: 8,

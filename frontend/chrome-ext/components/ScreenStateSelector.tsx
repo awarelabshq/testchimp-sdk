@@ -8,6 +8,10 @@ interface ScreenStateSelectorProps {
   setSelectedScreen: (screen?: string) => void;
   selectedState?: string;
   setSelectedState: (state?: string) => void;
+  onAddScreen?: () => void;
+  onAddState?: () => void;
+  disableScreenSelect?: boolean;
+  disableStateSelect?: boolean;
 }
 
 export const ScreenStateSelector: React.FC<ScreenStateSelectorProps> = ({
@@ -16,8 +20,20 @@ export const ScreenStateSelector: React.FC<ScreenStateSelectorProps> = ({
   setSelectedScreen,
   selectedState,
   setSelectedState,
+  onAddScreen,
+  onAddState,
+  disableScreenSelect,
+  disableStateSelect,
 }) => {
   const stateOptions = screenStates.find((s) => s.screen === selectedScreen)?.states || [];
+  const screenOptions = [
+    ...screenStates.map(s => ({ label: s.screen, value: s.screen })),
+    { label: '➕ Add screen', value: '__add_screen__', key: 'add_screen' },
+  ];
+  const stateDropdownOptions = [
+    ...stateOptions.map((s) => ({ label: s, value: s })),
+    { label: '➕ Add state', value: '__add_state__', key: 'add_state' },
+  ];
   return (
     <Row gutter={8} style={{ marginBottom: 12 }}>
       <Col flex="auto">
@@ -26,8 +42,15 @@ export const ScreenStateSelector: React.FC<ScreenStateSelectorProps> = ({
           style={{ width: '100%' }}
           placeholder="Select screen"
           value={selectedScreen}
-          onChange={val => setSelectedScreen(val)}
-          options={screenStates.map(s => ({ label: s.screen, value: s.screen }))}
+          onChange={val => {
+            if (val === '__add_screen__') {
+              onAddScreen && onAddScreen();
+            } else {
+              setSelectedScreen(val);
+            }
+          }}
+          options={screenOptions}
+          disabled={disableScreenSelect}
         />
       </Col>
       <Col flex="auto">
@@ -36,10 +59,16 @@ export const ScreenStateSelector: React.FC<ScreenStateSelectorProps> = ({
           style={{ width: '100%' }}
           placeholder="Select state"
           value={selectedState}
-          onChange={val => setSelectedState(val)}
-          options={stateOptions.map((s) => ({ label: s, value: s }))}
+          onChange={val => {
+            if (val === '__add_state__') {
+              onAddState && onAddState();
+            } else {
+              setSelectedState(val);
+            }
+          }}
+          options={stateDropdownOptions}
           allowClear
-          disabled={stateOptions.length === 0}
+          disabled={disableStateSelect || stateOptions.length === 0}
         />
       </Col>
     </Row>

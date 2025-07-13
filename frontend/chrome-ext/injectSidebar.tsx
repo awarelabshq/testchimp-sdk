@@ -17,7 +17,6 @@ function createSidebar(initiallyExpanded: boolean) {
   if (host) {
     host.setAttribute('data-rrweb-ignore', 'true');
     host.style.transform = initiallyExpanded ? 'translateX(0)' : `translateX(${sidebarWidth}px)`;
-    document.body.style.marginRight = initiallyExpanded ? `${sidebarWidth}px` : '0';
     isVisible = initiallyExpanded;
     return;
   }
@@ -40,7 +39,6 @@ function createSidebar(initiallyExpanded: boolean) {
   });
 
   document.body.appendChild(host);
-  //document.body.style.marginRight = initiallyExpanded ? `${sidebarWidth}px` : '0';
   isVisible = initiallyExpanded;
 
   const shadowRoot = host.attachShadow({ mode: 'open' });
@@ -157,6 +155,7 @@ window.addEventListener('message', (event) => {
       btn.dataset.visible = 'true';
       btn.style.right = `${sidebarWidth + 10}px`;
     }
+
   }
   if (event.data.type === 'tc-hide-toggle-button') {
     if (btn) {
@@ -180,7 +179,12 @@ chrome.storage.local.get(['recordingInProgress', 'forceExpandSidebar'], (result)
   }
 
   createSidebar(initiallyExpanded);
-  createToggleButton(initiallyExpanded);
+  
+  // Only create toggle button if recording is in progress or sidebar is forced to expand
+  // This prevents the arrow from showing when extension action hasn't been clicked
+  if (result.recordingInProgress || result.forceExpandSidebar) {
+    createToggleButton(initiallyExpanded);
+  }
 });
 
 // Relay connection_status and similar messages from background to page/sidebar

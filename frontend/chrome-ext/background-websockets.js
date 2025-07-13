@@ -217,6 +217,29 @@ let requestHeadersMap = {};
 let uriRegexToIntercept = '.*'; // Default: match all
 let uriRegexObj = new RegExp(uriRegexToIntercept);
 
+// List of sensitive headers to redact (case-insensitive)
+const SENSITIVE_HEADERS = [
+    'authorization', 'cookie', 'set-cookie', 'x-api-key', 'x-auth-token', 'proxy-authorization', 'www-authenticate'
+];
+const MAX_HEADER_VALUE_LENGTH = 200;
+
+// Helper to redact sensitive headers and limit header value length
+function redactHeaders(headersArr) {
+    const result = {};
+    for (const { name, value } of headersArr) {
+        if (!name) continue;
+        const lower = name.toLowerCase();
+        if (SENSITIVE_HEADERS.includes(lower)) {
+            result[name] = '<redacted>';
+        } else if (typeof value === 'string' && value.length > MAX_HEADER_VALUE_LENGTH) {
+            result[name] = '<redacted>';
+        } else {
+            result[name] = value;
+        }
+    }
+    return result;
+}
+
 // Capture request headers by requestId
 chrome.webRequest.onBeforeSendHeaders.addListener(
     function(details) {
@@ -244,12 +267,14 @@ chrome.webRequest.onCompleted.addListener(
     function(details) {
         if (!uriRegexObj.test(details.url)) return;
         const reqHeadersArr = requestHeadersMap[details.requestId] || [];
-        const reqHeadersObj = reqHeadersArr.length ? Object.fromEntries(reqHeadersArr.map(h => [h.name, h.value])) : {};
+        const reqHeadersObj = redactHeaders(reqHeadersArr);
+        const respHeadersArr = details.responseHeaders || [];
+        const respHeadersObj = redactHeaders(respHeadersArr);
         const pair = {
             url: details.url,
             method: details.method,
             requestHeaders: reqHeadersObj,
-            responseHeaders: details.responseHeaders ? Object.fromEntries(details.responseHeaders.map(h => [h.name, h.value])) : {},
+            responseHeaders: respHeadersObj,
             status: details.statusCode,
             responseTimeMs: details.timeStamp,
             timestamp: Date.now(),

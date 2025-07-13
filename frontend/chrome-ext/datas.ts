@@ -331,3 +331,34 @@ export enum OrgPlan {
   TEAM_PLAN = 1,
   INDIE_PLAN = 2,
 } 
+
+export interface UpsertMindMapScreenStateRequest {
+  screenState?: ScreenState;
+  domSnapshot?: string;
+  url?: string;
+  relatedFilePaths?: string[];
+}
+
+export interface UpsertMindMapScreenStateResponse {
+  screenState?: ScreenState;
+  testScenariosAdded?: number;
+  elementGroupsAdded?: number;
+  elementsAdded?: number;
+}
+
+// Environment management interfaces
+export interface ListEnvironmentsRequest {
+  // Intentionally kept empty. The list of environments are fetched for the project - using the http header.
+}
+
+export interface ListEnvironmentsResponse {
+  environments: string[];
+}
+
+export interface AddEnvironmentRequest {
+  environment?: string;
+}
+
+export interface AddEnvironmentResponse {
+  // Empty response
+} 

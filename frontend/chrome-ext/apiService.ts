@@ -21,6 +21,7 @@ export interface GetScreenForPageResponse {
 export interface UpdateBugsRequest {
   updatedBugs: Bug[];
   newStatus?: BugStatus;
+  appReleaseId?: string;
 }
 
 export interface UpdateBugsResponse { }
@@ -42,6 +43,18 @@ export async function getAuthHeaders(): Promise<{ [key: string]: string }> {
         console.log('No auth headers found in storage');
         resolve({});
       }
+    });
+  });
+}
+
+// Helper to get current environment and release from chrome.storage
+export async function getCurrentEnvironmentAndRelease(): Promise<{ environment: string; releaseId?: string }> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['selectedEnvironment', 'selectedRelease'], (items) => {
+      resolve({
+        environment: items.selectedEnvironment || 'QA',
+        releaseId: items.selectedRelease,
+      });
     });
   });
 }
@@ -86,13 +99,20 @@ export async function getScreenForPage(req: GetScreenForPageRequest): Promise<Ge
 
 export async function listBugs(req: ListBugsRequest): Promise<ListBugsResponse> {
   const headers = await getAuthHeaders();
+  const { environment, releaseId } = await getCurrentEnvironmentAndRelease();
+  
+  const requestBody = {
+    ...req,
+    environment: req.environment || environment,
+  };
+  
   const res = await fetch(`${BASE_URL}/ext/list_bugs`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...headers,
     },
-    body: JSON.stringify(req),
+    body: JSON.stringify(requestBody),
   });
   const data = await res.json();
   return {
@@ -102,13 +122,20 @@ export async function listBugs(req: ListBugsRequest): Promise<ListBugsResponse> 
 
 export async function updateBugs(req: UpdateBugsRequest): Promise<UpdateBugsResponse> {
   const headers = await getAuthHeaders();
+  const { environment, releaseId } = await getCurrentEnvironmentAndRelease();
+  
+  const requestBody = {
+    ...req,
+    appReleaseId: req.appReleaseId || releaseId,
+  };
+  
   await fetch(`${BASE_URL}/ext/update_bugs`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...headers,
     },
-    body: JSON.stringify(req),
+    body: JSON.stringify(requestBody),
   });
   return {};
 }
@@ -198,12 +225,19 @@ import {
   SuggestTestScenariosRequest,
   SuggestTestScenariosResponse,
   TestScenarioDetail,
+  // Environment management types
+  ListEnvironmentsRequest,
+  ListEnvironmentsResponse,
+  AddEnvironmentRequest,
+  AddEnvironmentResponse,
   ScreenState,
   // Team details types
   GetTeamDetailsRequest,
   GetTeamDetailsResponse,
   OrgTier,
   OrgPlan,
+  UpsertMindMapScreenStateRequest,
+  UpsertMindMapScreenStateResponse,
 } from './datas';
 import { captureScreenshotWithSidebarHiding } from './screenshotUtils';
 
@@ -259,23 +293,48 @@ export async function upsertAgentTestScenario(req: UpsertAgentTestScenarioReques
   return await res.json();
 }
 
-export interface InsertTestScenarioResultRequest {
-  testScenarioId?: string;
-  result?: ScenarioTestResult;
-  environment?: string;
-}
-
-export interface InsertTestScenarioResultResponse { }
-
-export async function insertTestScenarioResult(req: InsertTestScenarioResultRequest): Promise<InsertTestScenarioResultResponse> {
+export async function upsertMindMapScreenState(req: UpsertMindMapScreenStateRequest): Promise<UpsertMindMapScreenStateResponse> {
   const headers = await getAuthHeaders();
-  await fetch(`${BASE_URL}/ext/insert_test_scenario_result`, {
+  const res = await fetch(`${BASE_URL}/localagent/upsert_mindmap_screen_state`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...headers,
     },
     body: JSON.stringify(req),
+  });
+  const data = await res.json();
+  return {
+    screenState: data.screenState,
+  };
+}
+
+export interface InsertTestScenarioResultRequest {
+  testScenarioId?: string;
+  result?: ScenarioTestResult;
+  environment?: string;
+  appReleaseId?:string;
+}
+
+export interface InsertTestScenarioResultResponse { }
+
+export async function insertTestScenarioResult(req: InsertTestScenarioResultRequest): Promise<InsertTestScenarioResultResponse> {
+  const headers = await getAuthHeaders();
+  const { environment, releaseId } = await getCurrentEnvironmentAndRelease();
+  
+  const requestBody = {
+    ...req,
+    environment: req.environment || environment,
+    appReleaseId: req.appReleaseId || releaseId,
+  };
+  
+  await fetch(`${BASE_URL}/ext/insert_test_scenario_result`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(requestBody),
   });
   return {};
 }
@@ -464,6 +523,7 @@ export interface ListBugsRequest {
   screenStates?: ScreenState[];
   statuses?: BugStatus[];
   title?: string;
+  environment?: string;
 }
 
 export interface ListBugsResponse {
@@ -540,5 +600,33 @@ export async function getTeamDetails(req: GetTeamDetailsRequest = {}): Promise<G
     body: JSON.stringify(req),
   });
   return await res.json();
+}
+
+// Environment management functions
+export async function listEnvironments(req: ListEnvironmentsRequest = {}): Promise<ListEnvironmentsResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/ext/list_environments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(req),
+  });
+  return await res.json();
+
+}
+
+export async function addEnvironment(req: AddEnvironmentRequest): Promise<AddEnvironmentResponse> {
+  const headers = await getAuthHeaders();
+  await fetch(`${BASE_URL}/ext/add_environment`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(req),
+  });
+  return {};
 }
 

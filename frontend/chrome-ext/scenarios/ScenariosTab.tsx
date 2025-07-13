@@ -10,10 +10,19 @@ import { TestPriority, AgentTestScenarioWithStatus } from '../datas';
 import { getTestChimpIcon } from '../components/getTestChimpIcon';
 import { ScenarioDetailCard } from './ScenarioDetailCard';
 import { SuggestScenariosPanel } from './SuggestScenariosPanel';
+import { MindMapUpdate } from '../components/MindMapUpdate';
+
+import { InfoCircleOutlined } from '@ant-design/icons';
+import { Tooltip } from 'antd';
+import { MindMapBuilder } from '../components/MindMapBuilder';
 
 const { Text } = Typography;
 
-export const ScenariosTab = () => {
+interface ScenariosTabProps {
+  setIsMindMapBuilding: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding }) => {
   const [initLoading, setInitLoading] = useState(true); // for initial screen states
   const [resultsLoading, setResultsLoading] = useState(false); // for scenario results
   const [screenStates, setScreenStates] = useState<ScreenStates[]>([]);
@@ -31,6 +40,13 @@ export const ScenariosTab = () => {
   const [suggestPanelOpen, setSuggestPanelOpen] = useState(false);
   const [addAllLoading, setAddAllLoading] = useState(false);
   const [expandedScenario, setExpandedScenario] = useState<AgentTestScenarioWithStatus | null>(null);
+  const [showMindMapUpdate, setShowMindMapUpdate] = useState<{
+    show: boolean;
+    initialScreen?: string;
+    initialState?: string;
+  }>({ show: false });
+  const [showMindMapBuilder, setShowMindMapBuilder] = useState(false);
+  const [newlyAddedScenarios, setNewlyAddedScenarios] = useState<Set<string>>(new Set());
 
   // Fetch screen states on mount
   useEffect(() => {
@@ -151,6 +167,10 @@ export const ScenariosTab = () => {
   const handleAddAllScenarios = async (suggested) => {
     setAddAllLoading(true);
     try {
+      // Debug: Log the structure of suggested scenarios
+      console.log('Suggested scenarios structure:', suggested);
+      console.log('First suggested scenario:', suggested[0]);
+      
       // Upsert each scenario (in parallel)
       await Promise.all(suggested.map(s => upsertAgentTestScenario({
         id: s.id,
@@ -160,9 +180,40 @@ export const ScenariosTab = () => {
         testCaseId: s.testCaseId,
         scenario: s.scenario,
       })));
-      // Refresh scenario list
+      
+      // Refresh scenario list first
       if (selectedScreen) {
-        refreshScenarioList();
+        await refreshScenarioList();
+        
+        // After refresh, mark the first few scenarios as newly added
+        // Since we don't know which specific ones were added, we'll mark the first few
+        const currentScenarioIds = scenarios.map(s => s.id).filter((id): id is string => Boolean(id));
+        const newScenarioIds = currentScenarioIds.slice(0, suggested.length);
+        console.log('Newly added scenario IDs (after refresh):', newScenarioIds);
+        
+        setNewlyAddedScenarios(prev => {
+          const updated = new Set([...prev, ...newScenarioIds]);
+          console.log('Updated newlyAddedScenarios:', Array.from(updated));
+          return updated;
+        });
+        
+        // Show notification about how many scenarios were added
+        setNotification(`${suggested.length} scenario${suggested.length === 1 ? '' : 's'} added successfully`);
+        
+        // Auto-dismiss notification after 3 seconds
+        setTimeout(() => {
+          setNotification('');
+        }, 3000);
+        
+        // Remove glow effect after 3 seconds
+        setTimeout(() => {
+          setNewlyAddedScenarios(prev => {
+            const updated = new Set(prev);
+            newScenarioIds.forEach(id => updated.delete(id));
+            console.log('Removed glow effect for scenarios:', newScenarioIds);
+            return updated;
+          });
+        }, 3000);
       }
       setSuggestPanelOpen(false);
       message.success('Scenarios added');
@@ -176,19 +227,81 @@ export const ScenariosTab = () => {
   // Handler to update a scenario in the local state after edit
   const handleScenarioLocallyUpdated = useCallback((updatedScenario) => {
     if (!updatedScenario || !updatedScenario.id) return;
+    
+    // Debug: Log the updated scenario
+    console.log('Updated scenario:', updatedScenario);
+    console.log('Current scenarios:', scenarios.map(s => ({ id: s.id, title: s.scenario?.title })));
+    
+    // Check if this is a newly created scenario (no previous ID)
+    const isNewlyCreated = !scenarios.find(s => s.id === updatedScenario.id);
+    console.log('Is newly created:', isNewlyCreated);
+    
     setScenarios(prev => prev.map(s => s.id === updatedScenario.id ? updatedScenario : s));
-  }, []);
+    
+    // If it's newly created, add glow effect
+    if (isNewlyCreated) {
+      console.log('Adding glow effect for newly created scenario:', updatedScenario.id);
+      setNewlyAddedScenarios(prev => {
+        const updated = new Set([...prev, updatedScenario.id]);
+        console.log('Updated newlyAddedScenarios (individual):', Array.from(updated));
+        return updated;
+      });
+      
+      // Show notification for individual scenario creation
+      setNotification('Scenario created successfully');
+      
+      // Auto-dismiss notification after 3 seconds
+      setTimeout(() => {
+        setNotification('');
+      }, 3000);
+      
+      // Remove glow effect after 3 seconds
+      setTimeout(() => {
+        setNewlyAddedScenarios(prev => {
+          const updated = new Set(prev);
+          updated.delete(updatedScenario.id);
+          console.log('Removed glow effect for individual scenario:', updatedScenario.id);
+          return updated;
+        });
+      }, 3000);
+    }
+  }, [scenarios]);
 
   return (
     <div style={{ padding: '8px 0', color: '#aaa', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <style>{`
-        .ant-card:hover .action-buttons-overlay { opacity: 1 !important; }
-        .ant-card:hover { transform: translateY(-4px); box-shadow: 0 6px 24px rgba(0,0,0,0.18); transition: box-shadow 0.2s, transform 0.2s; }
-      `}</style>
       {(initLoading || screenForPageLoading) ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Spin size="large" />
         </div>
+      ) : showMindMapUpdate.show ? (
+        <>
+          {showMindMapBuilder ? (
+            <MindMapBuilder onDone={() => { setShowMindMapUpdate({ show: false }); setShowMindMapBuilder(false); setIsMindMapBuilding(false); }} />
+          ) : (
+            <MindMapUpdate
+              initialScreen={showMindMapUpdate.initialScreen}
+              initialState={showMindMapUpdate.initialState}
+              onBack={() => {
+                setShowMindMapUpdate({ show: false });
+                setShowMindMapBuilder(false);
+                setIsMindMapBuilding(false);
+              }}
+              onContinue={(screen, state) => {
+                setShowMindMapUpdate({ show: false });
+                setShowMindMapBuilder(false);
+                setIsMindMapBuilding(false);
+                setSelectedScreen(screen);
+                setSelectedState(state);
+              }}
+              onStartBuilder={() => {
+                console.log('Start MindMap Builder clicked, setting showMindMapBuilder to true');
+                setShowMindMapBuilder(true);
+                setIsMindMapBuilding(true);
+                console.log('showMindMapBuilder state should now be true');
+              }}
+            />
+          )}
+        </>
       ) : addModalOpen ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
           <div style={{ flex: 1 }} />
@@ -229,13 +342,14 @@ export const ScenariosTab = () => {
         </div>
       ) : (
         <>
-          {/* Row 1: Screen and State dropdowns (shared component) */}
           <ScreenStateSelector
             screenStates={screenStates}
             selectedScreen={selectedScreen}
             setSelectedScreen={setSelectedScreen}
             selectedState={selectedState}
             setSelectedState={setSelectedState}
+            onAddScreen={() => setShowMindMapUpdate({ show: true })}
+            onAddState={() => setShowMindMapUpdate({ show: true, initialScreen: selectedScreen })}
           />
           {/* Row 2: Search and Priority on same row */}
           <Row gutter={8} style={{ marginBottom: 12 }}>
@@ -262,6 +376,7 @@ export const ScenariosTab = () => {
               />
             </Col>
           </Row>
+
           {/* Notification row */}
           {notification && (
             <div className="scenario-notification">
@@ -290,6 +405,7 @@ export const ScenariosTab = () => {
                       onUpdated={handleScenarioLocallyUpdated}
                       onAction={handleScenarioAction}
                       onClick={() => setExpandedScenario(scenario)}
+                      className={scenario.id ? newlyAddedScenarios.has(scenario.id) ? 'newly-added-scenario fade-in-item' : 'fade-in-item' : 'fade-in-item'}
                     />
                   ))}
                 </div>

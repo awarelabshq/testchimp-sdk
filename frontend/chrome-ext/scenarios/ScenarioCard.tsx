@@ -25,7 +25,7 @@ const PRIORITY_COLORS: Record<TestPriority, string> = {
   [TestPriority.UNKNOWN_PRIORITY]: '#888',
 };
 
-export const ScenarioCard = ({ scenario, onUpdated, onAction, titleWrap, onClick, isSuggestion, selectedScreen, selectedState, onScenarioChange }: {
+export const ScenarioCard = ({ scenario, onUpdated, onAction, titleWrap, onClick, isSuggestion, selectedScreen, selectedState, onScenarioChange, className }: {
   scenario: AgentTestScenarioWithStatus,
   onUpdated?: (updatedScenario?: AgentTestScenarioWithStatus) => void,
   onAction?: (action: any) => void,
@@ -35,6 +35,7 @@ export const ScenarioCard = ({ scenario, onUpdated, onAction, titleWrap, onClick
   selectedScreen?: string,
   selectedState?: string,
   onScenarioChange?: (updated: AgentTestScenarioWithStatus) => void,
+  className?: string,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -47,6 +48,11 @@ export const ScenarioCard = ({ scenario, onUpdated, onAction, titleWrap, onClick
   const tagColor = PRIORITY_COLORS[priority] || '#888';
   const tagLabel = PRIORITY_LABELS[priority] || '';
   const expected = scenario.scenario?.expectedBehaviour || '';
+
+  // Debug logging for newly added scenarios
+  if (className && className.includes('newly-added-scenario')) {
+    console.log('ScenarioCard newlyAdded=true for scenario:', scenario.id, 'className:', className);
+  }
 
   // Test result icon logic (robust to string/enum)
   const lastResult = scenario.resultHistory && scenario.resultHistory.length > 0 ? scenario.resultHistory[scenario.resultHistory.length - 1].result : undefined;
@@ -123,6 +129,7 @@ export const ScenarioCard = ({ scenario, onUpdated, onAction, titleWrap, onClick
       hoverable
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setGenMenuVisible(false); setTestMenuVisible(false); }}
+      className={`fade-in-item ${className || ''}`}
     >
       {/* Title row with action buttons overlay */}
       <div style={{ position: 'relative', marginBottom: 8, minWidth: 0 }}>

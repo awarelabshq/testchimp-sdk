@@ -117,6 +117,7 @@ export const DevTab = () => {
     const [contextTags, setContextTags] = useState<ContextTag[]>([]);
     const [userMessage, setUserMessage] = useState('');
     const [notification, setNotification] = useState('');
+    const [showCopiedNotification, setShowCopiedNotification] = useState(false); // NEW
     const [sending, setSending] = useState(false);
     const [currentMode, setCurrentMode] = useState<'normal' | 'select' | 'box'>('normal');
     const [contextMenuOpen, setContextMenuOpen] = useState(false);
@@ -290,8 +291,8 @@ export const DevTab = () => {
     useEffect(() => {
         function handleAck(event: MessageEvent) {
             if (event.data && event.data.type === 'ack_message') {
-                setNotification('Prompt copied to IDE');
-                setTimeout(() => setNotification(''), 3000);
+                setShowCopiedNotification(true); // NEW
+                setTimeout(() => setShowCopiedNotification(false), 3000); // NEW
                 setSending(false);
             }
         }
@@ -528,6 +529,12 @@ export const DevTab = () => {
                 display: 'flex',
                 flexDirection: 'column',
             }}>
+                {/* Notification row (Prompt copied to IDE) */}
+                {showCopiedNotification && (
+                    <div className="scenario-notification" style={{ margin: '8px 0' }}>
+                        Prompt copied to IDE
+                    </div>
+                )}
                 {/* Context window */}
                 <div className="tc-section" style={{ minHeight: 120, marginTop: 0, marginBottom: 4, padding: 8, display: 'flex', flexDirection: 'column', background: '#181818', border: '1.5px solid #333', borderRadius: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -660,7 +667,20 @@ export const DevTab = () => {
                         VSCode: {vscodeConnected ? (
                             <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
                         ) : (
-                            <Tooltip title="VSCode extension is not connected. (Update this text)">
+                            <Tooltip title={
+                                <div>
+                                    VSCode extension is not connected. 
+                                    <br />
+                                    <a 
+                                        href="https://testchimp.io/documentation-vscode-extension" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        style={{ color: '#72BDA3', textDecoration: 'underline' }}
+                                    >
+                                        Click here for setup instructions
+                                    </a>
+                                </div>
+                            }>
                                 <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Disconnected</span>
                             </Tooltip>
                         )}
@@ -669,7 +689,20 @@ export const DevTab = () => {
                         MCP: {mcpConnected ? (
                             <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
                         ) : (
-                            <Tooltip title="MCP server is not connected. (Update this text)">
+                            <Tooltip title={
+                                <div>
+                                    MCP server is not connected. 
+                                    <br />
+                                    <a 
+                                        href="https://testchimp.io/documentation-testchimp-local/" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        style={{ color: '#72BDA3', textDecoration: 'underline' }}
+                                    >
+                                        Click here for setup instructions
+                                    </a>
+                                </div>
+                            }>
                                 <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Disconnected</span>
                             </Tooltip>
                         )}
