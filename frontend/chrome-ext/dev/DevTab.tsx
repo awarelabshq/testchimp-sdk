@@ -294,6 +294,7 @@ export const DevTab = () => {
                 setShowCopiedNotification(true); // NEW
                 setTimeout(() => setShowCopiedNotification(false), 3000); // NEW
                 setSending(false);
+                setUserMessage(''); // Clear the prompt text after receiving ack
             }
         }
         window.addEventListener('message', handleAck);
@@ -447,10 +448,10 @@ export const DevTab = () => {
 
     // Load scratch pad tasks from chrome.storage.sync on mount
     useEffect(() => {
-      chrome.storage.sync.get(['localTasks'], (result) => {
-        const loaded = result['localTasks'] || [];
-        setScratchPadTasks(loaded.sort((a, b) => b.creationTimestampMillis - a.creationTimestampMillis));
-      });
+        chrome.storage.sync.get(['localTasks'], (result) => {
+            const loaded = result['localTasks'] || [];
+            setScratchPadTasks(loaded.sort((a, b) => b.creationTimestampMillis - a.creationTimestampMillis));
+        });
     }, []);
 
     // Layout: Screen selector at top, ScratchPad grows to fill space, bottom sticky area contains status, button panel, prompt, context
@@ -536,7 +537,7 @@ export const DevTab = () => {
                     </div>
                 )}
                 {/* Context window */}
-                <div className="tc-section" style={{ minHeight: 120, marginTop: 0, marginBottom: 4, padding: 8, display: 'flex', flexDirection: 'column', background: '#181818', border: '1.5px solid #333', borderRadius: 8 }}>
+                <div className="tc-section fade-in" style={{ minHeight: 120, marginTop: 0, marginBottom: 4, padding: 8, display: 'flex', flexDirection: 'column', background: '#181818', border: '1.5px solid #333', borderRadius: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                         <div>
                             <div className="tc-context-title">Add Context</div>
@@ -605,7 +606,7 @@ export const DevTab = () => {
                     </div>
                 </div>
                 {/* Prompt box */}
-                <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, background: '#181818', marginBottom: 0, padding: '0 4px', maxHeight: 100, overflowY: 'hidden' }}>
+                <div className={"fade-in"} style={{ display: 'flex', flexDirection: 'column', minHeight: 0, background: '#181818', marginBottom: 0, padding: '0 4px', maxHeight: 100, overflowY: 'hidden' }}>
                     <Input.TextArea
                         value={userMessage}
                         onChange={e => setUserMessage(e.target.value)}
@@ -627,17 +628,19 @@ export const DevTab = () => {
                     )}
                 </div>
                 {/* Button panel */}
-                <div style={{ width: '100%', background: '#181818', display: 'flex', gap: 8, padding: '8px 4px 4px 4px', borderTop: '1px solid #222', marginTop: 4 }}>
+                <div className={"fade-in"} style={{ width: '100%', background: '#181818', display: 'flex', gap: 8, padding: '8px 4px 4px 4px', borderTop: '1px solid #222', marginTop: 4 }}>
                     <div style={{ flex: 1 }}>
-                        <Button
-                            onClick={handleSaveForLater}
-                            className="secondary-button"
-                            style={{ width: '100%', color: '#72BDA3', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                            disabled={sending || saveLoading || !userMessage.trim()}
-                            loading={saveLoading}
-                        >
-                            Save for  later
-                        </Button>
+                        <Tooltip title={!userMessage.trim() ? 'Prompt must be non-empty' : ''}>
+                            <Button
+                                onClick={handleSaveForLater}
+                                className="secondary-button"
+                                style={{ width: '100%', color: '#72BDA3', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                                disabled={sending || saveLoading || !userMessage.trim()}
+                                loading={saveLoading}
+                            >
+                                Save for  later
+                            </Button>
+                        </Tooltip>
                     </div>
                     <div style={{ flex: 1 }}>
                         <Tooltip
@@ -662,18 +665,18 @@ export const DevTab = () => {
                     </div>
                 </div>
                 {/* Status bar: always at the bottom of this container */}
-                <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12, marginTop: '4px' }}>
+                <div  className={"fade-in-slide-up"} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12, marginTop: '4px' }}>
                     <span style={{ fontSize: 12, color: '#aaa' }}>
                         VSCode: {vscodeConnected ? (
                             <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
                         ) : (
                             <Tooltip title={
                                 <div>
-                                    VSCode extension is not connected. 
+                                    VSCode extension is not connected.
                                     <br />
-                                    <a 
-                                        href="https://testchimp.io/documentation-vscode-extension" 
-                                        target="_blank" 
+                                    <a
+                                        href="https://testchimp.io/documentation-vscode-extension"
+                                        target="_blank"
                                         rel="noopener noreferrer"
                                         style={{ color: '#72BDA3', textDecoration: 'underline' }}
                                     >
@@ -691,11 +694,11 @@ export const DevTab = () => {
                         ) : (
                             <Tooltip title={
                                 <div>
-                                    MCP server is not connected. 
+                                    MCP server is not connected.
                                     <br />
-                                    <a 
-                                        href="https://testchimp.io/documentation-testchimp-local/" 
-                                        target="_blank" 
+                                    <a
+                                        href="https://testchimp.io/documentation-testchimp-local/"
+                                        target="_blank"
                                         rel="noopener noreferrer"
                                         style={{ color: '#72BDA3', textDecoration: 'underline' }}
                                     >

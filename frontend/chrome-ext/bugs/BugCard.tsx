@@ -59,7 +59,7 @@ export const BugCard: React.FC<BugCardProps> = ({
     <Card
       key={bugId}
       size="small"
-      className={newlyAdded ? 'newly-added-bug fade-in-item' : 'fade-in-item'}
+      className={'fade-in-slide-down'}
       style={{
         border: '1px solid #333',
         borderRadius: 8,

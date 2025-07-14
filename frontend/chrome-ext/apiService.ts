@@ -1,5 +1,5 @@
 // API service for BugsTab and related features
-export const BASE_URL = 'https://featureservice-staging.testchimp.io';
+export const BASE_URL = 'https://featureservice.testchimp.io';
 
 // Remove enums and data interfaces that are not request/response types from this file.
 // Only keep request/response interfaces here, and import all data types from datas.ts instead.
@@ -628,5 +628,32 @@ export async function addEnvironment(req: AddEnvironmentRequest): Promise<AddEnv
     body: JSON.stringify(req),
   });
   return {};
+}
+
+export enum MindMapStatus {
+  UNKNOWN_MINDMAP_STATUS = 0,
+  MINDMAP_NOT_BUILT = 1,
+  MINDMAP_BUILD_IN_PROGRESS = 2,
+  MINDMAP_BUILD_COMPLETED = 3,
+}
+
+export interface GetMindMapStatusResponse {
+  status?: MindMapStatus;
+}
+
+export async function getMindMapStatus(): Promise<GetMindMapStatusResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/ext/get_mindmap_status`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify({}),
+  });
+  const data = await res.json();
+  return {
+    status: typeof data.status === 'number' ? data.status : MindMapStatus.UNKNOWN_MINDMAP_STATUS,
+  };
 }
 

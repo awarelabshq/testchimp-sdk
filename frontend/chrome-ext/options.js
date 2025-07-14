@@ -15,6 +15,8 @@ document.addEventListener('DOMContentLoaded', function () {
     'currentUserId',
     'enableRunLocallyForTcRuns',
     'userAuthKey',
+    'vscodeWebsocketPort',
+    'mcpWebsocketPort',
   ], function (items) {
     form.projectId.value = items.projectId || '';
     form.sessionRecordingApiKey.value = items.sessionRecordingApiKey || '';
@@ -25,6 +27,8 @@ document.addEventListener('DOMContentLoaded', function () {
     form.currentUserId.value = items.currentUserId || '';
     form.userAuthKey.value = items.userAuthKey || '';
     form.enableRunLocally.checked = items.enableRunLocallyForTcRuns;
+    form.vscodeWebsocketPort.value = items.vscodeWebsocketPort || 53333;
+    form.mcpWebsocketPort.value = items.mcpWebsocketPort || 43449;
   });
 
   // Save settings with validation
@@ -51,6 +55,8 @@ document.addEventListener('DOMContentLoaded', function () {
       currentUserId: currentUserId,
       userAuthKey: userAuthKey,
       enableRunLocallyForTcRuns: form.enableRunLocally.checked,
+      vscodeWebsocketPort: Number(form.vscodeWebsocketPort.value) || 53333,
+      mcpWebsocketPort: Number(form.mcpWebsocketPort.value) || 43449,
     }, function () {
       alert('Settings saved');
     });

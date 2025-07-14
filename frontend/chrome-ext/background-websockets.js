@@ -1,7 +1,6 @@
 // background-websockets.js
 // Uses global mcpConnected and notifyStatus from background.js
 
-const MCP_WS_URL = "ws://localhost:43449/ws";
 let mcpSocket = null;
 // Do NOT declare mcpConnected or notifyStatus here
 
@@ -82,66 +81,69 @@ async function handleGetLLMFriendlyDOM(ws, message) {
 // --- WebSocket connection logic ---
 
 function connectMCP() {
-    console.log("[MCP] connectMCP called");
-    console.log("[MCP] Attempting to connect to MCP server at ws://localhost:43449/ws");
-    mcpSocket = new WebSocket(MCP_WS_URL);
+    chrome.storage.sync.get(['mcpWebsocketPort'], function(items) {
+        const port = items.mcpWebsocketPort || 43449;
+        const MCP_WS_URL = `ws://localhost:${port}/ws`;
+        console.log(`[MCP] Attempting to connect to MCP server at ${MCP_WS_URL}`);
+        mcpSocket = new WebSocket(MCP_WS_URL);
 
-    mcpSocket.onopen = () => {
-        self.mcpConnected = true;
-        console.log("[MCP] Connected to MCP server, mcpConnected now:", self.mcpConnected);
-        self.notifyStatus();
-    };
+        mcpSocket.onopen = () => {
+            self.mcpConnected = true;
+            console.log("[MCP] Connected to MCP server, mcpConnected now:", self.mcpConnected);
+            self.notifyStatus();
+        };
 
-    mcpSocket.onclose = (event) => {
-        self.mcpConnected = false;
-        console.warn("[MCP] Disconnected from MCP server", event);
-        self.notifyStatus();
-        setTimeout(connectMCP, 3000);
-    };
+        mcpSocket.onclose = (event) => {
+            self.mcpConnected = false;
+            console.warn("[MCP] Disconnected from MCP server", event);
+            self.notifyStatus();
+            setTimeout(connectMCP, 3000);
+        };
 
-    mcpSocket.onerror = (e) => {
-        self.mcpConnected = false;
-        console.error("[MCP] MCP WebSocket error", e);
-        self.notifyStatus();
-    };
+        mcpSocket.onerror = (e) => {
+            self.mcpConnected = false;
+            console.error("[MCP] MCP WebSocket error", e);
+            self.notifyStatus();
+        };
 
-    mcpSocket.onmessage = async (event) => {
-        console.log("[MCP] Message received from MCP server:", event.data);
-        let msg;
-        try {
-            msg = JSON.parse(event.data);
-        } catch (e) {
-            console.error("[MCP] Invalid JSON from MCP:", event.data);
-            return;
-        }
-        if (!msg.type || !msg.request_id) {
-            console.error("[MCP] Invalid message format", msg);
-            return;
-        }
-        const handler = mcpHandlers[msg.type];
-        if (handler) {
+        mcpSocket.onmessage = async (event) => {
+            console.log("[MCP] Message received from MCP server:", event.data);
+            let msg;
             try {
-                console.log(`[MCP] Dispatching handler for type: ${msg.type}`);
-                const response = await handler(mcpSocket, msg);
-                if (response && mcpSocket.readyState === WebSocket.OPEN) {
-                    // Always include type and request_id in the response
-                    const responseWithMeta = {
-                        ...response,
-                        type: msg.type,
-                        request_id: msg.request_id
-                    };
-                    mcpSocket.send(JSON.stringify(responseWithMeta));
-                    console.log(`[MCP] Sent response for type: ${msg.type}, request_id: ${msg.request_id}`);
-                } else {
-                    console.warn(`[MCP] No response sent for type: ${msg.type}, request_id: ${msg.request_id}`);
-                }
-            } catch (err) {
-                console.error(`[MCP] Handler error for type: ${msg.type}`, err);
+                msg = JSON.parse(event.data);
+            } catch (e) {
+                console.error("[MCP] Invalid JSON from MCP:", event.data);
+                return;
             }
-        } else {
-            console.warn("[MCP] No handler for MCP message type:", msg.type);
-        }
-    };
+            if (!msg.type || !msg.request_id) {
+                console.error("[MCP] Invalid message format", msg);
+                return;
+            }
+            const handler = mcpHandlers[msg.type];
+            if (handler) {
+                try {
+                    console.log(`[MCP] Dispatching handler for type: ${msg.type}`);
+                    const response = await handler(mcpSocket, msg);
+                    if (response && mcpSocket.readyState === WebSocket.OPEN) {
+                        // Always include type and request_id in the response
+                        const responseWithMeta = {
+                            ...response,
+                            type: msg.type,
+                            request_id: msg.request_id
+                        };
+                        mcpSocket.send(JSON.stringify(responseWithMeta));
+                        console.log(`[MCP] Sent response for type: ${msg.type}, request_id: ${msg.request_id}`);
+                    } else {
+                        console.warn(`[MCP] No response sent for type: ${msg.type}, request_id: ${msg.request_id}`);
+                    }
+                } catch (err) {
+                    console.error(`[MCP] Handler error for type: ${msg.type}`, err);
+                }
+            } else {
+                console.warn("[MCP] No handler for MCP message type:", msg.type);
+            }
+        };
+    });
 }
 
 // Do NOT call connectMCP() here. It is called from background.js after importScripts. 

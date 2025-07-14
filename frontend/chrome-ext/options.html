@@ -215,6 +215,14 @@
                         <input type="number" id="maxSessionDurationSecs" name="maxSessionDurationSecs" value="500">
                     </div>
                     <div class="form-group">
+                        <label for="vscodeWebsocketPort">VSCode WebSocket Port</label>
+                        <input type="number" id="vscodeWebsocketPort" name="vscodeWebsocketPort" value="53333" min="1" max="65535" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="mcpWebsocketPort">MCP WebSocket Port</label>
+                        <input type="number" id="mcpWebsocketPort" name="mcpWebsocketPort" value="43449" min="1" max="65535" step="1">
+                    </div>
+                    <div class="form-group">
                         <label id="enableRunLocallyContainer">
                             <input type="checkbox" id="enableRunLocally" name="enableRunLocally"> Enable running tests
                             locally in TestStudio

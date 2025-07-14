@@ -92,7 +92,7 @@ export const ScratchPad: React.FC<ScratchPadProps> = ({ onSelect, onDelete, task
             <Card
               key={task.creationTimestampMillis}
               size="small"
-              className="scratchpad-card"
+              className="scratchpad-card fade-in-slide-down"
               style={{
                 border: '2px dashed #e6c200',
                 borderRadius: 10,

@@ -66,22 +66,23 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
 
   const { vscodeConnected } = useConnectionManager();
 
-  // Fetch screen states on mount
-  useEffect(() => {
-    console.log('Fetching screen states...');
+  // Fetch screen states from server
+  const fetchScreenStates = () => {
     setLoading(true);
     getScreenStates()
       .then((data) => {
-        console.log('Screen states received:', data);
         setScreenStates(data.screenStates || []);
         setLoading(false);
-        // After screen states are loaded, fetch screen for current page and set selected screen
         fetchScreenForCurrentPage();
       })
       .catch((error) => {
-        console.error('Error fetching screen states:', error);
         setLoading(false);
       });
+  };
+
+  // Fetch screen states on mount
+  useEffect(() => {
+    fetchScreenStates();
   }, []);
 
   // Fetch team details on mount
@@ -369,7 +370,7 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
       ) : showMindMapUpdate.show ? (
         <>
           {showMindMapBuilder ? (
-                            <MindMapBuilder onDone={() => { setShowMindMapUpdate({ show: false }); setShowMindMapBuilder(false); setIsMindMapBuilding(false); }} />
+            <MindMapBuilder onDone={() => { setShowMindMapUpdate({ show: false }); setShowMindMapBuilder(false); setIsMindMapBuilding(false); }} />
           ) : (
             <MindMapUpdate
               initialScreen={showMindMapUpdate.initialScreen}
@@ -378,6 +379,7 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
                 setShowMindMapUpdate({ show: false });
                 setShowMindMapBuilder(false);
                 setIsMindMapBuilding(false);
+                fetchScreenStates();
               }}
               onContinue={(screen, state) => {
                 setShowMindMapUpdate({ show: false });
@@ -385,12 +387,11 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
                 setIsMindMapBuilding(false);
                 setSelectedScreen(screen);
                 setSelectedState(state);
+                fetchScreenStates();
               }}
               onStartBuilder={() => {
-                console.log('Start MindMap Builder clicked, setting showMindMapBuilder to true');
                 setShowMindMapBuilder(true);
                 setIsMindMapBuilding(true);
-                console.log('showMindMapBuilder state should now be true');
               }}
             />
           )}
@@ -523,7 +524,7 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
             onAddState={() => setShowMindMapUpdate({ show: true, initialScreen: selectedScreen })}
           />
           {/* Row 2: Search and Severity on same row */}
-          <Row gutter={8} style={{ marginBottom: 12 }}>
+          <Row gutter={8} style={{ marginBottom: 12 }} className="fade-in">
             <Col span={18}>
               <Input
                 placeholder="Search bug titles..."
@@ -610,7 +611,7 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
                 <Button
                   type="default"
                   size="small"
-                  className="secondary-button"
+                  className="fade-in secondary-button"
                   style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                   onClick={() => setAddingBug(true)}
                 >
@@ -622,7 +623,7 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
                 <Button
                   type="primary"
                   size="small"
-                  className="primary-button"
+                  className="fade-in primary-button"
                   style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                   onClick={handleShowAnalyzePanel}
                 >

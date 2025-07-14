@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "TestChimp - Generate UI & API Automation Tests From Session Recordings",
+  "name": "TestChimp - AI Co-Pilot for QA teams",
   "version": "0.52",
-  "description": "Capture UI + API activity during testing sessions. Easily convert them to automation tests. Export in any language!",
+  "description": "Visual vibe coding on the browser, Identify and track bugs, fix in one click, brainstorm test scenarios and more...",
   "permissions": [
     "activeTab",
     "storage",

@@ -9,7 +9,7 @@ chrome.runtime.onInstalled.addListener(() => {
     });
 
     // Check if currentUserId is empty, and set a default value if so
-    chrome.storage.sync.get(["currentUserId", "uriRegexToIntercept"], (result) => {
+    chrome.storage.sync.get(["currentUserId", "uriRegexToIntercept", "vscodeWebsocketPort", "mcpWebsocketPort"], (result) => {
         if (!result.currentUserId) {
             chrome.storage.sync.set({ "currentUserId": "default_tester@example.com" }, () => {
                 console.log("Set default currentUserId to 'default_tester@example.com'.");
@@ -18,6 +18,16 @@ chrome.runtime.onInstalled.addListener(() => {
         if (!result.uriRegexToIntercept) {
             chrome.storage.sync.set({ "uriRegexToIntercept": ".*" }, () => {
                 console.log("Set default uriRegexToIntercept to '.*'.");
+            });
+        }
+        if (!result.vscodeWebsocketPort) {
+            chrome.storage.sync.set({ vscodeWebsocketPort: 53333 }, () => {
+                console.log("Set default vscodeWebsocketPort to 53333.");
+            });
+        }
+        if (!result.mcpWebsocketPort) {
+            chrome.storage.sync.set({ mcpWebsocketPort: 43449 }, () => {
+                console.log("Set default mcpWebsocketPort to 43449.");
             });
         }
     });
@@ -1062,42 +1072,45 @@ self.notifyStatus = notifyStatus;
 let vscodeSocket = null;
 
 function connectVSCode() {
-    vscodeSocket = new WebSocket('ws://localhost:53333');
-    self.vscodeSocket = vscodeSocket; // Always update reference on (re)connect
-    vscodeSocket.onopen = () => {
-        self.vscodeConnected = true;
-        console.log('WebSocket connected to VSCode extension');
-        self.notifyStatus();
-    };
-    vscodeSocket.onclose = () => {
-        self.vscodeConnected = false;
-        console.log('WebSocket disconnected from VSCode extension');
-        self.notifyStatus();
-        setTimeout(connectVSCode, 3000);
-    };
-    vscodeSocket.onerror = (e) => {
-        self.vscodeConnected = false;
-        console.error('VSCode WebSocket error', e);
-        self.notifyStatus();
-    };
-    vscodeSocket.onmessage = (event) => {
-        try {
-            const data = JSON.parse(event.data);
-            if (data && data.type === 'ack_message') {
-                console.log('[background] Received ack_message from VS Code:', data);
-                chrome.runtime.sendMessage(data);
-                // Relay to all tabs (so sidebar receives it)
-                chrome.tabs.query({}, function(tabs) {
-                    for (let tab of tabs) {
-                        chrome.tabs.sendMessage(tab.id, data);
-                    }
-                });
+    chrome.storage.sync.get(['vscodeWebsocketPort'], function(items) {
+        const port = items.vscodeWebsocketPort || 53333;
+        vscodeSocket = new WebSocket('ws://localhost:' + port);
+        self.vscodeSocket = vscodeSocket; // Always update reference on (re)connect
+        vscodeSocket.onopen = () => {
+            self.vscodeConnected = true;
+            console.log('WebSocket connected to VSCode extension on port', port);
+            self.notifyStatus();
+        };
+        vscodeSocket.onclose = () => {
+            self.vscodeConnected = false;
+            console.log('WebSocket disconnected from VSCode extension');
+            self.notifyStatus();
+            setTimeout(connectVSCode, 3000);
+        };
+        vscodeSocket.onerror = (e) => {
+            self.vscodeConnected = false;
+            console.error('VSCode WebSocket error', e);
+            self.notifyStatus();
+        };
+        vscodeSocket.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data && data.type === 'ack_message') {
+                    console.log('[background] Received ack_message from VS Code:', data);
+                    chrome.runtime.sendMessage(data);
+                    // Relay to all tabs (so sidebar receives it)
+                    chrome.tabs.query({}, function(tabs) {
+                        for (let tab of tabs) {
+                            chrome.tabs.sendMessage(tab.id, data);
+                        }
+                    });
+                }
+                // handle other message types if needed
+            } catch (e) {
+                // handle parse error
             }
-            // handle other message types if needed
-        } catch (e) {
-            // handle parse error
-        }
-    };
+        };
+    });
 }
 
 // ... after connectMCP() ...

@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Select, Input, Spin, Row, Col, Typography, Button, Modal, Skeleton, message } from 'antd';
-import { PlusOutlined, BulbOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import { getScreenStates, getScreenForPage, listAgentTestScenarios, suggestTestScenarioDescription, upsertAgentTestScenario } from '../apiService';
 import { ScreenState } from '../datas';
 import { ScreenStates } from '../datas';
@@ -12,8 +12,6 @@ import { ScenarioDetailCard } from './ScenarioDetailCard';
 import { SuggestScenariosPanel } from './SuggestScenariosPanel';
 import { MindMapUpdate } from '../components/MindMapUpdate';
 
-import { InfoCircleOutlined } from '@ant-design/icons';
-import { Tooltip } from 'antd';
 import { MindMapBuilder } from '../components/MindMapBuilder';
 
 const { Text } = Typography;
@@ -48,8 +46,33 @@ export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding
   const [showMindMapBuilder, setShowMindMapBuilder] = useState(false);
   const [newlyAddedScenarios, setNewlyAddedScenarios] = useState<Set<string>>(new Set());
 
-  // Fetch screen states on mount
-  useEffect(() => {
+  const screenStatesRef = useRef<ScreenStates[]>([]);
+  useEffect(() => { screenStatesRef.current = screenStates; }, [screenStates]);
+
+  // Fetch screen for current page (no longer depends on screenStates)
+  const fetchScreenForCurrentPage = useCallback(() => {
+    const url = window.location.href;
+    setScreenForPageLoading(true);
+    getScreenForPage({ url })
+      .then((data) => {
+        if (data.screenName) {
+          setSelectedScreen(data.screenName);
+        } else if (screenStatesRef.current.length > 0) {
+          setSelectedScreen(screenStatesRef.current[0].screen);
+        } else {
+          setSelectedScreen(undefined);
+        }
+        setScreenForPageLoading(false);
+      })
+      .catch(() => {
+        if (screenStatesRef.current.length > 0) setSelectedScreen(screenStatesRef.current[0].screen);
+        else setSelectedScreen(undefined);
+        setScreenForPageLoading(false);
+      });
+  }, []);
+
+  // Fetch screen states from server
+  const fetchScreenStates = useCallback(() => {
     setInitLoading(true);
     getScreenStates()
       .then((data) => {
@@ -58,30 +81,12 @@ export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding
         fetchScreenForCurrentPage();
       })
       .catch(() => setInitLoading(false));
-  }, []);
+  }, [fetchScreenForCurrentPage]);
 
-  // Fetch screen for current page
-  const fetchScreenForCurrentPage = useCallback(() => {
-    const url = window.location.href;
-    setScreenForPageLoading(true);
-    getScreenForPage({ url })
-      .then((data) => {
-        if (data.screenName) {
-          setSelectedScreen(data.screenName);
-        } else if (screenStates.length > 0) {
-          setSelectedScreen(screenStates[0].screen);
-        } else {
-          setSelectedScreen(undefined);
-        }
-        setScreenForPageLoading(false);
-      })
-      .catch(() => {
-        if (screenStates.length > 0) setSelectedScreen(screenStates[0].screen);
-        else setSelectedScreen(undefined);
-        setScreenForPageLoading(false);
-      });
-    // eslint-disable-next-line
-  }, [screenStates]);
+  // Fetch screen states on mount
+  useEffect(() => {
+    fetchScreenStates();
+  }, [fetchScreenStates]);
 
   // When selectedScreen changes, clear selectedState
   useEffect(() => {
@@ -285,6 +290,7 @@ export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding
                 setShowMindMapUpdate({ show: false });
                 setShowMindMapBuilder(false);
                 setIsMindMapBuilding(false);
+                fetchScreenStates();
               }}
               onContinue={(screen, state) => {
                 setShowMindMapUpdate({ show: false });
@@ -292,6 +298,7 @@ export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding
                 setIsMindMapBuilding(false);
                 setSelectedScreen(screen);
                 setSelectedState(state);
+                fetchScreenStates();
               }}
               onStartBuilder={() => {
                 console.log('Start MindMap Builder clicked, setting showMindMapBuilder to true');
@@ -321,6 +328,7 @@ export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding
               }}
             />
             <Button
+              className="fade-in"
               style={{ marginTop: 8, marginBottom: 8, marginRight: 16, float: 'right' }}
               onClick={handleAddCancel}
               size="small"
@@ -331,14 +339,16 @@ export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding
         </div>
       ) : expandedScenario ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
-          <ScenarioDetailCard
-            scenario={expandedScenario}
-            onClose={() => setExpandedScenario(null)}
-            cardWidth="100%"
-            selectedScreen={selectedScreen}
-            selectedState={selectedState}
-            onUpdated={handleScenarioLocallyUpdated}
-          />
+          <div className="fade-in">
+            <ScenarioDetailCard
+              scenario={expandedScenario}
+              onClose={() => setExpandedScenario(null)}
+              cardWidth="100%"
+              selectedScreen={selectedScreen}
+              selectedState={selectedState}
+              onUpdated={handleScenarioLocallyUpdated}
+            />
+          </div>
         </div>
       ) : (
         <>
@@ -352,7 +362,7 @@ export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding
             onAddState={() => setShowMindMapUpdate({ show: true, initialScreen: selectedScreen })}
           />
           {/* Row 2: Search and Priority on same row */}
-          <Row gutter={8} style={{ marginBottom: 12 }}>
+          <Row gutter={8} style={{ marginBottom: 12 }} className="fade-in">
             <Col span={18}>
               <Input
                 placeholder="Search scenario titles..."
@@ -405,7 +415,7 @@ export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding
                       onUpdated={handleScenarioLocallyUpdated}
                       onAction={handleScenarioAction}
                       onClick={() => setExpandedScenario(scenario)}
-                      className={scenario.id ? newlyAddedScenarios.has(scenario.id) ? 'newly-added-scenario fade-in-item' : 'fade-in-item' : 'fade-in-item'}
+                      className={scenario.id ? (newlyAddedScenarios.has(scenario.id) ? 'newly-added-scenario fade-in-slide-down' : 'fade-in-slide-down') : 'fade-in-slide-down'}
                     />
                   ))}
                 </div>
@@ -430,9 +440,9 @@ export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding
             <Row gutter={8} style={{ margin: 0 }}>
               <Col span={12}>
                 <Button
+                  className="fade-in secondary-button"
                   type="default"
                   size="small"
-                  className="secondary-button"
                   style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginLeft: 8, marginRight: 4 }}
                   onClick={handleAddScenario}
                 >
@@ -442,9 +452,9 @@ export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding
               </Col>
               <Col span={12}>
                 <Button
+                 className="fade-in primary-button"
                   type="primary"
                   size="small"
-                  className="primary-button"
                   style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, paddingLeft: 12, paddingRight: 12, marginLeft: 4, marginRight: 8 }}
                   onClick={() => setSuggestPanelOpen(true)}
                 >

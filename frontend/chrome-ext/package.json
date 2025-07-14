@@ -13,9 +13,10 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "Full Stack",
-    "Record",
-    "Replay",
+    "QA Co-Pilot",
+    "Cursor for QA",
+    "Vibe Coding",
+    "Bug Tracking",
     "Test Automation"
   ],
   "author": "Aware Labs",
