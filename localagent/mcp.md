@@ -42,7 +42,7 @@ Prerequisites: Python 3.11 or above required.
 1. Install testchimp-local python package
 
 ```
-pip install testchimp-local
+pip install --upgrade testchimp-local
 ```
 
 2. Configure environment variables
