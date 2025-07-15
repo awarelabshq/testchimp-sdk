@@ -82,6 +82,6 @@ That's it! Now Cursor can interact with it to query for your runtime behaviour f
 
 ## More Resources
 
-- [TestChimp VSCode extension](https://github.com/awarelabshq/testchimp-sdk/tree/main/frontend/vs-ext): For bridging communication between the chrome extension as Cursor IDE.
+- [TestChimp VSCode extension](https://github.com/awarelabshq/testchimp-sdk/tree/main/frontend/vs-ext): For bridging communication between the chrome extension and your IDE.
 - [babel-plugin-source-mapper](https://github.com/awarelabshq/testchimp-sdk/tree/main/builders/babel): A Babel plugin that instruments your built artifacts with source file metadata, enabling TestChimp Extension to provide richer context to the IDE (to instruct exactly which files are related to the current components on the screen).
   
