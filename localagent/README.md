@@ -26,6 +26,9 @@ When you trigger an exploration from testchimp site, the agent runs on TestChimp
 - When your site under test is not open to public internet access (behind firewalls etc.)
 - For human-in-the-loop hybrid exploration with the agent. 
 
+The Local Agent also doubles up as an MCP server that your MCP-compliant IDEs (such as [Cursor](https://cursor.so)) can collaborate with to get access to your webapps' runtime behaviour context. 
+For more information on setting up the local agent server as an MCP server, refer [here](https://github.com/awarelabshq/testchimp-sdk/blob/main/localagent/mcp.md)
+
 ## Prerequisites
 
 Python 3.11 or above should be installed.
@@ -77,9 +80,9 @@ Here is a minimal config file to get started:
 
 Following environment variables are used for authenticating your local agent client and syncing with TestChimp platform:
 
-- TESTCHIMP_PAT: Sign in to your TestChimp account. Go to user settings (click on your name at side bar bottom). Copy Personal Access Token value.
-- TESTCHIMP_PROJECT_ID: The project id for which the results will be synced. Go to project settings -> General. Copy project id.
-- TESTCHIMP_EMAIL: Email address used for signing-up with TestChimp
+- `TESTCHIMP_PAT`: Sign in to your TestChimp account. Go to user settings (click on your name at side bar bottom). Copy Personal Access Token value.
+- `TESTCHIMP_PROJECT_ID`: The project id for which the results will be synced. Go to project settings -> General. Copy project id.
+- `TESTCHIMP_EMAIL`: Email address used for signing-up with TestChimp
 
 3. Run
 
