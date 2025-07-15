@@ -27,7 +27,7 @@ When you trigger an exploration from testchimp site, the agent runs on TestChimp
 - For human-in-the-loop hybrid exploration with the agent. 
 
 The Local Agent also doubles up as an MCP server that your MCP-compliant IDEs (such as [Cursor](https://cursor.so)) can collaborate with to get access to your webapps' runtime behaviour context. 
-For more information on setting up the local agent server as an MCP server, refer [here](https://github.com/awarelabshq/testchimp-sdk/blob/main/localagent/mcp.md)
+For more information on setting up the local agent server as an MCP server, refer [here](https://github.com/awarelabshq/testchimp-sdk/blob/main/localagent/mcp.md).
 
 ## Prerequisites
 
