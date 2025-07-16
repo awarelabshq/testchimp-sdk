@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Tag, Card, Typography, Tooltip, Dropdown, Menu, Button } from 'antd';
 import { TestPriority, AgentTestScenarioWithStatus } from '../datas';
 import { ScenarioDetailCard } from './ScenarioDetailCard';
@@ -25,10 +25,15 @@ const PRIORITY_COLORS: Record<TestPriority, string> = {
   [TestPriority.UNKNOWN_PRIORITY]: '#888',
 };
 
+type ScenarioCardAction =
+  | { type: 'delete'; id: string }
+  | { type: 'markTested'; id: string; result?: any; resultHistory?: any[] }
+  | { type: 'promptCopiedToIde'; id: string; messageId?: string };
+
 export const ScenarioCard = ({ scenario, onUpdated, onAction, titleWrap, onClick, isSuggestion, selectedScreen, selectedState, onScenarioChange, className }: {
   scenario: AgentTestScenarioWithStatus,
   onUpdated?: (updatedScenario?: AgentTestScenarioWithStatus) => void,
-  onAction?: (action: any) => void,
+  onAction?: (action: ScenarioCardAction) => void,
   titleWrap?: boolean,
   onClick?: () => void,
   isSuggestion?: boolean,
@@ -43,6 +48,25 @@ export const ScenarioCard = ({ scenario, onUpdated, onAction, titleWrap, onClick
   const [testMenuVisible, setTestMenuVisible] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showCopiedNotification, setShowCopiedNotification] = useState(false);
+  const [lastSentMessageId, setLastSentMessageId] = useState<string | null>(null);
+  const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    function handleAck(event: MessageEvent) {
+      if (event.data && event.data.type === 'ack_message' && event.data.messageId && event.data.messageId === lastSentMessageId) {
+        setShowCopiedNotification(true);
+        if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
+        notificationTimeoutRef.current = setTimeout(() => setShowCopiedNotification(false), 3000);
+      }
+    }
+    window.addEventListener('message', handleAck);
+    return () => {
+      window.removeEventListener('message', handleAck);
+      if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
+    };
+  }, [lastSentMessageId]);
+
   const priority = scenario.scenario?.priority ?? TestPriority.MEDIUM_PRIORITY;
   const showPriority = [TestPriority.HIGHEST_PRIORITY, TestPriority.HIGH_PRIORITY, TestPriority.MEDIUM_PRIORITY].includes(priority);
   const tagColor = PRIORITY_COLORS[priority] || '#888';
@@ -133,42 +157,50 @@ export const ScenarioCard = ({ scenario, onUpdated, onAction, titleWrap, onClick
     >
       {/* Title row with action buttons overlay */}
       <div style={{ position: 'relative', marginBottom: 8, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          {showPriority && (
-            <Tag color={tagColor} style={{ minWidth: 28, height: 18, fontSize: 10, fontWeight: 700, padding: '0 6px', textAlign: 'center', display: 'flex', alignItems: 'center', border: 'none', lineHeight: '16px', color: '#fff' }}>{tagLabel}</Tag>
-          )}
-          <Text
-            strong
-            style={{
-              color: '#fff',
-              fontSize: 13,
-              display: titleWrap ? 'block' : '-webkit-box',
-              WebkitLineClamp: titleWrap ? undefined : 2,
-              WebkitBoxOrient: titleWrap ? undefined : 'vertical',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              lineHeight: '16px',
-              width: '100%',
-              minWidth: 0,
-              flex: 1,
-              whiteSpace: titleWrap ? 'pre-line' : 'nowrap',
-              maxWidth: 'calc(100% - 28px)', // leave space for icon
-              wordBreak: titleWrap ? 'break-word' : undefined,
-              overflowWrap: titleWrap ? 'break-word' : undefined,
-            }}
-          >
-            {scenario.scenario?.title}
-          </Text>
-          {!isSuggestion &&
-          <span style={{ marginLeft: 8, flexShrink: 0 }}>{testResultIcon}</span>
-}
-        </div>
+        {showCopiedNotification ? (
+          <div className="scenario-notification" style={{ marginBottom: 4 }}>Prompt copied to IDE</div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            {showPriority && (
+              <Tag color={tagColor} style={{ minWidth: 28, height: 18, fontSize: 10, fontWeight: 700, padding: '0 6px', textAlign: 'center', display: 'flex', alignItems: 'center', border: 'none', lineHeight: '16px', color: '#fff' }}>{tagLabel}</Tag>
+            )}
+            <Text
+              strong
+              style={{
+                color: '#fff',
+                fontSize: 13,
+                display: titleWrap ? 'block' : '-webkit-box',
+                WebkitLineClamp: titleWrap ? undefined : 2,
+                WebkitBoxOrient: titleWrap ? undefined : 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                lineHeight: '16px',
+                width: '100%',
+                minWidth: 0,
+                flex: 1,
+                whiteSpace: titleWrap ? 'pre-line' : 'nowrap',
+                maxWidth: 'calc(100% - 28px)', // leave space for icon
+                wordBreak: titleWrap ? 'break-word' : undefined,
+                overflowWrap: titleWrap ? 'break-word' : undefined,
+              }}
+            >
+              {scenario.scenario?.title}
+            </Text>
+            {!isSuggestion &&
+            <span style={{ marginLeft: 8, flexShrink: 0 }}>{testResultIcon}</span>
+            }
+          </div>
+        )}
         {/* Action buttons overlay - only on hover, shared component */}
         <ScenarioActionPanel
           scenario={scenario}
           hovered={hovered}
           showClose={false}
           onAction={action => {
+            if (action && action.type === 'promptCopiedToIde') {
+              const msgId = (action as { messageId?: string }).messageId;
+              if (msgId) setLastSentMessageId(msgId);
+            }
             if (onUpdated) onUpdated();
             if (onAction) onAction(action);
           }}

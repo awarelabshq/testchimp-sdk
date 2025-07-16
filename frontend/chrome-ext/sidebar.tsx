@@ -15,8 +15,7 @@ import { ScenariosTab } from './scenarios/ScenariosTab';
 import { DevTab } from './dev';
 import { simplifyDOMForLLM } from './html_utils';
 import { getMindMapStatus, MindMapStatus } from './apiService';
-
-const BASE_URL = 'https://featureservice-staging.testchimp.io';
+import { BASE_URL } from './config';
 
 export interface ListUserProjectConfigsResponse {
     configs: ExtProjectConfig[];

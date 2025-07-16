@@ -7,13 +7,18 @@ import { upsertAgentTestScenario, insertTestScenarioResult } from '../apiService
 import { formatScenarioScriptForIde } from './scenarioUtils';
 import { useConnectionManager } from '../connectionManager';
 
+type ScenarioActionPanelAction =
+  | { type: 'delete'; id: string }
+  | { type: 'markTested'; id: string; result?: ScenarioTestResult; resultHistory?: any[] }
+  | { type: 'promptCopiedToIde'; id: string; messageId?: string };
+
 interface ScenarioActionPanelProps {
   scenario: AgentTestScenarioWithStatus;
   onClose?: () => void;
   showClose?: boolean;
   style?: React.CSSProperties;
   hovered?: boolean;
-  onAction?: (action: { type: 'delete' | 'markTested' | 'promptCopiedToIde', id: string, result?: ScenarioTestResult, resultHistory?: any[] }) => void;
+  onAction?: (action: ScenarioActionPanelAction) => void;
   isSuggestion?: boolean;
   hideActions?: boolean;
 }
@@ -123,15 +128,9 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
   function handleGenerateScript() {
     if (!scenario.scenario?.steps?.length) return;
     const prompt = formatScenarioScriptForIde(scenario);
-    chrome.runtime.sendMessage({ type: 'send_to_vscode', payload: { prompt } });
-    // Listen for ack_message once
-    function handleAck(event: MessageEvent) {
-      if (event.data && event.data.type === 'ack_message') {
-        if (onAction) onAction({ type: 'promptCopiedToIde', id: scenario.id || '' });
-        window.removeEventListener('message', handleAck);
-      }
-    }
-    window.addEventListener('message', handleAck);
+    const messageId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+    chrome.runtime.sendMessage({ type: 'send_to_vscode', payload: { prompt, messageId } });
+    if (onAction) onAction({ type: 'promptCopiedToIde', id: scenario.id || '', messageId });
   }
 
   return (

@@ -1,5 +1,5 @@
 // API service for BugsTab and related features
-export const BASE_URL = 'https://featureservice-staging.testchimp.io';
+import { BASE_URL } from './config';
 
 // Remove enums and data interfaces that are not request/response types from this file.
 // Only keep request/response interfaces here, and import all data types from datas.ts instead.
@@ -238,6 +238,10 @@ import {
   OrgPlan,
   UpsertMindMapScreenStateRequest,
   UpsertMindMapScreenStateResponse,
+  JiraIssueType,
+  JiraIssue,
+  FetchJiraIssuesFreetextRequest,
+  FetchJiraIssuesFreetextResponse,
 } from './datas';
 import { captureScreenshotWithSidebarHiding } from './screenshotUtils';
 
@@ -655,5 +659,21 @@ export async function getMindMapStatus(): Promise<GetMindMapStatusResponse> {
   return {
     status: typeof data.status === 'number' ? data.status : MindMapStatus.UNKNOWN_MINDMAP_STATUS,
   };
+}
+
+/**
+ * Fetch Jira issues using free-text search.
+ */
+export async function fetchJiraIssuesFreetext(req: FetchJiraIssuesFreetextRequest): Promise<FetchJiraIssuesFreetextResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/ext/fetch_jira_issues`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(req),
+  });
+  return await res.json();
 }
 

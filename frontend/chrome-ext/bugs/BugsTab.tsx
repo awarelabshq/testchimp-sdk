@@ -43,7 +43,6 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
   const [actionLoading, setActionLoading] = useState<{ [bugId: string]: boolean }>({});
   const [addingBug, setAddingBug] = useState(false);
   const [addBugElement, setAddBugElement] = useState<{ element: HTMLElement, querySelector: string } | null>(null);
-  const [showCopiedNotification, setShowCopiedNotification] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [showAnalyzePanel, setShowAnalyzePanel] = useState(false);
   const [analyzeSources, setAnalyzeSources] = useState({ dom: true, console: true, network: true, screenshot: false });
@@ -206,18 +205,6 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
     }
     setFilteredBugs(filtered);
   }, [bugs, searchText, selectedSeverity]);
-
-  // Listen for ack messages from the IDE
-  useEffect(() => {
-    function handleAck(event: MessageEvent) {
-      if (event.data && event.data.type === 'ack_message') {
-        setShowCopiedNotification(true);
-        setTimeout(() => setShowCopiedNotification(false), 3000);
-      }
-    }
-    window.addEventListener('message', handleAck);
-    return () => window.removeEventListener('message', handleAck);
-  }, []);
 
   // Handler to show notification
   const handleBugUpdated = () => {
@@ -548,11 +535,6 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
           {notification && (
             <div className="scenario-notification">
               {notification}
-            </div>
-          )}
-          {showCopiedNotification && (
-            <div className="scenario-notification">
-              Prompt copied to IDE
             </div>
           )}
           {getAnalyzeNotification()}

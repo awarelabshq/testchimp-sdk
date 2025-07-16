@@ -362,3 +362,38 @@ export interface AddEnvironmentRequest {
 export interface AddEnvironmentResponse {
   // Empty response
 } 
+
+// --- Jira Integration Types ---
+
+export enum JiraIssueType {
+  UNKNOWN_JIRA_TYPE = 0,
+  EPIC_JIRA_TYPE = 1,
+  STORY_JIRA_TYPE = 2,
+  BUG_JIRA_TYPE = 3,
+  TASK_JIRA_TYPE = 4,
+  SUBTASK_JIRA_TYPE = 5,
+  TEST_JIRA_TYPE = 6,
+}
+
+export interface JiraIssue {
+  issueId: string;
+  issueKey: string;
+  summary: string;
+  description: string;
+  issueType: string;
+  status: string;
+  assignee: string;
+  priority: string;
+  createdAt: string;
+}
+
+export interface FetchJiraIssuesFreetextRequest {
+  query?: string;
+  issueType?: JiraIssueType;
+  includeDescription?: boolean;
+  assignee?:string;
+}
+
+export interface FetchJiraIssuesFreetextResponse {
+  issues: JiraIssue[];
+} 

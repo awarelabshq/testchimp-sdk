@@ -151,8 +151,6 @@ export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding
         s.id === action.id ? { ...s, resultHistory: action.resultHistory } : s
       ));
       setNotification('Scenario marked as tested');
-    } else if (action.type === 'promptCopiedToIde') {
-      setNotification('Prompt copied to IDE');
     }
     setTimeout(() => setNotification(null), 2500);
   }, []);

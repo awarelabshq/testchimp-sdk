@@ -209,7 +209,7 @@
 
 .scenario-notification {
   background: #232323;
-  color: #bbb;
+  color: #72BDA3;
   text-align: center;
   font-size: 12px;
   padding: 2px 0;
@@ -356,4 +356,37 @@
 .pre-animate-text {
   opacity: 0;
   transform: translateY(-20px);
+}
+
+.jira-link-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  color: #bbb !important;
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 400;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: none;
+  min-height: 0;
+  min-width: 0;
+  height: auto;
+  line-height: 1.2;
+  transition: color 0.15s;
+}
+.jira-link-btn:hover {
+  color: #bbb;
+  text-decoration: underline;
+}
+.jira-link-btn .anticon {
+  font-size: 14px;
+  margin-left: 4px;
+  color: #bbb;
 }

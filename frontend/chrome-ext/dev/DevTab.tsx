@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button, Input, Tooltip, Typography, Dropdown, Menu, Select, Spin, Collapse } from 'antd';
-import { PlusOutlined, SelectOutlined, BorderOutlined, DragOutlined, RightSquareOutlined, ReloadOutlined } from '@ant-design/icons';
-import { UserInstructionMessage, ContextElementType, ContextElement, UIElementContext, BoundingBoxContext } from '../datas';
+import { PlusOutlined, SelectOutlined, BorderOutlined, DragOutlined, RightSquareOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { UserInstructionMessage, ContextElementType, ContextElement, UIElementContext, BoundingBoxContext, OrgTier, OrgPlan } from '../datas';
 import { addOrUpdateContextElements, removeContextElementById, getBasicInfo, getBasicInfoForBoxElements } from '../contextStore';
 import { ScratchPad, LocalTask } from './ScratchPad';
 import { getFilePathsFromDOM } from '../domUtils';
 import { getScreenForPage } from '../apiService';
 import { getScreenStates } from '../apiService';
 import { useConnectionManager } from '../connectionManager';
+import JiraIssueFinder from '../components/JiraIssueFinder';
 // Remove: import { useScreenInfoSync } from './useScreenInfoSync';
 
 const { Text } = Typography;
@@ -117,7 +118,8 @@ export const DevTab = () => {
     const [contextTags, setContextTags] = useState<ContextTag[]>([]);
     const [userMessage, setUserMessage] = useState('');
     const [notification, setNotification] = useState('');
-    const [showCopiedNotification, setShowCopiedNotification] = useState(false); // NEW
+    const [showCopiedNotification, setShowCopiedNotification] = useState(false);
+    const [copiedTimeoutRef, setCopiedTimeoutRef] = useState<NodeJS.Timeout | null>(null);
     const [sending, setSending] = useState(false);
     const [currentMode, setCurrentMode] = useState<'normal' | 'select' | 'box'>('normal');
     const [contextMenuOpen, setContextMenuOpen] = useState(false);
@@ -138,6 +140,20 @@ export const DevTab = () => {
     const [scratchPadMaxHeight, setScratchPadMaxHeight] = useState<string>('calc(100vh - 320px)');
     const stickyRef = useRef<HTMLDivElement>(null);
     const [scratchPadHeight, setScratchPadHeight] = useState(400);
+
+    // Add state for Jira integration UI
+    const [showJiraFinder, setShowJiraFinder] = useState(false);
+    const [showJiraUpgrade, setShowJiraUpgrade] = useState(false);
+    const [teamTier, setTeamTier] = useState<OrgTier>(OrgTier.UNKNOWN_ORG_TIER);
+    const [teamPlan, setTeamPlan] = useState<OrgPlan>(OrgPlan.UNKNOWN_PLAN);
+
+    // On mount, fetch teamTier and teamPlan from chrome.storage.local
+    useEffect(() => {
+      chrome.storage.local.get(['teamTier', 'teamPlan'], (data) => {
+        setTeamTier(data.teamTier);
+        setTeamPlan(data.teamPlan);
+      });
+    }, []);
 
     const updateScratchPadHeight = () => {
         const stickyHeight = stickyRef.current?.offsetHeight || 0;
@@ -287,19 +303,24 @@ export const DevTab = () => {
         // This useEffect is now handled by useVSCodeConnectionStatus
     }, []);
 
-    // Listen for ack_message events from the IDE
+    // Listen for ack_message from IDE to show copied notification and clear loading
     useEffect(() => {
         function handleAck(event: MessageEvent) {
             if (event.data && event.data.type === 'ack_message') {
-                setShowCopiedNotification(true); // NEW
-                setTimeout(() => setShowCopiedNotification(false), 3000); // NEW
+                setShowCopiedNotification(true);
                 setSending(false);
-                setUserMessage(''); // Clear the prompt text after receiving ack
+                setUserMessage('');
+                if (copiedTimeoutRef) clearTimeout(copiedTimeoutRef);
+                const timeout = setTimeout(() => setShowCopiedNotification(false), 2000);
+                setCopiedTimeoutRef(timeout);
             }
         }
         window.addEventListener('message', handleAck);
-        return () => window.removeEventListener('message', handleAck);
-    }, []);
+        return () => {
+            window.removeEventListener('message', handleAck);
+            if (copiedTimeoutRef) clearTimeout(copiedTimeoutRef);
+        };
+    }, [copiedTimeoutRef]);
 
     // Dropdown menu for context add
     const contextMenu = (
@@ -454,263 +475,313 @@ export const DevTab = () => {
         });
     }, []);
 
+    // Handler for Load from Jira button
+    const handleLoadFromJira = () => {
+        // Gating logic: block if not TEAM_TIER (2) or if plan is not TEAM_PLAN
+        // Note: chrome.storage.local stores enums as numbers (for OrgTier) and strings (for OrgPlan)
+        if (Number(teamTier) !== OrgTier.PRO_TIER || teamPlan !== OrgPlan.TEAM_PLAN) {
+            setShowJiraUpgrade(true);
+        } else {
+            setShowJiraFinder(true);
+        }
+    };
+
+    // Handler for Jira upgrade cancel
+    const handleJiraUpgradeCancel = () => setShowJiraUpgrade(false);
+    // Handler for Jira finder cancel
+    const handleJiraFinderCancel = () => setShowJiraFinder(false);
+
+    // Handler for Jira issue select
+    const handleJiraIssueSelect = (title: string) => {
+        setUserMessage(title);
+        setShowJiraFinder(false);
+    };
+
     // Layout: Screen selector at top, ScratchPad grows to fill space, bottom sticky area contains status, button panel, prompt, context
     return (
-        <div style={{ height: '100%', background: '#181818' }}>
-            {/* Collapse with ScratchPad */}
-            <Collapse
-                activeKey={collapseActiveKey}
-                onChange={keys => setCollapseActiveKey(keys as string[])}
-                style={{ height: 'calc(100% - 320px)', overflow: 'hidden', background: 'none', border: 'none' }}
-                expandIconPosition="start"
-            >
-                <Collapse.Panel
-                    header={<span style={{ fontWeight: 500, color: '#aaa', fontSize: 13, letterSpacing: 0.01, padding: 0, margin: 0 }}>Scratch Pad</span>}
-                    key="1"
-                    style={{ height: '100%', background: '#181818', border: 'none', borderRadius: 8, marginBottom: 4, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: 0 }}
-                >
-                    {/* Screen selector as thin row at top of ScratchPad */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 4px 0', borderBottom: '1px solid #222', margin: 0 }}>
-                        <span style={{ fontSize: 12, color: '#aaa', fontWeight: 500, letterSpacing: 0.01, marginRight: 8 }}>Screen</span>
-                        <Select
-                            style={{ minWidth: 140, flex: 1, fontSize: 12 }}
-                            placeholder="Select screen"
-                            value={selectedScreen}
-                            onChange={val => setSelectedScreen(val)}
-                            loading={screenLoading}
-                            options={screenStates.filter(s => !!s.screen).map(s => ({ label: String(s.screen), value: String(s.screen) }))}
-                            showSearch
-                            optionFilterProp="label"
-                            filterOption={(input, option) => (option?.label as string).toLowerCase().includes(input.toLowerCase())}
-                            size="small"
-                        />
-                        <Button
-                            icon={<ReloadOutlined style={{ fontSize: 12 }} />}
-                            onClick={() => {
-                                setScreenLoading(true);
-                                const url = window.location.href;
-                                getScreenForPage({ url }).then(res => {
-                                    setCurrentScreenName(res.screenName);
-                                    setCurrentRelativeUrl(res.normalizedUrl || url);
-                                    setSelectedScreen(res.screenName || (screenStates && screenStates[0]?.screen) || undefined);
-                                    setScreenLoading(false);
-                                }).catch(() => {
-                                    setScreenLoading(false);
-                                });
-                            }}
-                            loading={screenLoading}
-                            style={{ marginLeft: 4, background: 'none', border: 'none', color: '#aaa', fontSize: 12, boxShadow: 'none', padding: 0, width: 20, height: 20, minWidth: 20 }}
-                        />
-                    </div>
-                    <div style={{ height: scratchPadHeight, overflowY: 'auto', paddingBottom: 330, background: '#181818', paddingLeft: 4, paddingRight: 4 }}>
-                        <ScratchPad
-                            onSelect={handleScratchPadSelect}
-                            onDelete={handleScratchPadDelete}
-                            tasks={scratchPadTasks}
-                            setTasks={setScratchPadTasks}
-                            currentScreenName={selectedScreen}
-                            currentRelativeUrl={currentRelativeUrl}
-                            onAdd={handleScratchPadAdd}
-                        />
-                    </div>
-                </Collapse.Panel>
-            </Collapse>
-            {/* Sticky bottom area */}
-            <div ref={stickyRef} style={{
-                position: 'fixed',
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 100,
-                height: 320,
-                background: '#181818',
-                boxShadow: '0 -2px 12px rgba(0,0,0,0.12)',
-                padding: '0 4px 0 4px',
-                borderTop: '1px solid #222',
-                display: 'flex',
-                flexDirection: 'column',
-            }}>
-                {/* Notification row (Prompt copied to IDE) */}
-                {showCopiedNotification && (
-                    <div className="scenario-notification" style={{ margin: '8px 0' }}>
-                        Prompt copied to IDE
-                    </div>
-                )}
-                {/* Context window */}
-                <div className="tc-section fade-in" style={{ minHeight: 120, marginTop: 0, marginBottom: 4, padding: 8, display: 'flex', flexDirection: 'column', background: '#181818', border: '1.5px solid #333', borderRadius: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <div>
-                            <div className="tc-context-title">Add Context</div>
-                            {contextTags.length === 0 && (
-                                <div className="tc-context-subheading">Elements or areas to help the IDE understand your intent</div>
-                            )}
-                        </div>
-                        {contextTags.length > 0 && (
-                            <button
-                                onClick={() => {
-                                    // Remove all from contextStore
-                                    contextTags.forEach(tag => { if (tag.id) removeContextElementById(tag.id); });
-                                    setContextTags([]);
-                                }}
-                                style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: '#aaa',
-                                    fontSize: 12,
-                                    textDecoration: 'underline',
-                                    cursor: 'pointer',
-                                    padding: 0,
-                                    margin: 0,
-                                    fontWeight: 400
-                                }}
-                            >
-                                Clear
-                            </button>
-                        )}
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-                        {contextTags.map((tag, idx) => (
-                            <Tooltip key={idx} title={tag.type === ContextElementType.UIElement ? 'Element Selector' : 'Bounding Box'}>
-                                <Button
-                                    type="default"
-                                    size="small"
-                                    style={{ padding: '0 8px', borderRadius: 4, height: 24, display: 'flex', alignItems: 'center', gap: 4 }}
-                                    onClick={() => {
-                                        // Remove from contextStore
-                                        if (tag.id) removeContextElementById(tag.id);
-                                        setContextTags(tags => tags.filter((_, i) => i !== idx));
-                                    }}
-                                >
-                                    {tag.type === ContextElementType.UIElement ? (
-                                        <>
-                                            <SelectOutlined style={{ fontSize: 14, marginRight: 2 }} />
-                                            {getElementLabel(tag)}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <BorderOutlined style={{ fontSize: 14, marginRight: 2 }} />
-                                            {formatBoundingBoxValue(tag.value as { xPct: number; yPct: number; wPct: number; hPct: number })}
-                                        </>
-                                    )}
-                                    <span style={{ marginLeft: 4, color: '#ff4d4f' }}>×</span>
-                                </Button>
-                            </Tooltip>
-                        ))}
-                        <Dropdown overlay={contextMenu} trigger={['click']} open={contextMenuOpen} onOpenChange={setContextMenuOpen}>
-                            <Button
-                                icon={<PlusOutlined style={{ fontSize: 16 }} />}
-                                size="small"
-                                style={{ borderRadius: 4, height: 24, padding: 0, width: 28, minWidth: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            />
-                        </Dropdown>
-                    </div>
-                </div>
-                {/* Prompt box */}
-                <div className={"fade-in"} style={{ display: 'flex', flexDirection: 'column', minHeight: 0, background: '#181818', marginBottom: 0, padding: '0 4px', maxHeight: 100, overflowY: 'hidden' }}>
-                    <Input.TextArea
-                        value={userMessage}
-                        onChange={e => setUserMessage(e.target.value)}
-                        onKeyDown={e => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSend();
-                            }
-                        }}
-                        placeholder="Say the change you want to see..."
-                        autoSize={{ minRows: 6, maxRows: 12 }}
-                        style={{ backgroundColor: '#2a2a2a', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', resize: 'none', marginBottom: 8 }}
-                        disabled={sending}
-                    />
-                    {notification && (
-                        <div className="scenario-notification">
-                            {notification}
-                        </div>
-                    )}
-                </div>
-                {/* Button panel */}
-                <div className={"fade-in"} style={{ width: '100%', background: '#181818', display: 'flex', gap: 8, padding: '8px 4px 4px 4px', borderTop: '1px solid #222', marginTop: 4 }}>
-                    <div style={{ flex: 1 }}>
-                        <Tooltip title={!userMessage.trim() ? 'Prompt must be non-empty' : ''}>
-                            <Button
-                                onClick={handleSaveForLater}
-                                className="secondary-button"
-                                style={{ width: '100%', color: '#72BDA3', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                                disabled={sending || saveLoading || !userMessage.trim()}
-                                loading={saveLoading}
-                            >
-                                Save for  later
-                            </Button>
-                        </Tooltip>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                        <Tooltip
-                            title={!vscodeConnected ? 'VSCode extension must be installed and started.' : ''}
-                            placement="top"
-                            mouseEnterDelay={0.2}
+        <div style={{ height: '100%', background: '#181818', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div style={{ flex: 1, height:"100%", display: 'flex', flexDirection: 'column' }}>
+                {showJiraFinder ? (
+                    <JiraIssueFinder onSelect={handleJiraIssueSelect} onCancel={handleJiraFinderCancel} style={{ flex: 1, minHeight: 0, height: '100%', overflow: 'auto' }} />
+                ) : (
+                    <>
+                        {/* Collapse with ScratchPad */}
+                        <Collapse
+                            activeKey={collapseActiveKey}
+                            onChange={keys => setCollapseActiveKey(keys as string[])}
+                            style={{ height: 'calc(100% - 320px)', overflow: 'hidden', background: 'none', border: 'none' }}
+                            expandIconPosition="start"
                         >
-                            <span style={{ display: 'block' }}>
+                            <Collapse.Panel
+                                header={<span style={{ fontWeight: 500, color: '#aaa', fontSize: 13, letterSpacing: 0.01, padding: 0, margin: 0 }}>Scratch Pad</span>}
+                                key="1"
+                                style={{ height: '100%', background: '#181818', border: 'none', borderRadius: 8, marginBottom: 4, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: 0 }}
+                            >
+                                {/* Screen selector as thin row at top of ScratchPad */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 4px 0', borderBottom: '1px solid #222', margin: 0 }}>
+                                    <span style={{ fontSize: 12, color: '#aaa', fontWeight: 500, letterSpacing: 0.01, marginRight: 8 }}>Screen</span>
+                                    <Select
+                                        style={{ minWidth: 140, flex: 1, fontSize: 12 }}
+                                        placeholder="Select screen"
+                                        value={selectedScreen}
+                                        onChange={val => setSelectedScreen(val)}
+                                        loading={screenLoading}
+                                        options={screenStates.filter(s => !!s.screen).map(s => ({ label: String(s.screen), value: String(s.screen) }))}
+                                        showSearch
+                                        optionFilterProp="label"
+                                        filterOption={(input, option) => (option?.label as string).toLowerCase().includes(input.toLowerCase())}
+                                        size="small"
+                                    />
+                                    <Button
+                                        icon={<ReloadOutlined style={{ fontSize: 12 }} />}
+                                        onClick={() => {
+                                            setScreenLoading(true);
+                                            const url = window.location.href;
+                                            getScreenForPage({ url }).then(res => {
+                                                setCurrentScreenName(res.screenName);
+                                                setCurrentRelativeUrl(res.normalizedUrl || url);
+                                                setSelectedScreen(res.screenName || (screenStates && screenStates[0]?.screen) || undefined);
+                                                setScreenLoading(false);
+                                            }).catch(() => {
+                                                setScreenLoading(false);
+                                            });
+                                        }}
+                                        loading={screenLoading}
+                                        style={{ marginLeft: 4, background: 'none', border: 'none', color: '#aaa', fontSize: 12, boxShadow: 'none', padding: 0, width: 20, height: 20, minWidth: 20 }}
+                                    />
+                                </div>
+                                <div style={{ height: scratchPadHeight, overflowY: 'auto', paddingBottom: 330, background: '#181818', paddingLeft: 4, paddingRight: 4 }}>
+                                    <ScratchPad
+                                        onSelect={handleScratchPadSelect}
+                                        onDelete={handleScratchPadDelete}
+                                        tasks={scratchPadTasks}
+                                        setTasks={setScratchPadTasks}
+                                        currentScreenName={selectedScreen}
+                                        currentRelativeUrl={currentRelativeUrl}
+                                        onAdd={handleScratchPadAdd}
+                                    />
+                                </div>
+                            </Collapse.Panel>
+                        </Collapse>
+                        {/* Sticky bottom area (no longer fixed) */}
+                        <div ref={stickyRef} style={{
+                            height: 320,
+                            background: '#181818',
+                            boxShadow: '0 -2px 12px rgba(0,0,0,0.12)',
+                            padding: '0 4px 0 4px',
+                            borderTop: '1px solid #222',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minHeight: 0,
+                        }}>
+                            {/* Context window */}
+                            <div className="tc-section fade-in" style={{ minHeight: 120, marginTop: 0, marginBottom: 4, padding: 8, display: 'flex', flexDirection: 'column', background: '#181818', border: '1.5px solid #333', borderRadius: 8 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                    <div>
+                                        <div className="tc-context-title">Add Context</div>
+                                        {contextTags.length === 0 && (
+                                            <div className="tc-context-subheading">Elements or areas to help the IDE understand your intent</div>
+                                        )}
+                                    </div>
+                                    {contextTags.length > 0 && (
+                                        <button
+                                            onClick={() => {
+                                                // Remove all from contextStore
+                                                contextTags.forEach(tag => { if (tag.id) removeContextElementById(tag.id); });
+                                                setContextTags([]);
+                                            }}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#aaa',
+                                                fontSize: 12,
+                                                textDecoration: 'underline',
+                                                cursor: 'pointer',
+                                                padding: 0,
+                                                margin: 0,
+                                                fontWeight: 400
+                                            }}
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                                    {contextTags.map((tag, idx) => (
+                                        <Tooltip key={idx} title={tag.type === ContextElementType.UIElement ? 'Element Selector' : 'Bounding Box'}>
+                                            <Button
+                                                type="default"
+                                                size="small"
+                                                style={{ padding: '0 8px', borderRadius: 4, height: 24, display: 'flex', alignItems: 'center', gap: 4 }}
+                                                onClick={() => {
+                                                    // Remove from contextStore
+                                                    if (tag.id) removeContextElementById(tag.id);
+                                                    setContextTags(tags => tags.filter((_, i) => i !== idx));
+                                                }}
+                                            >
+                                                {tag.type === ContextElementType.UIElement ? (
+                                                    <>
+                                                        <SelectOutlined style={{ fontSize: 14, marginRight: 2 }} />
+                                                        {getElementLabel(tag)}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <BorderOutlined style={{ fontSize: 14, marginRight: 2 }} />
+                                                        {formatBoundingBoxValue(tag.value as { xPct: number; yPct: number; wPct: number; hPct: number })}
+                                                    </>
+                                                )}
+                                                <span style={{ marginLeft: 4, color: '#ff4d4f' }}>×</span>
+                                            </Button>
+                                        </Tooltip>
+                                    ))}
+                                    <Dropdown overlay={contextMenu} trigger={['click']} open={contextMenuOpen} onOpenChange={setContextMenuOpen}>
+                                        <Button
+                                            icon={<PlusOutlined style={{ fontSize: 16 }} />}
+                                            size="small"
+                                            style={{ borderRadius: 4, height: 24, padding: 0, width: 28, minWidth: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                        />
+                                    </Dropdown>
+                                </div>
+                            </div>
+                            {/* Prompt box */}
+                            <div style={{ position: 'relative' }}>
+                                <Input.TextArea
+                                    value={userMessage}
+                                    onChange={e => setUserMessage(e.target.value)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSend();
+                                        }
+                                    }}
+                                    placeholder="Say the change you want to see..."
+                                    autoSize={{ minRows: 6, maxRows: 12 }}
+                                    style={{ backgroundColor: '#2a2a2a', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', resize: 'none', marginBottom: 8 }}
+                                    disabled={sending}
+                                />
+                                {showCopiedNotification && (
+                                    <div className="scenario-notification" style={{ position: 'absolute', top: 8, left: 16, right: 16, zIndex: 10, textAlign: 'center', pointerEvents: 'none' }}>
+                                        Prompt copied to IDE
+                                    </div>
+                                )}
                                 <Button
-                                    type="primary"
-                                    onClick={handleSend}
-                                    className="primary-button"
-                                    loading={sending}
-                                    style={{ width: '100%', color: '#fff', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                                    disabled={sending || !vscodeConnected}
+                                    type="link"
+                                    className="jira-link-btn"
+                                    icon={null}
+                                    size="small"
+                                    onClick={handleLoadFromJira}
                                 >
-                                    Send to IDE
-                                    <RightSquareOutlined style={{ fontSize: 14, marginLeft: 6 }} />
+                                    Load from Jira <ThunderboltOutlined />
                                 </Button>
-                            </span>
+                            </div>
+                            {showJiraUpgrade && (
+                                <div className="fade-in-slide-up" style={{ position: 'absolute', left: 0, right: 0, bottom: 110, zIndex: 10, background: '#232323', border: '1.5px solid #ffb300', borderRadius: 8, padding: 24, textAlign: 'center', color: '#fff' }}>
+                                    <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Upgrade to TestChimp Teams tier for Jira integration and more...</div>
+                                    <Button type="primary" style={{ background: '#ff6b65', border: 'none', fontWeight: 600, marginRight: 8 }} onClick={() => window.open('https://prod.testchimp.io/signin?flow=upgrade', '_blank')}>Upgrade</Button>
+                                    <Button onClick={handleJiraUpgradeCancel} style={{ marginLeft: 8 }}>Cancel</Button>
+                                </div>
+                            )}
+                            {notification && (
+                                <div className="scenario-notification">
+                                    {notification}
+                                </div>
+                            )}
+                            {/* Button panel */}
+                            <div className={"fade-in"} style={{ width: '100%', background: '#181818', display: 'flex', gap: 8, padding: '8px 4px 4px 4px', borderTop: '1px solid #222', marginTop: 4 }}>
+                                <div style={{ flex: 1 }}>
+                                    <Tooltip title={!userMessage.trim() ? 'Prompt must be non-empty' : ''}>
+                                        <Button
+                                            onClick={handleSaveForLater}
+                                            className="secondary-button"
+                                            style={{ width: '100%', color: '#72BDA3', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                                            disabled={sending || saveLoading || !userMessage.trim()}
+                                            loading={saveLoading}
+                                        >
+                                            Save for  later
+                                        </Button>
+                                    </Tooltip>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <Tooltip
+                                        title={!vscodeConnected ? 'VSCode extension must be installed and started.' : ''}
+                                        placement="top"
+                                        mouseEnterDelay={0.2}
+                                    >
+                                        <span style={{ display: 'block' }}>
+                                            <Button
+                                                type="primary"
+                                                onClick={handleSend}
+                                                className="primary-button"
+                                                loading={sending}
+                                                style={{ width: '100%', color: '#fff', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                                                disabled={sending || !vscodeConnected || !userMessage.trim()}
+                                            >
+                                                {showCopiedNotification ? (
+                                                    <>
+                                                        Copied to IDE
+                                                        <RightSquareOutlined style={{ fontSize: 14, marginLeft: 6 }} />
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        Send to IDE
+                                                        <RightSquareOutlined style={{ fontSize: 14, marginLeft: 6 }} />
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </span>
+                                    </Tooltip>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+            {/* Status bar: always at the bottom */}
+            <div className={"fade-in-slide-up"} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12, marginTop: '4px' }}>
+                <span style={{ fontSize: 12, color: '#aaa' }}>
+                    VSCode: {vscodeConnected ? (
+                        <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
+                    ) : (
+                        <Tooltip title={
+                            <div>
+                                VSCode extension is not connected.
+                                <br />
+                                <a
+                                    href="https://testchimp.io/documentation-vscode-extension"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: '#72BDA3', textDecoration: 'underline' }}
+                                >
+                                    Click here for setup instructions
+                                </a>
+                            </div>
+                        }>
+                            <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Disconnected</span>
                         </Tooltip>
-                    </div>
-                </div>
-                {/* Status bar: always at the bottom of this container */}
-                <div  className={"fade-in-slide-up"} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12, marginTop: '4px' }}>
-                    <span style={{ fontSize: 12, color: '#aaa' }}>
-                        VSCode: {vscodeConnected ? (
-                            <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
-                        ) : (
-                            <Tooltip title={
-                                <div>
-                                    VSCode extension is not connected.
-                                    <br />
-                                    <a
-                                        href="https://testchimp.io/documentation-vscode-extension"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        style={{ color: '#72BDA3', textDecoration: 'underline' }}
-                                    >
-                                        Click here for setup instructions
-                                    </a>
-                                </div>
-                            }>
-                                <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Disconnected</span>
-                            </Tooltip>
-                        )}
-                    </span>
-                    <span style={{ fontSize: 12, color: '#aaa', marginLeft: 16 }}>
-                        MCP: {mcpConnected ? (
-                            <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
-                        ) : (
-                            <Tooltip title={
-                                <div>
-                                    MCP server is not connected.
-                                    <br />
-                                    <a
-                                        href="https://testchimp.io/documentation-testchimp-local/"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        style={{ color: '#72BDA3', textDecoration: 'underline' }}
-                                    >
-                                        Click here for setup instructions
-                                    </a>
-                                </div>
-                            }>
-                                <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Disconnected</span>
-                            </Tooltip>
-                        )}
-                    </span>
-                </div>
+                    )}
+                </span>
+                <span style={{ fontSize: 12, color: '#aaa', marginLeft: 16 }}>
+                    MCP: {mcpConnected ? (
+                        <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
+                    ) : (
+                        <Tooltip title={
+                            <div>
+                                MCP server is not connected.
+                                <br />
+                                <a
+                                    href="https://testchimp.io/documentation-testchimp-local/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: '#72BDA3', textDecoration: 'underline' }}
+                                >
+                                    Click here for setup instructions
+                                </a>
+                            </div>
+                        }>
+                            <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Disconnected</span>
+                        </Tooltip>
+                    )}
+                </span>
             </div>
         </div>
     );
