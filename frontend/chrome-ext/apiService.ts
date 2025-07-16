@@ -1,5 +1,5 @@
 // API service for BugsTab and related features
-export const BASE_URL = 'https://featureservice.testchimp.io';
+export const BASE_URL = 'https://featureservice-staging.testchimp.io';
 
 // Remove enums and data interfaces that are not request/response types from this file.
 // Only keep request/response interfaces here, and import all data types from datas.ts instead.

@@ -180,7 +180,7 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
               />
             </Popconfirm>
           </Tooltip>
-          <Tooltip title={!vscodeConnected ? 'VSCode extension must be installed and started.' : (scenario.scenario?.steps?.length ? 'Send script to IDE' : 'Add steps to enable')} placement="top">
+          <Tooltip title={!vscodeConnected ? 'VSCode extension must be installed and started.' : (scenario.scenario?.steps?.length ? 'Generate Script in IDE' : 'Add steps to enable')} placement="top">
             <span style={{ display: 'inline-block' }}>
               <Button
                 type="text"

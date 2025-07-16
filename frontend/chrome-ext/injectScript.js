@@ -330,8 +330,10 @@ XMLHttpRequest.prototype.open = function(...args) {
     }
     let selector = el.tagName ? el.tagName.toLowerCase() : '';
     if (el.className && typeof el.className === 'string') {
-      const classPart = el.className.trim().replace(/\s+/g, '.');
-      if (classPart) selector += `.${classPart}`;
+      // Only use class names that are valid for CSS selectors
+      const classNames = el.className.trim().split(/\s+/).filter(Boolean);
+      const validClassNames = classNames.filter(cn => /^[a-zA-Z0-9_-]+$/.test(cn));
+      if (validClassNames.length > 0) selector += '.' + validClassNames.join('.');
     }
     if (el.parentElement) {
       const siblings = Array.from(el.parentElement.children).filter(
