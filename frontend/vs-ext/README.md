@@ -18,7 +18,7 @@ TestChimp displays all bugs captured for a given screen in the Chrome extension 
 
 ## Installation Guide
 
-1. Download the vsix file from [here](https://github.com/awarelabshq/testchimp-sdk/blob/main/frontend/vs-ext/testchimp-vs-extension-0.0.1.vsix).
+1. Download the vsix file from [here](https://github.com/awarelabshq/testchimp-sdk/blob/main/frontend/vs-ext/releases/testchimp-vs-extension-0.0.2.vsix).
 2. Open Command Palette in Cursor IDE, then select: *Extensions: Install from VSIX...*, and select the downloaded file.
 3. Once installed, Open Command Palette and run *Start TestChimp Bridge*
 
