@@ -4,8 +4,8 @@ import { DeleteOutlined, CodeOutlined, CheckCircleOutlined, CloseOutlined, Excla
 import { AgentTestScenarioWithStatus, TestScenarioStatus, ScenarioTestResult } from '../datas';
 import { getTestChimpIcon } from '../components/getTestChimpIcon';
 import { upsertAgentTestScenario, insertTestScenarioResult } from '../apiService';
-import { formatScenarioScriptForIde } from './scenarioUtils';
 import { useConnectionManager } from '../connectionManager';
+import { formatScenarioTaskForAi } from '../AiMessageUtils';
 
 type ScenarioActionPanelAction =
   | { type: 'delete'; id: string }
@@ -127,7 +127,7 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
   // Handler for generate script in IDE
   function handleGenerateScript() {
     if (!scenario.scenario?.steps?.length) return;
-    const prompt = formatScenarioScriptForIde(scenario);
+    const prompt = formatScenarioTaskForAi(scenario);
     const messageId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).slice(2);
     chrome.runtime.sendMessage({ type: 'send_to_vscode', payload: { prompt, messageId } });
     if (onAction) onAction({ type: 'promptCopiedToIde', id: scenario.id || '', messageId });

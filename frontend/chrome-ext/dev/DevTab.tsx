@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button, Input, Tooltip, Typography, Dropdown, Menu, Select, Spin, Collapse } from 'antd';
-import { PlusOutlined, SelectOutlined, BorderOutlined, DragOutlined, RightSquareOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { PlusOutlined, SelectOutlined, BorderOutlined, DragOutlined, RightSquareOutlined, ReloadOutlined, ThunderboltOutlined, CopyOutlined } from '@ant-design/icons';
 import { UserInstructionMessage, ContextElementType, ContextElement, UIElementContext, BoundingBoxContext, OrgTier, OrgPlan } from '../datas';
 import { addOrUpdateContextElements, removeContextElementById, getBasicInfo, getBasicInfoForBoxElements } from '../contextStore';
 import { ScratchPad, LocalTask } from './ScratchPad';
@@ -9,6 +9,7 @@ import { getScreenForPage } from '../apiService';
 import { getScreenStates } from '../apiService';
 import { useConnectionManager } from '../connectionManager';
 import JiraIssueFinder from '../components/JiraIssueFinder';
+import { formatDevTaskForAi } from '../AiMessageUtils';
 // Remove: import { useScreenInfoSync } from './useScreenInfoSync';
 
 const { Text } = Typography;
@@ -70,27 +71,6 @@ function formatBoundingBoxValue(value: { xPct: number; yPct: number; wPct: numbe
 }
 
 // Add the formatMessageForAI function
-function formatMessageForAI(msg: UserInstructionMessage): string {
-    let result = 'Implement the following user requirement:\n' + msg.userInstruction + '\n';
-    if (msg.infoContext) {
-        result += '\nFollowing are the related components / areas referred in the screen by the user for this requirement:\n';
-        result += JSON.stringify(msg.infoContext.contextElements, null, 2) + '\n';
-        if (msg.infoContext.screenInfo) {
-            const { relativeUrl, filePaths } = msg.infoContext.screenInfo;
-            if (relativeUrl) {
-                result += `\nThe screen's relative URL is: ${relativeUrl}\n`;
-            }
-            if (filePaths && filePaths.length > 0) {
-                result += `\nHere are some potential file paths related to the screen:\n`;
-                result += filePaths.map(f => `- ${f}`).join('\n') + '\n';
-            }
-        }
-    }
-    result += '\nIf you need access to the current screenshot of the screen, invoke grab_screenshot mcp tool.';
-    result += '\nIf you need extra information about a particular context item (for better reasoning and targeting), invoke fetch_exta_info_for_context_item passing the id of the context item (For elements, extra info contains computed styles, detailed attributes, and for bounding boxes, extra info contains screenshot of the screen.).';
-    return result;
-}
-
 // Helper to convert ContextElement to ContextTag
 function contextElementToContextTag(elem: ContextElement): ContextTag {
     if ((elem as any).type === ContextElementType.UIElement) {
@@ -349,53 +329,54 @@ export const DevTab = () => {
         />
     );
 
-    const handleSend = () => {
-        if (!userMessage.trim()) return;
-        setSending(true);
-        const message_id = hashMessage(userMessage, contextTags);
-        lastMessageId.current = message_id;
+    // Helper to get formatted prompt and messageId
+    const getFormattedPrompt = (forClipboard = false) => {
         // Get the current resource part of the URL
         let relativeUrl = '';
         try {
             const loc = window.location;
             if (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1') {
-                // Drop the origin for localhost
                 relativeUrl = loc.pathname + loc.search + loc.hash;
             } else {
-                // For other sites, just the path after the domain
                 relativeUrl = loc.pathname + loc.search + loc.hash;
             }
         } catch (e) {
             relativeUrl = '';
         }
-        // Extract file paths from DOM
         const filePaths: string[] = getFilePathsFromDOM();
-        // Prepare infoContext for prompt formatting
         const contextElements: ContextElement[] = contextTags.map(tag => {
             const id = tag.id || hashContextTag(tag);
-            // Ensure contextId is present for all types
             return { ...tag, id, contextId: (tag as any).contextId || id } as ContextElement;
         });
         const infoContext = {
             screenInfo: { relativeUrl, filePaths },
             contextElements
         };
-        // Compose the message
+        const messageId = (forClipboard ? 'clipboard_' : 'msg_') + Date.now();
+        const prompt = formatDevTaskForAi({
+            type: 'user_instruction',
+            userInstruction: userMessage.trim(),
+            infoContext,
+            messageId
+        });
+        return { prompt, messageId };
+    };
+
+    const handleSend = () => {
+        if (!userMessage.trim()) return;
+        setSending(true);
+        const { prompt, messageId } = getFormattedPrompt(false);
+        lastMessageId.current = messageId;
         const messageToSend = {
             type: 'user_instruction',
-            prompt: formatMessageForAI({
-                type: 'user_instruction',
-                userInstruction: userMessage.trim(),
-                infoContext,
-                messageId: message_id
-            }),
-            messageId: message_id
+            prompt,
+            messageId
         } as UserInstructionMessage & { prompt: string };
         chrome.runtime.sendMessage({ type: 'send_to_vscode', payload: messageToSend });
         // Set a timeout to handle failure to receive ack
         if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
         errorTimeoutRef.current = setTimeout(() => {
-            if (lastMessageId.current === message_id && sendingRef.current) {
+            if (lastMessageId.current === messageId && sendingRef.current) {
                 setSending(false);
                 setNotification('Had an issue sending the message');
                 setTimeout(() => setNotification(''), 3000);
@@ -495,6 +476,20 @@ export const DevTab = () => {
     const handleJiraIssueSelect = (title: string) => {
         setUserMessage(title);
         setShowJiraFinder(false);
+    };
+
+    // Handler for copying prompt to clipboard when VSCode is not connected
+    const handleCopyPrompt = async () => {
+        if (!userMessage.trim()) return;
+        const { prompt } = getFormattedPrompt(true);
+        try {
+            await navigator.clipboard.writeText(prompt);
+            setShowCopiedNotification(true);
+            setTimeout(() => setShowCopiedNotification(false), 2000);
+        } catch (err) {
+            setNotification('Failed to copy prompt');
+            setTimeout(() => setNotification(''), 2000);
+        }
     };
 
     // Layout: Screen selector at top, ScratchPad grows to fill space, bottom sticky area contains status, button panel, prompt, context
@@ -657,8 +652,18 @@ export const DevTab = () => {
                                     placeholder="Say the change you want to see..."
                                     autoSize={{ minRows: 6, maxRows: 12 }}
                                     style={{ backgroundColor: '#2a2a2a', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', resize: 'none', marginBottom: 8 }}
-                                    disabled={sending}
                                 />
+                                {/* Copy icon overlay */}
+                                <Tooltip title="Copy prompt to clipboard">
+                                    <Button
+                                        type="text"
+                                        icon={<CopyOutlined style={{ fontSize: 16, color: '#aaa' }} />}
+                                        onClick={handleCopyPrompt}
+                                        className="tc-copy-prompt-icon"
+                                        tabIndex={0}
+                                        aria-label="Copy prompt to clipboard"
+                                    />
+                                </Tooltip>
                                 {showCopiedNotification && (
                                     <div className="scenario-notification" style={{ position: 'absolute', top: 8, left: 16, right: 16, zIndex: 10, textAlign: 'center', pointerEvents: 'none' }}>
                                         Prompt copied to IDE
@@ -710,20 +715,20 @@ export const DevTab = () => {
                                         <span style={{ display: 'block' }}>
                                             <Button
                                                 type="primary"
-                                                onClick={handleSend}
+                                                onClick={vscodeConnected ? handleSend : handleCopyPrompt}
                                                 className="primary-button"
-                                                loading={sending}
+                                                loading={vscodeConnected && sending}
                                                 style={{ width: '100%', color: '#fff', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                                                disabled={sending || !vscodeConnected || !userMessage.trim()}
+                                                disabled={(vscodeConnected && sending) || !userMessage.trim()}
                                             >
                                                 {showCopiedNotification ? (
                                                     <>
-                                                        Copied to IDE
+                                                        Copied to {vscodeConnected ? 'IDE' : 'clipboard'}
                                                         <RightSquareOutlined style={{ fontSize: 14, marginLeft: 6 }} />
                                                     </>
                                                 ) : (
                                                     <>
-                                                        Send to IDE
+                                                        {vscodeConnected ? 'Send to IDE' : 'Copy Prompt'}
                                                         <RightSquareOutlined style={{ fontSize: 14, marginLeft: 6 }} />
                                                     </>
                                                 )}
@@ -737,51 +742,54 @@ export const DevTab = () => {
                 )}
             </div>
             {/* Status bar: always at the bottom */}
-            <div className={"fade-in-slide-up"} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12, marginTop: '4px' }}>
-                <span style={{ fontSize: 12, color: '#aaa' }}>
-                    VSCode: {vscodeConnected ? (
-                        <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
-                    ) : (
-                        <Tooltip title={
-                            <div>
-                                VSCode extension is not connected.
-                                <br />
-                                <a
-                                    href="https://testchimp.io/documentation-vscode-extension"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{ color: '#72BDA3', textDecoration: 'underline' }}
-                                >
-                                    Click here for setup instructions
-                                </a>
-                            </div>
-                        }>
-                            <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Disconnected</span>
-                        </Tooltip>
-                    )}
-                </span>
-                <span style={{ fontSize: 12, color: '#aaa', marginLeft: 16 }}>
-                    MCP: {mcpConnected ? (
-                        <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
-                    ) : (
-                        <Tooltip title={
-                            <div>
-                                MCP server is not connected.
-                                <br />
-                                <a
-                                    href="https://testchimp.io/documentation-testchimp-local/"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{ color: '#72BDA3', textDecoration: 'underline' }}
-                                >
-                                    Click here for setup instructions
-                                </a>
-                            </div>
-                        }>
-                            <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Disconnected</span>
-                        </Tooltip>
-                    )}
-                </span>
+            <div className={"fade-in-slide-up"} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12, marginTop: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <span style={{ fontSize: 12, color: '#aaa' }}>
+                        VSCode: {vscodeConnected ? (
+                            <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
+                        ) : (
+                            <Tooltip title={
+                                <div>
+                                    VSCode extension is not connected.
+                                    <br />
+                                    <a
+                                        href="https://testchimp.io/documentation-vscode-extension"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ color: '#72BDA3', textDecoration: 'underline' }}
+                                    >
+                                        Click here for setup instructions
+                                    </a>
+                                </div>
+                            }>
+                                <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Not Connected</span>
+                            </Tooltip>
+                        )}
+                    </span>
+                    <span style={{ fontSize: 12, color: '#aaa' }}>
+                        MCP: {mcpConnected ? (
+                            <span style={{ color: '#52c41a', fontSize: 12 }}>Connected</span>
+                        ) : (
+                            <Tooltip title={
+                                <div>
+                                    MCP server is not connected (Optional)
+                                    <br />
+                                    <a
+                                        href="https://testchimp.io/documentation-mcp/"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ color: '#72BDA3', textDecoration: 'underline' }}
+                                    >
+                                        Click here for setup instructions
+                                    </a>
+                                </div>
+                            }>
+                                <span style={{ color: '#ffb300', fontSize: 12, textDecoration: 'underline dotted' }}>Not Connected</span>
+                            </Tooltip>
+                        )}
+                    </span>
+                </div>
+                <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none', marginLeft: 'auto' }}>v1.0.1</a>
             </div>
         </div>
     );

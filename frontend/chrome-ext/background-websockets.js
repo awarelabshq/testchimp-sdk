@@ -54,7 +54,9 @@ async function handleGetRecentRequestResponsePairs(ws, message) {
 }
 
 // Handler to get LLM-friendly DOM
-async function handleGetLLMFriendlyDOM(ws, message) {
+async function handleGetLLMFriendlyDOM(ws, message, attempt = 1) {
+    const MAX_ATTEMPTS = 5;
+    const RETRY_DELAY_MS = 500;
     return new Promise((resolve) => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (!tabs[0]?.id) {
@@ -66,7 +68,27 @@ async function handleGetLLMFriendlyDOM(ws, message) {
                 { type: 'get_dom_snapshot' },
                 (response) => {
                     if (chrome.runtime.lastError) {
-                        resolve({ error: chrome.runtime.lastError.message });
+                        const errMsg = chrome.runtime.lastError.message || '';
+                        if (
+                            /message port closed/i.test(errMsg) &&
+                            attempt < MAX_ATTEMPTS
+                        ) {
+                            console.warn(`[handleGetLLMFriendlyDOM] Attempt ${attempt}: Message port closed. Re-injecting injectSidebar.js and index.js, then retrying in ${RETRY_DELAY_MS}ms...`);
+                            chrome.scripting.executeScript({
+                                target: { tabId: tabs[0].id },
+                                files: ['injectSidebar.js', 'index.js']
+                            }, () => {
+                                console.log('[handleGetLLMFriendlyDOM] injectSidebar.js and index.js injected for retry.');
+                                setTimeout(() => {
+                                    handleGetLLMFriendlyDOM(ws, message, attempt + 1).then(resolve);
+                                }, RETRY_DELAY_MS);
+                            });
+                        } else {
+                            if (attempt >= MAX_ATTEMPTS) {
+                                console.error(`[handleGetLLMFriendlyDOM] Max attempts reached (${MAX_ATTEMPTS}). Giving up. Last error:`, errMsg);
+                            }
+                            resolve({ error: errMsg });
+                        }
                     } else if (response?.error) {
                         resolve({ error: response.error });
                     } else {
@@ -81,6 +103,20 @@ async function handleGetLLMFriendlyDOM(ws, message) {
 // --- WebSocket connection logic ---
 
 function connectMCP() {
+    // Close any existing socket before creating a new one
+    if (mcpSocket && mcpSocket.readyState !== WebSocket.CLOSED && mcpSocket.readyState !== WebSocket.CLOSING) {
+        try {
+            mcpSocket.onopen = null;
+            mcpSocket.onclose = null;
+            mcpSocket.onerror = null;
+            mcpSocket.onmessage = null;
+            mcpSocket.close();
+        } catch (e) {
+            console.warn('[MCP] Error closing previous mcpSocket:', e);
+        }
+    }
+    mcpSocket = null;
+
     chrome.storage.sync.get(['mcpWebsocketPort'], function(items) {
         const port = items.mcpWebsocketPort || 43449;
         const MCP_WS_URL = `ws://localhost:${port}/ws`;
@@ -97,6 +133,8 @@ function connectMCP() {
             self.mcpConnected = false;
             console.warn("[MCP] Disconnected from MCP server", event);
             self.notifyStatus();
+            // Clean up reference
+            mcpSocket = null;
             setTimeout(connectMCP, 3000);
         };
 
@@ -104,6 +142,8 @@ function connectMCP() {
             self.mcpConnected = false;
             console.error("[MCP] MCP WebSocket error", e);
             self.notifyStatus();
+            // Clean up reference
+            mcpSocket = null;
         };
 
         mcpSocket.onmessage = async (event) => {
@@ -124,7 +164,7 @@ function connectMCP() {
                 try {
                     console.log(`[MCP] Dispatching handler for type: ${msg.type}`);
                     const response = await handler(mcpSocket, msg);
-                    if (response && mcpSocket.readyState === WebSocket.OPEN) {
+                    if (response && mcpSocket && mcpSocket.readyState === WebSocket.OPEN) {
                         // Always include type and request_id in the response
                         const responseWithMeta = {
                             ...response,
@@ -317,4 +357,39 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         chrome.storage.local.set({ recentConsoleLogs });
         if (sendResponse) sendResponse({ success: true });
     }
+}); 
+
+// --- MCP WebSocket Reconnection Logic ---
+let lastReconnectAttempt = 0;
+const RECONNECT_DEBOUNCE_MS = 2000;
+const MCP_POLL_INTERVAL_MS = 10000;
+
+function isMcpSocketOpen() {
+    return mcpSocket && mcpSocket.readyState === WebSocket.OPEN;
+}
+
+function ensureMCPConnection(reason = "") {
+    const now = Date.now();
+    if (!isMcpSocketOpen() && now - lastReconnectAttempt > RECONNECT_DEBOUNCE_MS) {
+        lastReconnectAttempt = now;
+        console.log(`[MCP] ensureMCPConnection: Reconnecting MCP WebSocket due to: ${reason}`);
+        connectMCP();
+    }
+}
+
+// Polling reconnect
+setInterval(() => {
+    ensureMCPConnection("poll");
+}, MCP_POLL_INTERVAL_MS);
+
+// Event-based reconnect on tab/window activation
+chrome.tabs.onActivated.addListener(() => {
+    ensureMCPConnection("tab activated");
+});
+chrome.windows.onFocusChanged.addListener(() => {
+    ensureMCPConnection("window focus changed");
+});
+// Optionally, handle extension startup
+chrome.runtime.onStartup && chrome.runtime.onStartup.addListener(() => {
+    ensureMCPConnection("runtime startup");
 }); 

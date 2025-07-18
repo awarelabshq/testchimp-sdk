@@ -1,5 +1,6 @@
 import { BugSeverity } from '../datas';
 import { BugCategory, Bug } from '../datas';
+import { formatBugTaskForAi } from '../AiMessageUtils';
 
 export const CATEGORY_COLORS: Record<string, string> = {
   "UNKNOWN_BUG_CATEGORY": "#d45c57", // muted brand base
@@ -67,28 +68,4 @@ export function generateUuid() {
   });
 }
 
-export function formatMessageToAiIde(
-  bug: Bug,
-  screenName?: string,
-  filePaths?: string[],
-  relativeUrl?: string
-): string {
-  let result = 'Fix the following bug in the codebase:';
-  if (bug.title) {
-    result += `\nTitle: ${bug.title}`;
-  }
-  if (bug.description) {
-    result += `\nDescription: ${bug.description}`;
-  }
-  if (screenName) {
-    result += `\nScreen: ${screenName}`;
-  }
-  if (relativeUrl) {
-    result += `\nScreen relative URL: ${relativeUrl}`;
-  }
-  if (filePaths && filePaths.length > 0) {
-    result += `\nHere are some potential file paths related to the screen:`;
-    result += filePaths.map(f => `\n- ${f}`).join('');
-  }
-  return result;
-}
+export type { Bug };

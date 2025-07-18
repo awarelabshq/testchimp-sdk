@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Card, Tag, Button, Tooltip, Typography, Popconfirm } from 'antd';
 import { DislikeOutlined, CodeOutlined, CheckCircleOutlined, CloseOutlined } from '@ant-design/icons';
-import { getCategoryColorWhiteFont, formatCategoryLabel, getSeverityLabel, truncateText, formatMessageToAiIde, generateUuid } from './bugUtils';
+import { getCategoryColorWhiteFont, formatCategoryLabel, getSeverityLabel, truncateText, generateUuid } from './bugUtils';
 import { getFilePathsFromDOM } from '../domUtils';
 import { BugSeverity, BugStatus } from '../datas';
+import { formatBugTaskForAi } from '../AiMessageUtils';
 
 const { Text } = Typography;
 
@@ -193,7 +194,7 @@ export const BugCard: React.FC<BugCardProps> = ({
                   onClick={() => {
                     if (!vscodeConnected) return;
                     const filePaths: string[] = getFilePathsFromDOM();
-                    const message = formatMessageToAiIde(bug.bug, currentScreenName, filePaths, currentRelativeUrl);
+                    const message = formatBugTaskForAi(bug.bug, currentScreenName, filePaths, currentRelativeUrl);
                     const messageId = generateUuid();
                     setLastSentMessageId(messageId);
                     chrome.runtime.sendMessage({
