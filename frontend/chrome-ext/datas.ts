@@ -1,86 +1,86 @@
 
 export enum ContextElementType {
-    UIElement = 'UIElement',
-    BoundingBox = 'BoundingBox',
-    // Add more types as needed (e.g., FigmaDesign)
+  UIElement = 'UIElement',
+  BoundingBox = 'BoundingBox',
+  // Add more types as needed (e.g., FigmaDesign)
 }
 
 export interface UIElementContext {
-    contextId: string;
-    type: ContextElementType.UIElement;
-    [key: string]: any; // selector, role, text, textContent, tagName, boundingBox, ancestorHierarchy, attributes, computedStyles, etc.
+  contextId: string;
+  type: ContextElementType.UIElement;
+  [key: string]: any; // selector, role, text, textContent, tagName, boundingBox, ancestorHierarchy, attributes, computedStyles, etc.
 }
 
 // Strongly-typed bounding box value (percentages)
 export interface BoundingBoxValue {
-    xPct: number; // left as percentage of viewport width
-    yPct: number; // top as percentage of viewport height
-    wPct: number; // width as percentage of viewport width
-    hPct: number; // height as percentage of viewport height
+  xPct: number; // left as percentage of viewport width
+  yPct: number; // top as percentage of viewport height
+  wPct: number; // width as percentage of viewport width
+  hPct: number; // height as percentage of viewport height
 }
 
 export interface BoundingBoxContext {
-    contextId: string;
-    type: ContextElementType.BoundingBox;
-    value: BoundingBoxValue;
-    uiElementsInBox?: UIElementContext[];
-    [key: string]: any; // allow extra fields
+  contextId: string;
+  type: ContextElementType.BoundingBox;
+  value: BoundingBoxValue;
+  uiElementsInBox?: UIElementContext[];
+  [key: string]: any; // allow extra fields
 }
 
 export type ContextElement = UIElementContext | BoundingBoxContext;
 
 export interface ScreenInfoContext {
-    screenInfo:ScreenInfo;
-    contextElements: ContextElement[];
+  screenInfo: ScreenInfo;
+  contextElements: ContextElement[];
 }
 
-export interface ScreenInfo{
-    relativeUrl?:string;
-    filePaths?:string[];
+export interface ScreenInfo {
+  relativeUrl?: string;
+  filePaths?: string[];
 }
 
 export interface UserInstructionMessage {
-    type: 'user_instruction';
-    userInstruction: string;
-    infoContext?: ScreenInfoContext;
-    messageId?: string;
+  type: 'user_instruction';
+  userInstruction: string;
+  infoContext?: ScreenInfoContext;
+  messageId?: string;
 }
 
 export interface AckMessage {
-    type: 'ack_message';
-    messageId: string;
+  type: 'ack_message';
+  messageId: string;
 }
 
 // MCP <-> Extension request/response types
 
 // Console log item structure
 export interface ConsoleLogItem {
-    level: string; // e.g., 'log', 'warn', 'error', 'info'
-    timestamp: number; // ms since epoch
-    message: string;
+  level: string; // e.g., 'log', 'warn', 'error', 'info'
+  timestamp: number; // ms since epoch
+  message: string;
 }
 
 // Get recent console logs
 export interface GetRecentConsoleLogsRequest {
-    /**
-     * Log level to filter by (e.g., 'log', 'warn', 'error', 'info').
-     * Returns logs at or above the given level (e.g., 'warn' returns 'warn' and 'error').
-     * If omitted, all levels are included.
-     */
-    level?: string;
-    /**
-     * Maximum number of logs to return (most recent first).
-     * If omitted, returns up to the buffer size.
-     */
-    count?: number;
-    /**
-     * Only include logs with a timestamp >= sinceTimestamp (ms since epoch).
-     * If omitted, no time filter is applied.
-     */
-    sinceTimestamp?: number;
+  /**
+   * Log level to filter by (e.g., 'log', 'warn', 'error', 'info').
+   * Returns logs at or above the given level (e.g., 'warn' returns 'warn' and 'error').
+   * If omitted, all levels are included.
+   */
+  level?: string;
+  /**
+   * Maximum number of logs to return (most recent first).
+   * If omitted, returns up to the buffer size.
+   */
+  count?: number;
+  /**
+   * Only include logs with a timestamp >= sinceTimestamp (ms since epoch).
+   * If omitted, no time filter is applied.
+   */
+  sinceTimestamp?: number;
 }
 export interface GetRecentConsoleLogsResponse {
-    logs: ConsoleLogItem[];
+  logs: ConsoleLogItem[];
 }
 
 export enum BugCategory {
@@ -170,7 +170,7 @@ export interface RequestResponsePair {
   status: number;
   responseTimeMs?: number;
   timestamp: number;
-} 
+}
 
 // --- Bug Analysis API Types ---
 
@@ -202,7 +202,7 @@ export interface GetNetworkAnalysisRequest {
   state?: string;
   relativeUrl?: string;
   requestResponsePairs?: RequestResponsePair[];
-} 
+}
 
 // --- Bug Data Types (moved from apiService.ts) ---
 
@@ -257,6 +257,7 @@ export interface BugDetail {
   status?: BugStatus;
   ordinalId?: number;
   reportedReleaseId?: string;
+  assignee?: string;
 }
 
 export enum BugStatus {
@@ -264,33 +265,33 @@ export enum BugStatus {
   ACTIVE = "ACTIVE",
   IGNORED = "IGNORED",
   FIXED = "FIXED",
-} 
+}
 
 export enum InfoContextItemType {
-    UNKNOWN_INFO_CONTEXT_ITEM_TYPE = 0,
-    MINDMAP = 1,
-    TEXT_CONTEXT_ITEM = 2,
-    FIGMA_DESIGN = 3,
-    CONFLUENCE_DOC = 4,
-    SCREEN_INFO = 5,
+  UNKNOWN_INFO_CONTEXT_ITEM_TYPE = 0,
+  MINDMAP = 1,
+  TEXT_CONTEXT_ITEM = 2,
+  FIGMA_DESIGN = 3,
+  CONFLUENCE_DOC = 4,
+  SCREEN_INFO = 5,
 }
 
 export interface ContextData {
-    textContent?: string; // For TEXT_CONTEXT_ITEM or SCREEN_INFO (json serialization)
-    url?: string;
-    confluenceDocumentId?: string;
-    figmaContextElement?: any; // TODO: define if needed
+  textContent?: string; // For TEXT_CONTEXT_ITEM or SCREEN_INFO (json serialization)
+  url?: string;
+  confluenceDocumentId?: string;
+  figmaContextElement?: any; // TODO: define if needed
 }
 
 export interface InfoContextItem {
-    id?: string;
-    type?: InfoContextItemType;
-    title?: string;
-    data?: ContextData;
+  id?: string;
+  type?: InfoContextItemType;
+  title?: string;
+  data?: ContextData;
 }
 
 export interface InfoContext {
-    contextItems: InfoContextItem[];
+  contextItems: InfoContextItem[];
 }
 
 // Interface for bug requests (internal use)
@@ -300,20 +301,20 @@ export interface ScreenState {
 }
 
 export interface SuggestTestScenariosRequest {
-    screenState?:ScreenState;
-    domSnapshot?: string;
-    context?: InfoContext;
-    prompt?: string;
+  screenState?: ScreenState;
+  domSnapshot?: string;
+  context?: InfoContext;
+  prompt?: string;
 }
 
 export interface SuggestTestScenariosResponse {
-    suggestedTestScenarios: TestScenarioDetail[];
-} 
+  suggestedTestScenarios: TestScenarioDetail[];
+}
 
-export type TestScenarioDetail = AgentTestScenarioWithStatus; 
+export type TestScenarioDetail = AgentTestScenarioWithStatus;
 
 // --- Team Details API Types ---
-export interface GetTeamDetailsRequest {}
+export interface GetTeamDetailsRequest { }
 
 export interface GetTeamDetailsResponse {
   tier?: OrgTier;
@@ -330,7 +331,7 @@ export enum OrgPlan {
   UNKNOWN_PLAN = 0,
   TEAM_PLAN = 1,
   INDIE_PLAN = 2,
-} 
+}
 
 export interface UpsertMindMapScreenStateRequest {
   screenState?: ScreenState;
@@ -361,7 +362,7 @@ export interface AddEnvironmentRequest {
 
 export interface AddEnvironmentResponse {
   // Empty response
-} 
+}
 
 // --- Jira Integration Types ---
 
@@ -391,7 +392,7 @@ export interface FetchJiraIssuesFreetextRequest {
   query?: string;
   issueType?: JiraIssueType;
   includeDescription?: boolean;
-  assignee?:string;
+  assignee?: string;
 }
 
 export interface FetchJiraIssuesFreetextResponse {

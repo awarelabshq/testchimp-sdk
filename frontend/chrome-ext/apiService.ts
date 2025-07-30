@@ -22,6 +22,7 @@ export interface UpdateBugsRequest {
   updatedBugs: Bug[];
   newStatus?: BugStatus;
   appReleaseId?: string;
+  assignee?: string;
 }
 
 export interface UpdateBugsResponse { }
@@ -528,6 +529,7 @@ export interface ListBugsRequest {
   statuses?: BugStatus[];
   title?: string;
   environment?: string;
+  assignee?: string;
 }
 
 export interface ListBugsResponse {
@@ -585,6 +587,19 @@ export interface FetchExtraInfoForContextItemRequest {
 }
 export interface FetchExtraInfoForContextItemResponse {
   extraInfo: Record<string, any>;
+}
+
+export interface ListPossibleAssigneesRequest {
+}
+
+export interface SimpleUserInfo {
+  email?: string;
+  name?: string;
+  userId?: string;
+}
+
+export interface ListPossibleAssigneesResponse {
+  users: SimpleUserInfo[];
 }
 
 export interface GrabScreenshotRequest { }
@@ -675,5 +690,24 @@ export async function fetchJiraIssuesFreetext(req: FetchJiraIssuesFreetextReques
     body: JSON.stringify(req),
   });
   return await res.json();
+}
+
+/**
+ * List possible assignees for bugs and other items.
+ */
+export async function listPossibleAssignees(req: ListPossibleAssigneesRequest = {}): Promise<ListPossibleAssigneesResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/explore/list_possible_assignees`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(req),
+  });
+  const data = await res.json();
+  return {
+    users: data.users || [],
+  };
 }
 

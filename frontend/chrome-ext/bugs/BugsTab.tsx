@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Select, Input, Spin, Row, Col, Typography, List, Card, Tag, Button, Tooltip, Modal, Alert } from 'antd';
+import { Select, Input, Spin, Row, Col, Typography, List, Card, Tag, Button, Tooltip, Modal, Alert, Checkbox } from 'antd';
 import { PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import {
   getScreenStates,
@@ -35,6 +35,8 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
   const [selectedState, setSelectedState] = useState<string | undefined>();
   const [searchText, setSearchText] = useState('');
   const [selectedSeverity, setSelectedSeverity] = useState<BugSeverity | undefined>();
+  const [assignedToMe, setAssignedToMe] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [bugs, setBugs] = useState<BugDetail[]>([]);
   const [filteredBugs, setFilteredBugs] = useState<BugDetail[]>([]);
   const [screenForPageLoading, setScreenForPageLoading] = useState(false);
@@ -64,6 +66,15 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
   });
 
   const { vscodeConnected } = useConnectionManager();
+
+  // Get current user email from chrome storage
+  useEffect(() => {
+    chrome.storage.sync.get(['currentUserId'], (items) => {
+      if (items.currentUserId) {
+        setCurrentUserEmail(items.currentUserId);
+      }
+    });
+  }, []);
 
   // Fetch screen states from server
   const fetchScreenStates = () => {
@@ -185,7 +196,7 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
     });
   }, [selectedScreen, selectedState, screenStates]);
 
-  // Client-side filtering for search text and severity
+  // Client-side filtering for search text, severity, and assigned to me
   useEffect(() => {
     let filtered = [...bugs];
     // Filter by search text
@@ -203,8 +214,14 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
         return sev !== undefined && sev !== null && sev === selectedSeverity;
       });
     }
+    // Filter by assigned to me
+    if (assignedToMe && currentUserEmail) {
+      filtered = filtered.filter(bug => {
+        return bug.assignee === currentUserEmail;
+      });
+    }
     setFilteredBugs(filtered);
-  }, [bugs, searchText, selectedSeverity]);
+  }, [bugs, searchText, selectedSeverity, assignedToMe, currentUserEmail]);
 
   // Handler to show notification
   const handleBugUpdated = () => {
@@ -529,6 +546,18 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
                 options={SEVERITY_OPTIONS}
                 allowClear
               />
+            </Col>
+          </Row>
+          {/* Row 3: Assigned to me checkbox */}
+          <Row style={{ marginBottom: 12 }} className="fade-in">
+            <Col span={24}>
+              <Checkbox
+                checked={assignedToMe}
+                onChange={e => setAssignedToMe(e.target.checked)}
+                disabled={!currentUserEmail}
+              >
+                Assigned to me
+              </Checkbox>
             </Col>
           </Row>
           {/* Notification row */}

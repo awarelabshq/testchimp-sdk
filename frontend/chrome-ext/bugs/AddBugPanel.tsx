@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Input, Select, Button, Modal, Spin } from 'antd';
+import { Input, Select, Button, Modal, Spin, AutoComplete } from 'antd';
 import { SelectOutlined } from '@ant-design/icons';
-import { updateBugs, listReleases, createNewRelease, ReleaseInfo, ResourceType } from '../apiService';
+import { updateBugs, listReleases, createNewRelease, ReleaseInfo, ResourceType, listPossibleAssignees, SimpleUserInfo } from '../apiService';
 import { BugSeverity, BugStatus, BugCategory, Bug, JourneyAgnotism, BoundingBox } from '../datas';
 import { useElementSelector } from '../elementSelector';
 import { getUniqueSelector } from '../html_utils';
@@ -30,12 +30,38 @@ export const AddBugPanel: React.FC<AddBugPanelProps> = ({ screen, state, onCance
   const [addBugDescription, setAddBugDescription] = useState('');
   const [addBugSeverity, setAddBugSeverity] = useState<BugSeverity | undefined>(undefined);
   const [addBugCategory, setAddBugCategory] = useState<string | undefined>(undefined);
+  const [addBugAssignee, setAddBugAssignee] = useState<string>('');
   const [addBugElement, setAddBugElement] = useState<{ element: HTMLElement, querySelector: string } | null>(null);
   const [addBugLoading, setAddBugLoading] = useState(false);
+  const [assigneeOptions, setAssigneeOptions] = useState<{ value: string; label: string }[]>([]);
+  const [assigneeLoading, setAssigneeLoading] = useState(false);
 
   const { selecting, startSelecting } = useElementSelector((element, querySelector) => {
     setAddBugElement({ element, querySelector });
   });
+
+  // Fetch possible assignees on component mount
+  useEffect(() => {
+    const fetchAssignees = async () => {
+      setAssigneeLoading(true);
+      try {
+        const response = await listPossibleAssignees();
+        const options = response.users
+          .filter(user => user.email) // Only use users with email
+          .map(user => ({
+            value: user.email!,
+            label: user.email!
+          }));
+        setAssigneeOptions(options);
+      } catch (error) {
+        console.error('Failed to fetch assignees:', error);
+      } finally {
+        setAssigneeLoading(false);
+      }
+    };
+
+    fetchAssignees();
+  }, []);
 
   useEffect(() => {
     // No longer fetching releases here, ReleaseSelect handles its own data fetching
@@ -101,6 +127,22 @@ export const AddBugPanel: React.FC<AddBugPanelProps> = ({ screen, state, onCance
           />
         </div>
 
+        <AutoComplete
+          placeholder={assigneeLoading ? "Loading assignees..." : "Assignee (email)"}
+          value={addBugAssignee}
+          onChange={setAddBugAssignee}
+          options={assigneeOptions}
+          style={{ width: '100%', marginBottom: 8 }}
+          disabled={addBugLoading}
+          placement="topLeft"
+          getPopupContainer={trigger => trigger.parentNode}
+          allowClear
+          showSearch
+          filterOption={(inputValue, option) =>
+            option?.label?.toLowerCase().includes(inputValue.toLowerCase()) ?? false
+          }
+        />
+
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           {addBugElement ? (
             <Button
@@ -160,11 +202,13 @@ export const AddBugPanel: React.FC<AddBugPanelProps> = ({ screen, state, onCance
                 await updateBugs({
                   updatedBugs: [bug],
                   newStatus: BugStatus.ACTIVE,
+                  assignee: addBugAssignee.trim() || undefined,
                 });
                 setAddBugTitle('');
                 setAddBugDescription('');
                 setAddBugSeverity(undefined);
                 setAddBugCategory(undefined);
+                setAddBugAssignee('');
                 setAddBugElement(null);
 
                 onSuccess();
