@@ -1,5 +1,6 @@
 // API service for BugsTab and related features
 import { BASE_URL } from './config';
+import { GetScreenshotAnalysisRequest } from './datas';
 
 // Remove enums and data interfaces that are not request/response types from this file.
 // Only keep request/response interfaces here, and import all data types from datas.ts instead.
@@ -558,15 +559,6 @@ export interface GetConsoleAnalysisResponse {
   bugs: BugDetail[];
 }
 
-export interface GetScreenshotAnalysisRequest {
-  screen?: string;
-  state?: string;
-  relativeUrl?: string;
-  screenshot?: string;
-  viewportWidth?: number;
-  viewportHeight?: number;
-}
-
 export interface GetScreenshotAnalysisResponse {
   bugs: BugDetail[];
 }
@@ -708,6 +700,55 @@ export async function listPossibleAssignees(req: ListPossibleAssigneesRequest = 
   const data = await res.json();
   return {
     users: data.users || [],
+  };
+}
+
+// Screenshot management functions
+export enum ViewportNickname {
+  UNKNOWN_VIEWPORT_NICKNAME = 0,
+  LAPTOP = 1,
+  WIDESCREEN = 2,
+  MOBILE = 3,
+  TABLET = 4,
+}
+
+export interface Viewport {
+  nickname?: ViewportNickname;
+  width?: number;
+  height?: number;
+}
+
+export interface Screenshot {
+  url?: string;
+  viewport?: Viewport;
+}
+
+export interface ListScreenshotsRequest {
+  screen?: string;
+  state?: string;
+  environment?: string;
+}
+
+export interface ListScreenshotsResponse {
+  screenshots: Screenshot[];
+}
+
+/**
+ * List screenshots for a given screen, state, and environment.
+ */
+export async function listScreenshots(req: ListScreenshotsRequest = {}): Promise<ListScreenshotsResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/localagent/list_screenshots`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(req),
+  });
+  const data = await res.json();
+  return {
+    screenshots: data.screenshots || [],
   };
 }
 

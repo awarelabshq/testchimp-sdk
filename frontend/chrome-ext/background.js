@@ -725,6 +725,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
     return true; // Keep the message channel open for async response
   }
+
+  if (message.type === 'fetch_image_as_base64') {
+    console.log('[background] fetch_image_as_base64 received for URL:', message.url);
+    
+    // Use fetch to get the image (background script has CORS permissions)
+    fetch(message.url)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        // Convert blob to base64 data URL
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result;
+          console.log('[background] Successfully converted image to base64, length:', dataUrl.length);
+          sendResponse({ success: true, dataUrl: dataUrl });
+        };
+        reader.onerror = () => {
+          console.error('[background] FileReader error:', reader.error);
+          sendResponse({ success: false, error: 'Failed to convert image to base64' });
+        };
+        reader.readAsDataURL(blob);
+      })
+      .catch(error => {
+        console.error('[background] Fetch error:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+
+    return true; // Keep the message channel open for async response
+  }
 });
 
 const cleanKey = (key) => {

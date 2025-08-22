@@ -195,6 +195,7 @@ export interface GetScreenshotAnalysisRequest {
   screenshot?: string;
   viewportWidth?: number;
   viewportHeight?: number;
+  baseImage?: string;
 }
 
 export interface GetNetworkAnalysisRequest {

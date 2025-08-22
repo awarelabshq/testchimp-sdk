@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Select, Input, Spin, Row, Col, Typography, List, Card, Tag, Button, Tooltip, Modal, Alert, Checkbox } from 'antd';
-import { PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { PlusOutlined, ThunderboltOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import {
   getScreenStates,
   getScreenForPage,
@@ -8,6 +8,8 @@ import {
   updateBugs,
   getDomAnalysis, getConsoleAnalysis, getScreenshotAnalysis, getNetworkAnalysis, captureCurrentTabScreenshotBase64, GetScreenForPageResponse, ListBugsRequest, fetchRecentConsoleLogs, fetchRecentRequestResponsePairs,
   getTeamDetails,
+  listScreenshots,
+  getCurrentEnvironmentAndRelease,
 } from '../apiService';
 import { useElementSelector } from '../elementSelector';
 import { simplifyDOMForLLM } from '../html_utils';
@@ -48,6 +50,13 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
   const [notification, setNotification] = useState<string | null>(null);
   const [showAnalyzePanel, setShowAnalyzePanel] = useState(false);
   const [analyzeSources, setAnalyzeSources] = useState({ dom: true, console: true, network: true, screenshot: false });
+  const [compareAgainstBaseImage, setCompareAgainstBaseImage] = useState(false);
+  const [baseImageFile, setBaseImageFile] = useState<File | null>(null);
+  const [baseImageDataUrl, setBaseImageDataUrl] = useState<string | null>(null);
+  const [baseImageSource, setBaseImageSource] = useState<'upload' | 'mindmap'>('upload');
+  const [mindmapScreenshots, setMindmapScreenshots] = useState<any[]>([]);
+  const [selectedMindmapImageIndex, setSelectedMindmapImageIndex] = useState<number>(0);
+  const [mindmapImagesLoading, setMindmapImagesLoading] = useState(false);
   const [teamTier, setTeamTier] = useState(undefined);
   const [showScreenshotUpgrade, setShowScreenshotUpgrade] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -163,6 +172,18 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
     setSelectedState(undefined);
   }, [selectedScreen]);
 
+  // Fetch mindmap screenshots when source changes to mindmap
+  useEffect(() => {
+    if (baseImageSource === 'mindmap' && selectedScreen) {
+      fetchMindmapScreenshots();
+    }
+  }, [baseImageSource, selectedScreen, selectedState]);
+
+  // Debug: Monitor baseImageDataUrl state changes
+  useEffect(() => {
+    console.log('MindMap: baseImageDataUrl state changed to length:', baseImageDataUrl?.length);
+  }, [baseImageDataUrl]);
+
   // Fetch bugs when screen or state changes (server-side filtering)
   useEffect(() => {
     if (!selectedScreen) return;
@@ -240,6 +261,13 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
   // Handler for Cancel in analyze panel
   const handleCancelAnalyze = () => {
     setShowAnalyzePanel(false);
+    // Clear base image when canceling
+    setBaseImageFile(null);
+    setBaseImageDataUrl(null);
+    setCompareAgainstBaseImage(false);
+    setBaseImageSource('upload');
+    setMindmapScreenshots([]);
+    setSelectedMindmapImageIndex(0);
   };
 
   // Handler for Analyze in analyze panel
@@ -281,6 +309,12 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
           });
         } else if (source === 'screenshot') {
           const screenshot = await captureCurrentTabScreenshotBase64();
+          console.log('Screenshot analysis - compareAgainstBaseImage:', compareAgainstBaseImage);
+          console.log('Screenshot analysis - baseImageSource:', baseImageSource);
+          console.log('Screenshot analysis - baseImageDataUrl exists:', !!baseImageDataUrl);
+          console.log('Screenshot analysis - baseImageDataUrl length:', baseImageDataUrl?.length);
+          const baseImageToSend = compareAgainstBaseImage ? (baseImageDataUrl || undefined) : undefined;
+          console.log('Screenshot analysis - baseImage will be sent:', !!baseImageToSend);
           response = await getScreenshotAnalysis({
             screen: selectedScreen,
             state: selectedState,
@@ -288,6 +322,7 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
             screenshot,
             viewportWidth: window.innerWidth,
             viewportHeight: window.innerHeight,
+            baseImage: baseImageToSend,
           });
         }
         if (response && response.bugs && response.bugs.length > 0) {
@@ -332,9 +367,16 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
     setAnalyzeStep(null);
     setAnalyzeLoading(false);
     setAnalyzing(false);
+    // Clear base image after analysis is complete
+    setBaseImageFile(null);
+    setBaseImageDataUrl(null);
+    setCompareAgainstBaseImage(false);
+    setBaseImageSource('upload');
+    setMindmapScreenshots([]);
+    setSelectedMindmapImageIndex(0);
   };
 
-  // Handler for screenshot checkbox
+    // Handler for screenshot checkbox
   const handleScreenshotCheckbox = (e) => {
     const checked = e.target.checked;
     setAnalyzeSources(s => ({ ...s, screenshot: checked }));
@@ -345,7 +387,122 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
       });
     } else {
       setShowScreenshotUpgrade(false);
+      // Clear base image when screenshot is unchecked
+      setBaseImageFile(null);
+      setBaseImageDataUrl(null);
+      setCompareAgainstBaseImage(false);
+      setBaseImageSource('upload');
     }
+  };
+
+  // Handler for base image file selection
+  const handleBaseImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setBaseImageFile(file);
+      // Convert file to data URL (same format as screenshot)
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Keep the complete data URL (same format as screenshot)
+        setBaseImageDataUrl(result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setBaseImageFile(null);
+      setBaseImageDataUrl(null);
+    }
+  };
+
+  // Fetch mindmap screenshots
+  const fetchMindmapScreenshots = async () => {
+    if (!selectedScreen) return;
+    
+    setMindmapImagesLoading(true);
+    try {
+      const { environment } = await getCurrentEnvironmentAndRelease();
+      const response = await listScreenshots({
+        screen: selectedScreen,
+        state: selectedState,
+        environment: environment
+      });
+      const screenshots = response.screenshots || [];
+      setMindmapScreenshots(screenshots);
+      setSelectedMindmapImageIndex(0);
+      // Automatically select the first image if available
+      if (screenshots.length > 0) {
+        handleMindmapImageSelectWithScreenshots(0, screenshots);
+      }
+    } catch (error) {
+      console.error('Failed to fetch mindmap screenshots:', error);
+      setMindmapScreenshots([]);
+    } finally {
+      setMindmapImagesLoading(false);
+    }
+  };
+
+  // Handle mindmap image selection with screenshots array
+  const handleMindmapImageSelectWithScreenshots = async (index: number, screenshots: any[]) => {
+    console.log('MindMap: Selecting image at index:', index, 'from screenshots array length:', screenshots.length);
+    setSelectedMindmapImageIndex(index);
+    const screenshot = screenshots[index];
+    console.log('MindMap: Screenshot object:', screenshot);
+    if (screenshot?.url) {
+      try {
+        console.log('MindMap: Requesting background script to fetch image from URL:', screenshot.url);
+        
+        // Use chrome.runtime.sendMessage to ask background script to fetch the image
+        const response = await new Promise<{success: boolean, dataUrl?: string, error?: string}>((resolve) => {
+          chrome.runtime.sendMessage({
+            type: 'fetch_image_as_base64',
+            url: screenshot.url
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.error('Chrome runtime error:', chrome.runtime.lastError.message);
+              resolve({ success: false, error: chrome.runtime.lastError.message });
+            } else {
+              resolve(response);
+            }
+          });
+        });
+        
+        if (response.success && response.dataUrl) {
+          console.log('MindMap: Successfully got base64 from background script, length:', response.dataUrl.length);
+          console.log('MindMap: About to set baseImageDataUrl with length:', response.dataUrl.length);
+          setBaseImageDataUrl(response.dataUrl);
+          console.log('MindMap: setBaseImageDataUrl called, checking state in next tick...');
+          // Check if state was actually updated in the next tick
+          setTimeout(() => {
+            console.log('MindMap: State check - baseImageDataUrl length after setState:', baseImageDataUrl?.length);
+          }, 0);
+        } else {
+          console.error('MindMap: Failed to fetch image via background script:', response.error);
+        }
+        
+      } catch (error) {
+        console.error('Failed to process mindmap image:', error);
+      }
+    } else {
+      console.log('MindMap: No URL found for screenshot');
+    }
+  };
+
+  // Handle mindmap image selection (uses state)
+  const handleMindmapImageSelect = async (index: number) => {
+    handleMindmapImageSelectWithScreenshots(index, mindmapScreenshots);
+  };
+
+  // Navigate mindmap carousel
+  const navigateMindmapImage = (direction: 'prev' | 'next') => {
+    if (mindmapScreenshots.length === 0) return;
+    
+    let newIndex = selectedMindmapImageIndex;
+    if (direction === 'prev') {
+      newIndex = newIndex > 0 ? newIndex - 1 : mindmapScreenshots.length - 1;
+    } else {
+      newIndex = newIndex < mindmapScreenshots.length - 1 ? newIndex + 1 : 0;
+    }
+    handleMindmapImageSelect(newIndex);
   };
 
   // Get states for selected screen
@@ -479,6 +636,155 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
                 Screenshot
                 <ThunderboltOutlined style={{ color: '#FFD600', fontSize: 16, marginLeft: 4 }} />
               </label>
+              {analyzeSources.screenshot && (
+                <>
+                  <div style={{ marginLeft: 20, marginBottom: 8 }} className="fade-in">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input 
+                        type="checkbox" 
+                        checked={compareAgainstBaseImage} 
+                        onChange={e => setCompareAgainstBaseImage(e.target.checked)} 
+                      />
+                      Compare against a base image (Optional)
+                    </label>
+                  </div>
+                  {compareAgainstBaseImage && (
+                    <div style={{ marginLeft: 20, marginBottom: 8 }} className="fade-in">
+                      <Row gutter={8} style={{ marginBottom: 8 }}>
+                        <Col span={12}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <input 
+                              type="radio" 
+                              name="baseImageSource" 
+                              value="upload" 
+                              checked={baseImageSource === 'upload'} 
+                              onChange={e => setBaseImageSource(e.target.value as 'upload' | 'mindmap')} 
+                            />
+                            Upload image
+                          </label>
+                        </Col>
+                        <Col span={12}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <input 
+                              type="radio" 
+                              name="baseImageSource" 
+                              value="mindmap" 
+                              checked={baseImageSource === 'mindmap'} 
+                              onChange={e => setBaseImageSource(e.target.value as 'upload' | 'mindmap')}
+                              disabled={!selectedScreen}
+                            />
+                            <span>
+                              From MindMap
+                              <Tooltip 
+                                title="When ExploreChimp is run, it captures screenshots for each screen it visits, which can be loaded here for comparison as base image."
+                                placement="top"
+                              >
+                                <InfoCircleOutlined 
+                                  style={{ 
+                                    color: '#666', 
+                                    marginLeft: 6, 
+                                    fontSize: 12,
+                                    cursor: 'help'
+                                  }} 
+                                />
+                              </Tooltip>
+                            </span>
+                            {!selectedScreen && (
+                              <span style={{ fontSize: 10, color: '#666', marginLeft: 4 }}>
+                                (Select a screen first)
+                              </span>
+                            )}
+                          </label>
+                        </Col>
+                      </Row>
+                      
+                      {baseImageSource === 'upload' && (
+                        <div className="fade-in">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleBaseImageFileChange}
+                            style={{
+                              fontSize: 12,
+                              color: '#ccc',
+                              background: 'transparent',
+                              border: '1px solid #444',
+                              borderRadius: 4,
+                              padding: '4px 8px',
+                              width: '100%'
+                            }}
+                          />
+                          {baseImageFile && (
+                            <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                              Selected: {baseImageFile.name}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {baseImageSource === 'mindmap' && (
+                        <div className="fade-in">
+                          {mindmapImagesLoading ? (
+                            <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                              Loading screenshots...
+                            </div>
+                          ) : mindmapScreenshots.length > 0 ? (
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ marginBottom: 8 }}>
+                                <img
+                                  src={mindmapScreenshots[selectedMindmapImageIndex]?.url}
+                                  alt="Selected screenshot"
+                                  style={{
+                                    maxWidth: '100%',
+                                    maxHeight: '120px',
+                                    border: '2px solid #1890ff',
+                                    borderRadius: 4
+                                  }}
+                                />
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, alignItems: 'center' }}>
+                                <button
+                                  onClick={() => navigateMindmapImage('prev')}
+                                  style={{
+                                    background: '#333',
+                                    border: '1px solid #555',
+                                    color: '#ccc',
+                                    borderRadius: 4,
+                                    padding: '4px 8px',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  ←
+                                </button>
+                                <span style={{ fontSize: 12, color: '#888' }}>
+                                  {selectedMindmapImageIndex + 1} of {mindmapScreenshots.length}
+                                </span>
+                                <button
+                                  onClick={() => navigateMindmapImage('next')}
+                                  style={{
+                                    background: '#333',
+                                    border: '1px solid #555',
+                                    color: '#ccc',
+                                    borderRadius: 4,
+                                    padding: '4px 8px',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  →
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                              No screenshots found for this screen/state
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
               {showScreenshotUpgrade && (
                 <div style={{ background: '#ffebe6', color: '#d4380d', padding: '6px 12px', borderRadius: 6, marginTop: 4, fontWeight: 500, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <div>
