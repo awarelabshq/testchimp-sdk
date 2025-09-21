@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Better Cross-Origin Iframe Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        iframe {
+            width: 100%;
+            height: 300px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background-color: #e9ecef;
+            border: 1px solid #dee2e6;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cross-Origin Iframe Recording Test</h1>
+        <p>This page tests cross-origin iframe recording with more reliable URLs.</p>
+        
+        <div class="status">
+            <strong>Instructions:</strong>
+            <ol>
+                <li>Start recording using the TestChimp extension</li>
+                <li>Click the buttons below to add cross-origin iframes</li>
+                <li>Interact with the content inside the iframes</li>
+                <li>Check the console logs for recording events</li>
+                <li>Stop recording and check if iframe interactions were captured</li>
+            </ol>
+        </div>
+
+        <button class="button" onclick="addHttpBinIframe()">Add httpbin.org iframe</button>
+        <button class="button" onclick="addJsonPlaceholderIframe()">Add jsonplaceholder iframe</button>
+        <button class="button" onclick="addWikipediaIframe()">Add Wikipedia iframe</button>
+        <button class="button" onclick="clearIframes()">Clear all iframes</button>
+
+        <div id="iframes-container"></div>
+
+        <div class="status">
+            <h3>Recording Status</h3>
+            <div id="recording-status">Not recording</div>
+            <div id="iframe-events-count">Iframe events: 0</div>
+        </div>
+
+        <div class="log" id="log-container">
+            <div><strong>Event Log:</strong></div>
+        </div>
+    </div>
+
+    <script>
+        let iframeEventCount = 0;
+
+        function log(message) {
+            const logContainer = document.getElementById('log-container');
+            const timestamp = new Date().toLocaleTimeString();
+            logContainer.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(message);
+        }
+
+        function updateIframeEventCount() {
+            document.getElementById('iframe-events-count').textContent = `Iframe events: ${iframeEventCount}`;
+        }
+
+        function addHttpBinIframe() {
+            const container = document.getElementById('iframes-container');
+            const iframe = document.createElement('iframe');
+            iframe.src = 'https://httpbin.org/html';
+            iframe.style.width = '100%';
+            iframe.style.height = '300px';
+            iframe.style.border = '2px solid #28a745';
+            iframe.style.margin = '10px 0';
+            iframe.title = 'httpbin.org HTML page';
+            
+            iframe.addEventListener('load', () => {
+                log('httpbin.org iframe loaded successfully');
+            });
+            
+            iframe.addEventListener('error', () => {
+                log('httpbin.org iframe failed to load');
+            });
+            
+            container.appendChild(iframe);
+            log('Added httpbin.org iframe');
+        }
+
+        function addJsonPlaceholderIframe() {
+            const container = document.getElementById('iframes-container');
+            const iframe = document.createElement('iframe');
+            iframe.src = 'https://jsonplaceholder.typicode.com/';
+            iframe.style.width = '100%';
+            iframe.style.height = '300px';
+            iframe.style.border = '2px solid #17a2b8';
+            iframe.style.margin = '10px 0';
+            iframe.title = 'JSONPlaceholder API';
+            
+            iframe.addEventListener('load', () => {
+                log('JSONPlaceholder iframe loaded successfully');
+            });
+            
+            iframe.addEventListener('error', () => {
+                log('JSONPlaceholder iframe failed to load');
+            });
+            
+            container.appendChild(iframe);
+            log('Added JSONPlaceholder iframe');
+        }
+
+        function addWikipediaIframe() {
+            const container = document.getElementById('iframes-container');
+            const iframe = document.createElement('iframe');
+            iframe.src = 'https://en.wikipedia.org/wiki/Web_application';
+            iframe.style.width = '100%';
+            iframe.style.height = '300px';
+            iframe.style.border = '2px solid #6f42c1';
+            iframe.style.margin = '10px 0';
+            iframe.title = 'Wikipedia Web Application article';
+            
+            iframe.addEventListener('load', () => {
+                log('Wikipedia iframe loaded successfully');
+            });
+            
+            iframe.addEventListener('error', () => {
+                log('Wikipedia iframe failed to load');
+            });
+            
+            container.appendChild(iframe);
+            log('Added Wikipedia iframe');
+        }
+
+        function clearIframes() {
+            const container = document.getElementById('iframes-container');
+            container.innerHTML = '';
+            iframeEventCount = 0;
+            updateIframeEventCount();
+            log('Cleared all iframes');
+        }
+
+        // Listen for iframe events from the extension
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'rrweb-iframe-event') {
+                iframeEventCount++;
+                updateIframeEventCount();
+                log(`Received iframe event: ${event.data.event.type} from ${event.data.iframeSrc}`);
+            }
+        });
+
+        // Monitor recording status
+        let isRecording = false;
+        setInterval(() => {
+            // Check if recording is active by looking for TestChimp indicators
+            const hasTestChimp = window.eventBuffer || window.__testchimpRecording;
+            if (hasTestChimp && !isRecording) {
+                isRecording = true;
+                document.getElementById('recording-status').textContent = 'Recording active';
+                document.getElementById('recording-status').style.color = 'green';
+                log('Recording started');
+            } else if (!hasTestChimp && isRecording) {
+                isRecording = false;
+                document.getElementById('recording-status').textContent = 'Not recording';
+                document.getElementById('recording-status').style.color = 'red';
+                log('Recording stopped');
+            }
+        }, 1000);
+
+        log('Test page loaded. Start recording and add iframes to test cross-origin recording.');
+    </script>
+</body>
+</html>
