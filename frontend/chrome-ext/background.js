@@ -66,6 +66,34 @@ chrome.action.onClicked.addListener((tab) => {
             target: { tabId },
             files: ['injectSidebar.js', 'index.js'],
           });
+          
+          // Also start recording on the updated tab
+          chrome.storage.sync.get([
+            'projectId',
+            'sessionRecordingApiKey',
+            'endpoint',
+            'maxSessionDurationSecs',
+            'eventWindowToSaveOnError',
+            'uriRegexToIntercept',
+            'currentUserId'
+          ], (items) => {
+            if (!chrome.runtime.lastError && items.projectId) {
+              chrome.tabs.sendMessage(tabId, {
+                action: 'startTCRecording',
+                data: {
+                  projectId: items.projectId,
+                  sessionRecordingApiKey: items.sessionRecordingApiKey,
+                  endpoint: items.endpoint,
+                  samplingProbabilityOnError: 0.0,
+                  samplingProbability: 1.0,
+                  maxSessionDurationSecs: items.maxSessionDurationSecs || 500,
+                  eventWindowToSaveOnError: items.eventWindowToSaveOnError || 200,
+                  currentUserId: items.currentUserId,
+                  untracedUriRegexListToTrack: items.uriRegexToIntercept || '.*'
+                }
+              });
+            }
+          });
         }
       });
     }
@@ -77,6 +105,34 @@ chrome.action.onClicked.addListener((tab) => {
         chrome.scripting.executeScript({
           target: { tabId },
           files: ['injectSidebar.js', 'index.js'],
+        });
+        
+        // Also start recording on the newly activated tab
+        chrome.storage.sync.get([
+          'projectId',
+          'sessionRecordingApiKey',
+          'endpoint',
+          'maxSessionDurationSecs',
+          'eventWindowToSaveOnError',
+          'uriRegexToIntercept',
+          'currentUserId'
+        ], (items) => {
+          if (!chrome.runtime.lastError && items.projectId) {
+            chrome.tabs.sendMessage(tabId, {
+              action: 'startTCRecording',
+              data: {
+                projectId: items.projectId,
+                sessionRecordingApiKey: items.sessionRecordingApiKey,
+                endpoint: items.endpoint,
+                samplingProbabilityOnError: 0.0,
+                samplingProbability: 1.0,
+                maxSessionDurationSecs: items.maxSessionDurationSecs || 500,
+                eventWindowToSaveOnError: items.eventWindowToSaveOnError || 200,
+                currentUserId: items.currentUserId,
+                untracedUriRegexListToTrack: items.uriRegexToIntercept || '.*'
+              }
+            });
+          }
         });
       }
     });
