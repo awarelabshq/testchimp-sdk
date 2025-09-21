@@ -21,6 +21,11 @@ var sessionStartTime;
 var shouldRecordSession = false;
 var shouldRecordSessionOnError = false;
 
+// Cross-origin iframe recording support
+var iframeEvents = new Map(); // Store events from different iframes
+var iframeStopFunctions = new Map(); // Store stop functions for each iframe
+var iframeObserver = null; // MutationObserver for iframe detection
+
 let samplingConfig = {
   // do not record mouse movement
   mousemove: false,
@@ -49,6 +54,171 @@ function generateSessionId() {
 function log(config, log) {
   if (config.enableLogging) {
     console.log(log);
+  }
+}
+
+// Function to inject rrweb into iframes
+function injectRrwebIntoIframe(iframe) {
+  console.log(`[INJECTION] Attempting to inject rrweb into iframe:`, {
+    src: iframe.src,
+    id: iframe.id,
+    className: iframe.className
+  });
+  
+  // Check if iframe is from a different origin
+  const iframeOrigin = new URL(iframe.src).origin;
+  const currentOrigin = window.location.origin;
+  const isCrossOrigin = iframeOrigin !== currentOrigin;
+  
+  console.log(`[INJECTION] Origin check:`, {
+    iframeOrigin: iframeOrigin,
+    currentOrigin: currentOrigin,
+    isCrossOrigin: isCrossOrigin
+  });
+  
+  try {
+    if (!isCrossOrigin) {
+      // Same-origin iframe, inject directly
+      console.log(`[INJECTION] Same-origin iframe detected, injecting directly`);
+      
+      const script = document.createElement('script');
+      script.src = chrome.runtime.getURL('iframe-rrweb-injector.js');
+      script.onload = function() {
+        this.remove();
+        console.log(`[INJECTION] Same-origin iframe script loaded, sending rrweb URL`);
+        // Send the rrweb URL to the injector
+        iframe.contentWindow.postMessage({
+          type: 'rrweb-inject',
+          rrwebUrl: chrome.runtime.getURL('rrweb.js')
+        }, '*');
+      };
+      script.onerror = function() {
+        console.error('[INJECTION] Failed to inject rrweb into same-origin iframe');
+        this.remove();
+      };
+      iframe.contentDocument.head.appendChild(script);
+      return;
+    } else {
+      // Cross-origin iframe, use postMessage approach
+      console.log(`[INJECTION] Cross-origin iframe detected, using postMessage injection`);
+      
+      // For cross-origin iframes, we need to inject via the content script
+      // This requires the iframe to have a content script that can receive our message
+      console.log(`[INJECTION] Sending injection message to cross-origin iframe`);
+      iframe.contentWindow.postMessage({
+        type: 'inject-rrweb',
+        scriptUrl: chrome.runtime.getURL('iframe-rrweb-injector.js'),
+        rrwebUrl: chrome.runtime.getURL('rrweb.js')
+      }, '*');
+    }
+    
+  } catch (error) {
+    console.error('[INJECTION] Error injecting rrweb into iframe:', error);
+  }
+}
+
+// Function to detect and inject rrweb into existing iframes
+function detectAndInjectIntoIframes() {
+  const iframes = document.querySelectorAll('iframe');
+  console.log(`[DETECTION] Found ${iframes.length} iframes on page`);
+  iframes.forEach((iframe, index) => {
+    console.log(`[DETECTION] Processing iframe ${index + 1}/${iframes.length}`);
+    injectRrwebIntoIframe(iframe);
+  });
+}
+
+// Function to set up iframe observer for dynamically added iframes
+function setupIframeObserver() {
+  if (iframeObserver) {
+    iframeObserver.disconnect();
+  }
+
+  iframeObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          if (node.tagName === 'IFRAME') {
+            console.log(`[OBSERVER] New iframe detected dynamically:`, {
+              src: node.src,
+              id: node.id
+            });
+            // Wait for iframe to load before injecting
+            node.addEventListener('load', () => {
+              console.log(`[OBSERVER] Iframe loaded, attempting injection`);
+              injectRrwebIntoIframe(node);
+            });
+            // Also try immediately in case load event already fired
+            if (node.contentDocument) {
+              console.log(`[OBSERVER] Iframe already loaded, injecting immediately`);
+              injectRrwebIntoIframe(node);
+            }
+          }
+          // Check for iframes within added nodes
+          const iframes = node.querySelectorAll && node.querySelectorAll('iframe');
+          if (iframes && iframes.length > 0) {
+            console.log(`[OBSERVER] Found ${iframes.length} iframes within added node`);
+            iframes.forEach(iframe => {
+              iframe.addEventListener('load', () => {
+                console.log(`[OBSERVER] Nested iframe loaded, attempting injection`);
+                injectRrwebIntoIframe(iframe);
+              });
+              // Also try immediately
+              if (iframe.contentDocument) {
+                console.log(`[OBSERVER] Nested iframe already loaded, injecting immediately`);
+                injectRrwebIntoIframe(iframe);
+              }
+            });
+          }
+        }
+      });
+    });
+  });
+
+  iframeObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}
+
+// Function to handle iframe events
+function handleIframeEvent(event) {
+  if (event.data && event.data.type === 'rrweb-iframe-event') {
+    const { iframeId, payload, timestamp } = event.data;
+    
+    console.log(`[PARENT] Received iframe event from ${iframeId}:`, {
+      eventType: payload.type,
+      timestamp: timestamp,
+      eventData: payload
+    });
+    
+    // Store the event with iframe context
+    if (!iframeEvents.has(iframeId)) {
+      iframeEvents.set(iframeId, []);
+      console.log(`[PARENT] Created new event storage for iframe ${iframeId}`);
+    }
+    
+    // Add iframe context to the event
+    const eventWithIframeContext = {
+      ...payload,
+      iframeId: iframeId,
+      iframeTimestamp: timestamp
+    };
+    
+    iframeEvents.get(iframeId).push(eventWithIframeContext);
+    console.log(`[PARENT] Stored event in iframe storage. Total events for ${iframeId}: ${iframeEvents.get(iframeId).length}`);
+    
+    // Process the iframe event through the main recording's emit function
+    // This ensures proper event aggregation as per Google guidance
+    const processedEvent = processEvent(eventWithIframeContext);
+    if (processedEvent) {
+      eventBuffer.push(processedEvent);
+      console.log(`[PARENT] Added iframe event to main buffer: ${processedEvent.type} from ${iframeId}. Buffer size: ${eventBuffer.length}`);
+    } else {
+      console.log(`[PARENT] Event from ${iframeId} was filtered out during processing`);
+    }
+  } else if (event.data && event.data.type === 'rrweb-iframe-ready') {
+    const { iframeId, url } = event.data;
+    console.log(`[PARENT] Iframe recording ready: ${iframeId} (${url})`);
   }
 }
 
@@ -115,8 +285,11 @@ function sendEvents(endpoint, config, sessionId, events) {
     };
   });
 
-  // Clear the event buffer. While sendEvents is used in both onError and normal recording, the eventBuffer is utilized only in normal recording.
-  eventBuffer = [];
+    // Clear the event buffer. While sendEvents is used in both onError and normal recording, the eventBuffer is utilized only in normal recording.
+    eventBuffer = [];
+    
+    // Also clear iframe events that have been processed
+    iframeEvents.clear();
 
   const body = {
     tracking_id: sessionId,
@@ -139,6 +312,13 @@ function sendEvents(endpoint, config, sessionId, events) {
 
 // Function to start sending events in batches every 5 seconds
 function startSendingEvents(endpoint, config, sessionId) {
+  // Set up iframe detection and injection
+  detectAndInjectIntoIframes();
+  setupIframeObserver();
+  
+  // Set up iframe event listener
+  window.addEventListener('message', handleIframeEvent);
+
   const recordOptions = {
     emit: function (event) {
       // Process the event before adding it to the buffer
@@ -149,7 +329,8 @@ function startSendingEvents(endpoint, config, sessionId) {
     },
     sampling: samplingConfig,
     blockSelector: '.data-rrweb-ignore, #testchimp-sidebar, #testchimp-sidebar-toggle, #testchimp-sidebar *',
-    recordCanvas: false
+    recordCanvas: false,
+    recordCrossOriginIframes: true  // Enable cross-origin iframe recording
   };
 
   function processEvent(event) {
@@ -191,6 +372,12 @@ function startSendingEvents(endpoint, config, sessionId) {
   function flushBufferedEventsBeforeExit() {
     if (eventBuffer.length === 0) return;
 
+    // Check if we're in a state where we can safely send data
+    if (document.readyState === 'unloading') {
+      console.log('[MAIN] Page unloading, skipping event flush');
+      return;
+    }
+
     const payload = JSON.stringify({
       sessionId,
       events: eventBuffer,
@@ -202,19 +389,22 @@ function startSendingEvents(endpoint, config, sessionId) {
       const success = navigator.sendBeacon(endpoint, blob);
 
       if (!success) {
-        fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          keepalive: true,
-          body: payload
-        }).catch((err) => {
-          console.error("Fetch fallback failed", err);
-        });
+        // Only try fetch if the page is still active
+        if (document.readyState !== 'unloading') {
+          fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            keepalive: true,
+            body: payload
+          }).catch((err) => {
+            console.log('[MAIN] Fetch fallback failed (this is normal during page transitions):', err.message);
+          });
+        }
       }
     } catch (err) {
-      console.error("Failed to flush events", err);
+      console.log('[MAIN] Failed to flush events (this is normal during page transitions):', err.message);
     }
 
     eventBuffer.length = 0;
@@ -225,11 +415,45 @@ function startSendingEvents(endpoint, config, sessionId) {
     window.removeEventListener("beforeunload", flushBufferedEventsBeforeExit);
     window.removeEventListener("pagehide", flushBufferedEventsBeforeExit);
     document.removeEventListener("visibilitychange", visibilityHandler);
+    
+    // Clean up iframe recording
+    if (iframeObserver) {
+      iframeObserver.disconnect();
+      iframeObserver = null;
+    }
+    
+    // Stop all iframe recordings
+    iframeStopFunctions.forEach((stopFn, iframeId) => {
+      try {
+        stopFn();
+      } catch (error) {
+        console.error(`Error stopping iframe recording for ${iframeId}:`, error);
+      }
+    });
+    iframeStopFunctions.clear();
+    iframeEvents.clear();
+    
+    // Remove iframe event listener
+    window.removeEventListener('message', handleIframeEvent);
   }
 
   function visibilityHandler() {
     if (document.visibilityState === "hidden") {
-      flushBufferedEventsBeforeExit();
+      // Add a small delay to avoid flushing events when just opening a new tab
+      // Only flush if the page is actually being unloaded
+      setTimeout(() => {
+        if (document.visibilityState === "hidden") {
+          // Check if the page is actually being unloaded by testing if we can still access the document
+          try {
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+              flushBufferedEventsBeforeExit();
+            }
+          } catch (e) {
+            // Page is being unloaded, don't try to flush
+            console.log('[MAIN] Page being unloaded, skipping event flush');
+          }
+        }
+      }, 100);
     }
   }
 
@@ -351,16 +575,38 @@ async function startRecording(config) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'startTCRecording') {
-    startRecording(message.data);
+  console.log('[MESSAGE LISTENER] Received message:', message, 'from:', sender.tab?.url);
+  try {
+    if (message.action === 'startTCRecording') {
+      console.log('[MESSAGE LISTENER] Starting recording');
+      startRecording(message.data);
+      if (sendResponse) sendResponse({ success: true });
+    } else if (message.action === 'endTCRecording') {
+      console.log('[MESSAGE LISTENER] Ending recording');
+      endTrackedSession();
+      if (sendResponse) sendResponse({ success: true });
+    } else if (message.action === "open_extension_popup") {
+      console.log('[MESSAGE LISTENER] Opening popup');
+      chrome.runtime.sendMessage({ type: "trigger_popup" }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Error triggering popup:', chrome.runtime.lastError.message);
+        }
+        // Always call sendResponse to prevent port closure
+        if (sendResponse) sendResponse({ success: true });
+      });
+    } else {
+      console.log('[MESSAGE LISTENER] Forwarding message to webpage:', message);
+      // Forward the message back to the webpage
+      window.postMessage(message, "*");
+      if (sendResponse) sendResponse({ success: true });
+    }
+  } catch (error) {
+    console.error('Error handling message:', error);
+    if (sendResponse) sendResponse({ success: false, error: error.message });
   }
-  if (message.action === 'endTCRecording') {
-    endTrackedSession();
-  }
-  if (message.action === "open_extension_popup") {
-    chrome.runtime.sendMessage({ type: "trigger_popup" });
-  }
-
+  
+  // Return true to indicate we will send a response asynchronously
+  return true;
 });
 
 window.addEventListener("message", (event) => {
@@ -380,10 +626,25 @@ window.addEventListener("message", (event) => {
       responseBody: responseBody,
       statusCode: statusCode,
       url: url?.toString() || ''
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error sending captured response:', chrome.runtime.lastError.message);
+      }
     });
     return true;
   } else if (event.data.type === "checkUrl") {
     chrome.runtime.sendMessage({ type: "checkUrl", url: event.data.url }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error checking URL:', chrome.runtime.lastError);
+        window.postMessage(
+          {
+            type: "checkUrlResponse",
+            shouldIntercept: false,
+          },
+          "*"
+        );
+        return;
+      }
       window.postMessage(
         {
           type: "checkUrlResponse",
@@ -404,11 +665,30 @@ window.addEventListener("message", (event) => {
       requestId,
       requestHeaders,
       requestBody
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error sending intercepted request:', chrome.runtime.lastError.message);
+      }
     });
     return true;
   } else if (event.data?.type === "get_tc_ext_config") {
     // Fetch currentUserId and userAuthKey from chrome.storage.sync
     chrome.storage.sync.get(["currentUserId", "userAuthKey"], (result) => {
+      if (chrome.runtime.lastError) {
+        console.error("Error getting config:", chrome.runtime.lastError.message);
+        window.postMessage(
+          {
+            type: "get_tc_ext_config_response",
+            payload: {
+              currentUserId: null,
+              userAuthKey: null,
+            },
+            error: chrome.runtime.lastError.message,
+          },
+          "*"
+        );
+        return;
+      }
       window.postMessage(
         {
           type: "get_tc_ext_config_response",
@@ -424,10 +704,18 @@ window.addEventListener("message", (event) => {
   } else if (event.data.type === "tc_open_options_page") {
     console.log("Received message tc_open_options_page");
     // Open the options page
-    chrome.runtime.sendMessage({ type: "tc_open_options_page_in_bg" });
+    chrome.runtime.sendMessage({ type: "tc_open_options_page_in_bg" }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error("Error opening options page:", chrome.runtime.lastError.message);
+      }
+    });
     return true;
   } else if (event.data.type === "show_testchimp_ext_popup") {
-    chrome.runtime.sendMessage({ type: "trigger_popup" });
+    chrome.runtime.sendMessage({ type: "trigger_popup" }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error("Error triggering popup:", chrome.runtime.lastError.message);
+      }
+    });
     return true;
   } else if (event.data.type === "get_latest_session") {
     chrome.runtime.sendMessage({ type: "get_latest_session" }, (response) => {
@@ -496,11 +784,6 @@ window.addEventListener("message", (event) => {
 
 });
 
-// Listen for messages from the background script
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Forward the message back to the webpage
-  window.postMessage(message, "*");
-});
 
 // Relay host page console logs to background
 window.addEventListener('message', function(event) {
@@ -514,7 +797,12 @@ window.addEventListener('message', function(event) {
       logType: event.data.logType,
       log: event.data.log,
       timestamp: event.data.timestamp
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error sending console log to background:', chrome.runtime.lastError.message);
+      }
     });
+    return true;
   }
 });
 
@@ -564,6 +852,10 @@ window.addEventListener('message', (event) => {
   if (event.source !== window) return;
   if (event.data && (event.data.type === 'fetchProjects' || event.data.type === 'getUserAuthInfo')) {
     chrome.storage.sync.get(['userAuthKey', 'currentUserId', 'projectId'], (result) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error getting user auth info:', chrome.runtime.lastError.message);
+        return;
+      }
       window.postMessage({
         type: 'userAuthInfo',
         userAuthKey: result.userAuthKey,
@@ -577,6 +869,10 @@ window.addEventListener('message', (event) => {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && (changes.userAuthKey || changes.currentUserId || changes.projectId)) {
     chrome.storage.sync.get(['userAuthKey', 'currentUserId', 'projectId'], (result) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error getting user auth info on change:', chrome.runtime.lastError.message);
+        return;
+      }
       window.postMessage({
         type: 'userAuthInfo',
         userAuthKey: result.userAuthKey,

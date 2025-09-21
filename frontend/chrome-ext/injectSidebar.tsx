@@ -5,6 +5,13 @@ import sidebarCss from './sidebar.css';
 import { StyleProvider } from '@ant-design/cssinjs';
 import { ConfigProvider, theme } from 'antd';
 
+// Don't show sidebar in iframes - only in main window
+if (window !== window.top) {
+  console.log('[injectSidebar] Skipping sidebar creation in iframe');
+  // Exit early to prevent sidebar from being created in iframes
+  // Just log and don't execute the rest of the module
+} else {
+
 const containerId = 'testchimp-sidebar';
 const toggleButtonId = 'testchimp-sidebar-toggle';
 const sidebarWidth = 350;
@@ -299,3 +306,5 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   });
 })();
+
+} // End of else block for iframe check

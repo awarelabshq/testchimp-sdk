@@ -219,6 +219,10 @@ function notifyStatus() {
         type: 'connection_status',
         vscodeConnected: self.vscodeConnected,
         mcpConnected: self.mcpConnected
+    }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.error('Error sending connection status:', chrome.runtime.lastError.message);
+        }
     });
 }
 self.notifyStatus = notifyStatus;
@@ -236,15 +240,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             vscodeConnected: self.vscodeConnected,
             mcpConnected: self.mcpConnected
         });
+        return true;
     } else if (msg.type === 'add_extra_info' && msg.id) {
         extraInfoStore[msg.id] = msg.extraInfo;
         // Optionally log for debug
         console.log('[background] Stored extra info for id', msg.id, msg.extraInfo);
+        return true;
     } else if (msg.type === 'get_extra_info' && msg.id) {
         sendResponse({ extraInfo: extraInfoStore[msg.id] });
+        return true;
     } else if (msg.type === 'remove_extra_info' && msg.id) {
         delete extraInfoStore[msg.id];
         console.log('[background] Removed extra info for id', msg.id);
+        return true;
     }
 }); 
 
@@ -356,6 +364,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (recentConsoleLogs.length > MAX_CONSOLE_LOGS) recentConsoleLogs = recentConsoleLogs.slice(-MAX_CONSOLE_LOGS);
         chrome.storage.local.set({ recentConsoleLogs });
         if (sendResponse) sendResponse({ success: true });
+        return true;
     }
 }); 
 

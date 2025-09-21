@@ -64,7 +64,7 @@ chrome.action.onClicked.addListener((tab) => {
         if (data.recordingInProgress) {
           chrome.scripting.executeScript({
             target: { tabId },
-            files: ['injectSidebar.js'],
+            files: ['injectSidebar.js', 'index.js'],
           });
         }
       });
@@ -76,7 +76,7 @@ chrome.action.onClicked.addListener((tab) => {
       if (data.recordingInProgress) {
         chrome.scripting.executeScript({
           target: { tabId },
-          files: ['injectSidebar.js'],
+          files: ['injectSidebar.js', 'index.js'],
         });
       }
     });
@@ -518,7 +518,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } catch (error) {
       console.log("Error parsing",error);
       sendResponse({ error: "Invalid request body" });
-      return;
+      return true;
     }
 
     (async () => {
@@ -545,6 +545,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           try {
             const isMatchingUrl = await checkUrl(url);
             if (!isMatchingUrl) {
+              sendResponse({ success: false, reason: 'URL not matching' });
               return;
             }
 
@@ -578,8 +579,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
           } catch (error) {
             console.error("Error in fallbackRequestBody handling:", error);
+            sendResponse({ success: false, error: error.message });
           }
         })(); // Immediately invoke the async function
+        return true;
     }
 
   if (message.type === "checkUrl") {
@@ -758,6 +761,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     return true; // Keep the message channel open for async response
   }
+
+  // Default case for unknown message types
+  console.log('Unknown message type:', message.type);
+  sendResponse({ success: false, error: 'Unknown message type' });
+  return true;
 });
 
 const cleanKey = (key) => {
@@ -1004,7 +1012,6 @@ chrome.webRequest.onCompleted.addListener(
         ["responseHeaders", "extraHeaders"]
 );
 
-
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (message.type === 'capturedResponse') {
         const {
@@ -1016,7 +1023,8 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         } = message;
         const isMatchingUrl = await checkUrl(url);
         if (!isMatchingUrl) {
-            return;
+            sendResponse({ success: false, reason: 'URL not matching' });
+            return true;
         }
         const config = await getConfig();
         const contentLength = responseHeaders && responseHeaders.find && responseHeaders.find(header => header.name.toLowerCase() === 'content-length')?.value || '';
@@ -1059,12 +1067,15 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         } else {
             urlToResponsePayloadMap.set(key, responsePayload);
         }
-
+        sendResponse({ success: true });
+        return true;
     }
 
      if (message.type === "tc_open_options_page_in_bg") {
         console.log("Received open options message in bg");
         chrome.runtime.openOptionsPage();
+        sendResponse({ success: true });
+        return true;
     }
 
 });
@@ -1088,6 +1099,10 @@ function notifyStatus() {
         type: 'connection_status',
         vscodeConnected: self.vscodeConnected,
         mcpConnected: self.mcpConnected
+    }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.error('Error sending connection status:', chrome.runtime.lastError.message);
+        }
     });
     chrome.tabs.query({}, function(tabs) {
         for (let tab of tabs) {
@@ -1130,7 +1145,11 @@ function connectVSCode() {
                 const data = JSON.parse(event.data);
                 if (data && data.type === 'ack_message') {
                     console.log('[background] Received ack_message from VS Code:', data);
-                    chrome.runtime.sendMessage(data);
+                    chrome.runtime.sendMessage(data, (response) => {
+                        if (chrome.runtime.lastError) {
+                            console.error('Error sending ack message:', chrome.runtime.lastError.message);
+                        }
+                    });
                     // Relay to all tabs (so sidebar receives it)
                     chrome.tabs.query({}, function(tabs) {
                         for (let tab of tabs) {
@@ -1159,6 +1178,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             vscodeConnected: self.vscodeConnected, 
             mcpConnected: self.mcpConnected 
         });
+        return true;
     }
 });
 

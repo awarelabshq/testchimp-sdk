@@ -77,6 +77,7 @@
         <button class="button" onclick="addJsonPlaceholderIframe()">Add jsonplaceholder iframe</button>
         <button class="button" onclick="addWikipediaIframe()">Add Wikipedia iframe</button>
         <button class="button" onclick="clearIframes()">Clear all iframes</button>
+        <button class="button" onclick="openTestIframes()" style="background-color: #28a745;">Open test_iframes.html in New Tab</button>
 
         <div id="iframes-container"></div>
 
@@ -178,6 +179,12 @@
             iframeEventCount = 0;
             updateIframeEventCount();
             log('Cleared all iframes');
+        }
+
+        function openTestIframes() {
+            const testIframesUrl = window.location.href.replace('test_cross_origin_better.html', 'test_iframes.html');
+            window.open(testIframesUrl, '_blank');
+            log('Opening test_iframes.html in new tab');
         }
 
         // Listen for iframe events from the extension

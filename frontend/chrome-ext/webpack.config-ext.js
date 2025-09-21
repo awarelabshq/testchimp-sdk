@@ -57,6 +57,8 @@ module.exports = {
         { from: 'options.js', to: 'options.js' },
         { from: 'contextMenu.js', to: 'contextMenu.js' },
         { from: 'injectScript.js', to: 'injectScript.js' },
+        { from: 'iframe-rrweb-injector.js', to: 'iframe-rrweb-injector.js' },
+        { from: 'iframe-content-script.js', to: 'iframe-content-script.js' },
         { from: 'localRun.js', to: 'localRun.js' },
         { from: 'background-websockets.js', to: 'background-websockets.js' },
         { from: 'images/', to: 'images/' },

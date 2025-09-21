@@ -10312,14 +10312,21 @@ function _startRecording() {
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   if (message.action === 'startTCRecording') {
     startRecording(message.data);
+    return true;
   }
   if (message.action === 'endTCRecording') {
     endTrackedSession();
+    return true;
   }
   if (message.action === "open_extension_popup") {
     chrome.runtime.sendMessage({
       type: "trigger_popup"
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error triggering popup:', chrome.runtime.lastError.message);
+      }
     });
+    return true;
   }
 });
 window.addEventListener("message", function (event) {
@@ -10342,6 +10349,10 @@ window.addEventListener("message", function (event) {
       responseBody: responseBody,
       statusCode: statusCode,
       url: (url === null || url === void 0 ? void 0 : url.toString()) || ''
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error sending captured response:', chrome.runtime.lastError.message);
+      }
     });
     return;
   }
@@ -10406,10 +10417,18 @@ window.addEventListener("message", function (event) {
       // Open the options page
       chrome.runtime.sendMessage({
         type: "tc_open_options_page_in_bg"
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Error opening options page:', chrome.runtime.lastError.message);
+        }
       });
     } else if (event.data.type === "show_testchimp_ext_popup") {
       chrome.runtime.sendMessage({
         type: "trigger_popup"
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Error triggering popup:', chrome.runtime.lastError.message);
+        }
       });
     } else if (event.data.type === "get_latest_session") {
       // Request the latest session from the extension
@@ -10484,6 +10503,7 @@ window.addEventListener("message", function (event) {
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   // Forward the message back to the webpage
   window.postMessage(message, "*");
+  return true;
 });
 function checkAndStartRecording() {
   return _checkAndStartRecording.apply(this, arguments);
