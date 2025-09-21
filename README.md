@@ -24,13 +24,14 @@ The sdk is organized as follows:
 
 #### Installation Guide
 
-1) Run: ```npm install @testchimp/js```
+1) Run: ```npm install testchimp-js```
 2) Include the following code snippet (with updated configuration as detailed below) in your initial loading js file (index.js or equivalent) to configure the sdk.
 
 ```
-import { TestChimpSDK } from "testchimp-js";
+import TestChimpSDK from "testchimp-js";
 
 document.addEventListener('DOMContentLoaded', function() {
+    window.TestChimpSDK = TestChimpSDK;
     TestChimpSDK.startRecording({
         projectId: "[PROJECT ID]",
         sessionRecordingApiKey: "[SESSION RECORDING API KEY]",
