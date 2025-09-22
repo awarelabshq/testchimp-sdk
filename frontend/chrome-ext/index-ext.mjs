@@ -180,7 +180,7 @@ function setupIframeObserver() {
   });
 }
 
-// Function to handle iframe events
+// Function to handle iframe events with proper replay integration
 function handleIframeEvent(event) {
   if (event.data && event.data.type === 'rrweb-iframe-event') {
     const { iframeId, payload, timestamp } = event.data;
@@ -191,7 +191,7 @@ function handleIframeEvent(event) {
       eventData: payload
     });
     
-    // Store the event with iframe context
+    // Initialize storage for this iframe
     if (!iframeEvents.has(iframeId)) {
       iframeEvents.set(iframeId, []);
       console.log(`[PARENT] Created new event storage for iframe ${iframeId}`);
@@ -204,23 +204,222 @@ function handleIframeEvent(event) {
       iframeTimestamp: timestamp
     };
     
-    iframeEvents.get(iframeId).push(eventWithIframeContext);
-    console.log(`[PARENT] Stored event in iframe storage. Total events for ${iframeId}: ${iframeEvents.get(iframeId).length}`);
+    // Convert document nodes to spans in iframe events to avoid DOM conflicts
+    const processedPayload = convertDocumentNodesToSpans(payload);
     
-    // Process the iframe event through the main recording's emit function
-    // This ensures proper event aggregation as per Google guidance
-    const processedEvent = processEvent(eventWithIframeContext);
-    if (processedEvent) {
-      eventBuffer.push(processedEvent);
-      console.log(`[PARENT] Added iframe event to main buffer: ${processedEvent.type} from ${iframeId}. Buffer size: ${eventBuffer.length}`);
-    } else {
-      console.log(`[PARENT] Event from ${iframeId} was filtered out during processing`);
+    // Store iframe events separately but prepare them for proper replay
+    iframeEvents.get(iframeId).push({
+      ...eventWithIframeContext,
+      payload: processedPayload
+    });
+    
+    // Integrate actual iframe content into main page replay
+    if (processedPayload.type === 2) { // FullSnapshot - iframe is ready
+      // Find the actual iframe element in the main page DOM
+      const actualIframe = document.querySelector(`iframe[data-iframe-id="${iframeId}"]`) || 
+                          document.querySelector(`iframe[id*="${iframeId}"]`) ||
+                          document.querySelector(`iframe[src*="${iframeId}"]`);
+      
+      if (actualIframe) {
+        // Create an actual iframe element that will be embedded in the main page
+        // Use the processed payload to get the converted iframe content
+        const iframeContent = processedPayload.data.node;
+        
+        const iframeElement = {
+          type: 1, // Element
+          id: `iframe_${iframeId}`,
+          tagName: 'iframe',
+          attributes: {
+            id: `iframe_${iframeId}`,
+            src: actualIframe.src || 'about:blank',
+            'data-iframe-id': iframeId,
+            'data-iframe-recording': 'true',
+            width: actualIframe.width || '100%',
+            height: actualIframe.height || '300px',
+            frameborder: actualIframe.frameBorder || '0',
+            scrolling: actualIframe.scrolling || 'auto',
+            style: actualIframe.style.cssText || ''
+          },
+          childNodes: iframeContent ? [iframeContent] : []
+        };
+        
+        // Create iframe attachment event with safe parent context
+        const iframeAttachmentEvent = {
+          type: 3, // IncrementalSnapshot
+          timestamp: timestamp,
+          data: {
+            source: 0, // Mutation
+            adds: [{
+              parentId: 1, // Use document root to avoid parent-child conflicts
+              nextId: null,
+              node: iframeElement
+            }],
+            removes: [],
+            texts: [],
+            attributes: []
+          }
+        };
+        
+        // Add to main event buffer
+        eventBuffer.push(iframeAttachmentEvent);
+        console.log(`[PARENT] Added iframe attachment event to main buffer for ${iframeId}`);
+        
+      } else {
+        console.warn(`[PARENT] Could not find actual iframe element for ${iframeId}`);
+      }
+      
+    } else if (payload.type === 3 && iframeEvents.get(iframeId).length > 0) { // IncrementalSnapshot
+      // For incremental events, we need to be careful not to cause DOM conflicts
+      // We'll create simplified events that represent iframe activity without mixing DOM structures
+      const iframeUpdateEvent = {
+        type: 3, // IncrementalSnapshot
+        timestamp: timestamp,
+        data: {
+          source: 0, // Mutation
+          adds: [],
+          removes: [],
+          texts: [],
+          attributes: [{
+            id: `iframe_${iframeId}`,
+            attributes: {
+              'data-iframe-status': 'active',
+              'data-iframe-event-count': iframeEvents.get(iframeId).length.toString(),
+              'data-iframe-last-update': timestamp.toString()
+            }
+          }]
+        }
+      };
+      
+      // Add iframe update events to show activity
+      eventBuffer.push(iframeUpdateEvent);
+      console.log(`[PARENT] Added iframe activity update to main buffer for ${iframeId}`);
     }
+    
+    console.log(`[PARENT] Stored iframe event separately for ${iframeId}: ${payload.type}. Total events: ${iframeEvents.get(iframeId).length}`);
+    
   } else if (event.data && event.data.type === 'rrweb-iframe-ready') {
-    const { iframeId, url } = event.data;
-    console.log(`[PARENT] Iframe recording ready: ${iframeId} (${url})`);
+    const { iframeId, url, eventCount } = event.data;
+    console.log(`[PARENT] Iframe recording ready: ${iframeId} (${url}) with ${eventCount} events recorded locally`);
+    
+    // Note: Iframe events are stored separately and will be available for analysis
+    // but not mixed with main page events to prevent DOM conflicts during replay
   }
 }
+
+// Helper functions for iframe integration
+function getNodeId(node) {
+  if (!node) return 1; // Default to document root
+  
+  // Try to find existing rrweb node ID
+  if (node.__rrwebId) {
+    return node.__rrwebId;
+  }
+  
+  // Generate a unique ID if none exists
+  const id = Math.random().toString(36).substr(2, 9);
+  node.__rrwebId = id;
+  return id;
+}
+
+// Convert document nodes to spans to avoid DOM conflicts during replay
+function convertDocumentNodesToSpans(event) {
+  if (!event || !event.data) return event;
+  
+  // Create a deep copy of the event to avoid modifying the original
+  const convertedEvent = JSON.parse(JSON.stringify(event));
+  let hasDocumentNodes = false;
+  
+  // Process FullSnapshot events
+  if (convertedEvent.type === 2 && convertedEvent.data.node) {
+    const originalNode = convertedEvent.data.node;
+    convertedEvent.data.node = convertNode(convertedEvent.data.node);
+    if (originalNode !== convertedEvent.data.node) {
+      hasDocumentNodes = true;
+    }
+  }
+  
+  // Process IncrementalSnapshot events
+  if (convertedEvent.type === 3 && convertedEvent.data) {
+    // Process adds
+    if (convertedEvent.data.adds) {
+      convertedEvent.data.adds.forEach((add, index) => {
+        if (add.node) {
+          const originalNode = add.node;
+          add.node = convertNode(add.node);
+          if (originalNode !== add.node) {
+            hasDocumentNodes = true;
+            console.log(`[PARENT] Converted document node in adds[${index}]`);
+          }
+        }
+      });
+    }
+    
+    // Also check for document nodes in other parts of the event
+    if (convertedEvent.data.removes) {
+      convertedEvent.data.removes.forEach((remove, index) => {
+        if (remove.node && remove.node.type === 11) {
+          console.log(`[PARENT] Found document node in removes[${index}], converting`);
+          remove.node = convertNode(remove.node);
+          hasDocumentNodes = true;
+        }
+      });
+    }
+    
+    // Process texts (no need to convert as they're just text content)
+    // Process attributes (no need to convert as they're just attribute changes)
+  }
+  
+  if (hasDocumentNodes) {
+    console.log(`[PARENT] Converted document nodes in event type ${convertedEvent.type}`);
+  }
+  
+  return convertedEvent;
+}
+
+// Convert document nodes to spans (only top-level, no recursion)
+function convertNode(node) {
+  if (!node) return node;
+  
+  // Convert document nodes (type 11) to span elements (type 1)
+  if (node.type === 11) { // Document type
+    console.log(`[PARENT] Converting document node to span: ${node.id}`);
+    return {
+      type: 1, // Element
+      id: node.id,
+      tagName: 'span',
+      attributes: {
+        'data-original-type': 'document',
+        'data-iframe-document': 'true',
+        style: 'display: block; border: 1px dashed #ccc; padding: 10px; margin: 5px; background: #f9f9f9;'
+      },
+      childNodes: node.childNodes || [] // Keep original child nodes without recursion
+    };
+  }
+  
+  // Also check for any nested document nodes in child nodes (just in case)
+  if (node.childNodes && Array.isArray(node.childNodes)) {
+    node.childNodes = node.childNodes.map(child => {
+      if (child && child.type === 11) {
+        console.log(`[PARENT] Converting nested document node to span: ${child.id}`);
+        return {
+          type: 1, // Element
+          id: child.id,
+          tagName: 'span',
+          attributes: {
+            'data-original-type': 'document',
+            'data-iframe-document': 'true',
+            style: 'display: block; border: 1px dashed #ccc; padding: 5px; margin: 2px; background: #f0f0f0;'
+          },
+          childNodes: child.childNodes || []
+        };
+      }
+      return child;
+    });
+  }
+  
+  return node;
+}
+
 
 function setTrackingIdCookie(sessionId) {
   return new Promise((resolve, reject) => {
@@ -320,26 +519,53 @@ function startSendingEvents(endpoint, config, sessionId) {
   window.addEventListener('message', handleIframeEvent);
 
   const recordOptions = {
-    emit: function (event) {
-      // Process the event before adding it to the buffer
-      const processedEvent = processEvent(event);
-      if (processedEvent) {
-        eventBuffer.push(processedEvent);
-      }
-    },
+        emit: function (event) {
+          // Process the event before adding it to the buffer
+          const processedEvent = processEvent(event);
+          if (processedEvent) {
+            // Also convert any document nodes in main page events
+            const convertedEvent = convertDocumentNodesToSpans(processedEvent);
+            eventBuffer.push(convertedEvent);
+          }
+        },
     sampling: samplingConfig,
     blockSelector: '.data-rrweb-ignore, #testchimp-sidebar, #testchimp-sidebar-toggle, #testchimp-sidebar *',
     recordCanvas: false,
-    recordCrossOriginIframes: true  // Enable cross-origin iframe recording
+    recordCrossOriginIframes: true,  // Enable for proper iframe integration
+    slimDOMOptions: {
+      script: true,
+      comment: true,
+      headFavicon: true,
+      headWhitespace: true,
+      headMetaDescKeywords: false,
+      headMetaSocial: false,
+      headMetaRobots: false,
+      headMetaHttpEquiv: false,
+      headMetaAuthorship: false,
+      headMetaVerification: false
+    },
   };
 
-  function processEvent(event) {
-    if (event.type === 2) return event;
+function processEvent(event) {
+  // Skip iframe events completely to avoid replay conflicts
+  if (event.iframeId) {
+    return null;
+  }
 
+  if (event.type === 2) return event;
+
+  // Note: Document nodes are handled by convertDocumentNodesToSpans() function
+  // No need to filter them here as the conversion will handle them properly
+
+    // Filter out problematic attributes that can cause replay issues
     if (event.type === 3 && event.data.source === 0 && event.data.attributes?.length > 0) {
       const filteredAttributes = event.data.attributes.filter(attr => {
         const isTransform = attr.attributes?.style?.transform || attr.attributes?.transform;
-        return !isTransform;
+        const isAnimation = attr.attributes?.style?.animation || attr.attributes?.animation;
+        const isTransition = attr.attributes?.style?.transition || attr.attributes?.transition;
+        
+        // Filter out transform, animation, and transition properties that can cause replay issues
+        return !isTransform && !isAnimation && !isTransition;
       });
 
       if (filteredAttributes.length === 0) return null;
@@ -353,8 +579,10 @@ function startSendingEvents(endpoint, config, sessionId) {
       };
     }
 
+
     return event;
   }
+
 
   stopFn = record(recordOptions);
   record.takeFullSnapshot();
@@ -578,15 +806,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('[MESSAGE LISTENER] Received message:', message, 'from:', sender.tab?.url);
   try {
     if (message.action === 'startTCRecording') {
-      console.log('[MESSAGE LISTENER] Starting recording');
       startRecording(message.data);
       if (sendResponse) sendResponse({ success: true });
     } else if (message.action === 'endTCRecording') {
-      console.log('[MESSAGE LISTENER] Ending recording');
       endTrackedSession();
       if (sendResponse) sendResponse({ success: true });
     } else if (message.action === "open_extension_popup") {
-      console.log('[MESSAGE LISTENER] Opening popup');
       chrome.runtime.sendMessage({ type: "trigger_popup" }, (response) => {
         if (chrome.runtime.lastError) {
           console.error('Error triggering popup:', chrome.runtime.lastError.message);
@@ -595,7 +820,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (sendResponse) sendResponse({ success: true });
       });
     } else {
-      console.log('[MESSAGE LISTENER] Forwarding message to webpage:', message);
       // Forward the message back to the webpage
       window.postMessage(message, "*");
       if (sendResponse) sendResponse({ success: true });
