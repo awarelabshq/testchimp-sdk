@@ -1,0 +1,121 @@
+name: TestChimp Advanced Configuration
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      success_criteria:
+        description: 'Success criteria to use'
+        required: true
+        default: 'ORIGINAL_SUCCESS'
+        type: choice
+        options:
+        - ORIGINAL_SUCCESS
+        - REPAIR_SUCCESS_WITH_CONFIDENCE
+      confidence_threshold:
+        description: 'Confidence threshold (1-5)'
+        required: false
+        default: '4'
+        type: string
+
+jobs:
+  test-original-success:
+    if: ${{ github.event.inputs.success_criteria == 'ORIGINAL_SUCCESS' || github.event.inputs.success_criteria == '' }}
+    runs-on: ubuntu-latest
+    name: Original Success Criteria
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: TestChimp - Original Success Only
+        id: testchimp-original
+        uses: awarelabshq/testchimp-github-testrunner@v1.0.0
+        with:
+          api-key: ${{ secrets.TESTCHIMP_API_KEY }}
+          project-id: ${{ secrets.TESTCHIMP_PROJECT_ID }}
+          test-directory: 'tests'
+          success-criteria: 'ORIGINAL_SUCCESS'
+          mode: 'RUN_WITH_AI_REPAIR'
+          headless: 'true'
+          deflake-runs: '2'
+      
+      - name: Display Original Success Results
+        run: |
+          echo "🎯 Original Success Criteria Results:"
+          echo "Status: ${{ steps.testchimp-original.outputs.status }}"
+          echo "Tests: ${{ steps.testchimp-original.outputs.test-count }} total, ${{ steps.testchimp-original.outputs.success-count }} passed"
+          echo "Repairs: ${{ steps.testchimp-original.outputs.repaired-count }} (not counted as success)"
+
+  test-repair-success:
+    if: ${{ github.event.inputs.success_criteria == 'REPAIR_SUCCESS_WITH_CONFIDENCE' }}
+    runs-on: ubuntu-latest
+    name: Repair Success with Confidence
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: TestChimp - Repair Success with Confidence
+        id: testchimp-repair
+        uses: awarelabshq/testchimp-github-testrunner@v1.0.0
+        with:
+          api-key: ${{ secrets.TESTCHIMP_API_KEY }}
+          project-id: ${{ secrets.TESTCHIMP_PROJECT_ID }}
+          test-directory: 'tests'
+          success-criteria: 'REPAIR_SUCCESS_WITH_CONFIDENCE'
+          repair-confidence-threshold: ${{ github.event.inputs.confidence_threshold || '4' }}
+          mode: 'RUN_WITH_AI_REPAIR'
+          headless: 'true'
+          deflake-runs: '2'
+      
+      - name: Display Repair Success Results
+        run: |
+          echo "🎯 Repair Success with Confidence Results:"
+          echo "Status: ${{ steps.testchimp-repair.outputs.status }}"
+          echo "Tests: ${{ steps.testchimp-repair.outputs.test-count }} total, ${{ steps.testchimp-repair.outputs.success-count }} passed"
+          echo "Repairs: ${{ steps.testchimp-repair.outputs.repaired-count }} total"
+          echo "  - Above threshold (≥${{ github.event.inputs.confidence_threshold || '4' }}): ${{ steps.testchimp-repair.outputs.repaired-above-threshold }}"
+          echo "  - Below threshold (<${{ github.event.inputs.confidence_threshold || '4' }}): ${{ steps.testchimp-repair.outputs.repaired-below-threshold }}"
+          
+          if [ "${{ steps.testchimp-repair.outputs.pull-request-number }}" != "" ]; then
+            echo "🔧 Repair PR: #${{ steps.testchimp-repair.outputs.pull-request-number }}"
+          fi
+
+  comparison-report:
+    if: always()
+    needs: [test-original-success, test-repair-success]
+    runs-on: ubuntu-latest
+    name: Comparison Report
+    steps:
+      - name: Generate Comparison Report
+        run: |
+          echo "# 📊 TestChimp Success Criteria Comparison Report"
+          echo ""
+          echo "This report compares the results when using different success criteria."
+          echo ""
+          echo "## 🎯 Key Insights"
+          echo "- **Original Success**: Only counts tests that pass without AI repair"
+          echo "- **Repair Success**: Counts both original passes and successful repairs above confidence threshold"
+          echo ""
+          echo "## 📈 Recommendations"
+          echo "- Use **Original Success** for critical production tests"
+          echo "- Use **Repair Success** for development environments or when you trust AI repairs"
+          echo "- Monitor repair confidence scores to adjust thresholds over time"

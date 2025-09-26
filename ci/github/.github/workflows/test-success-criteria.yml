@@ -1,0 +1,76 @@
+name: Test Success Criteria Configuration
+
+on:
+  workflow_dispatch:
+    inputs:
+      success_criteria:
+        description: 'Success criteria to test'
+        required: true
+        default: 'ORIGINAL_SUCCESS'
+        type: choice
+        options:
+        - ORIGINAL_SUCCESS
+        - REPAIR_SUCCESS_WITH_CONFIDENCE
+      repair_confidence_threshold:
+        description: 'Repair confidence threshold (1-5)'
+        required: false
+        default: '4'
+        type: string
+
+jobs:
+  test-original-success:
+    if: ${{ github.event.inputs.success_criteria == 'ORIGINAL_SUCCESS' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: TestChimp with Original Success Criteria
+        uses: ./
+        with:
+          api-key: ${{ secrets.TESTCHIMP_API_KEY }}
+          project-id: ${{ secrets.TESTCHIMP_PROJECT_ID }}
+          test-directory: 'tests'
+          success-criteria: 'ORIGINAL_SUCCESS'
+          mode: 'RUN_WITH_AI_REPAIR'
+          headless: 'true'
+      
+      - name: Display Results
+        run: |
+          echo "Status: ${{ steps.testchimp.outputs.status }}"
+          echo "Test Count: ${{ steps.testchimp.outputs.test-count }}"
+          echo "Success Count: ${{ steps.testchimp.outputs.success-count }}"
+          echo "Failure Count: ${{ steps.testchimp.outputs.failure-count }}"
+          echo "Repaired Count: ${{ steps.testchimp.outputs.repaired-count }}"
+          echo "Repaired Above Threshold: ${{ steps.testchimp.outputs.repaired-above-threshold }}"
+          echo "Repaired Below Threshold: ${{ steps.testchimp.outputs.repaired-below-threshold }}"
+          echo "Success Criteria Used: ${{ steps.testchimp.outputs.success-criteria-used }}"
+
+  test-repair-success-with-confidence:
+    if: ${{ github.event.inputs.success_criteria == 'REPAIR_SUCCESS_WITH_CONFIDENCE' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: TestChimp with Repair Success Criteria
+        uses: ./
+        with:
+          api-key: ${{ secrets.TESTCHIMP_API_KEY }}
+          project-id: ${{ secrets.TESTCHIMP_PROJECT_ID }}
+          test-directory: 'tests'
+          success-criteria: 'REPAIR_SUCCESS_WITH_CONFIDENCE'
+          repair-confidence-threshold: ${{ github.event.inputs.repair_confidence_threshold || '4' }}
+          mode: 'RUN_WITH_AI_REPAIR'
+          headless: 'true'
+      
+      - name: Display Results
+        run: |
+          echo "Status: ${{ steps.testchimp.outputs.status }}"
+          echo "Test Count: ${{ steps.testchimp.outputs.test-count }}"
+          echo "Success Count: ${{ steps.testchimp.outputs.success-count }}"
+          echo "Failure Count: ${{ steps.testchimp.outputs.failure-count }}"
+          echo "Repaired Count: ${{ steps.testchimp.outputs.repaired-count }}"
+          echo "Repaired Above Threshold: ${{ steps.testchimp.outputs.repaired-above-threshold }}"
+          echo "Repaired Below Threshold: ${{ steps.testchimp.outputs.repaired-below-threshold }}"
+          echo "Success Criteria Used: ${{ steps.testchimp.outputs.success-criteria-used }}"
