@@ -1,31 +1,109 @@
-# TestChimp VS Code extension
+# TestChimp VS Extension
 
-## Introduction
+A VSCode extension enabling:
+- AI driven test script generation from plain-english scenarios,
+- AI test healing, and
+- collaboration with TestChimp Chrome Extension for browser-in-the-loop agentic coding sessions.
 
-TestChimp VSCode extension acts as a bridge between your VS based IDEs (such as [Cursor](https://cursor.so)), and the [TestChimp Chrome extension](https://chromewebstore.google.com/detail/testchimp-ai-co-pilot-for/ailhophdeloancmhdklbbkobcbbnbglm), to provide a seamless shift-left experience for QA and dev workflows enabling:
+## Prerequisites
+
+Before using this extension, ensure you have the following installed:
+
+- **Playwright**: Required for running test scripts
+  - Install via npm: `npm install playwright`
+  - Install browsers: `npx playwright install`
+
+## Installation
+
+### VS Code
+- Search for "TestChimp" in the VS Code marketplace and install the extension
+
+### Cursor
+- Download the latest VSIX file: [testchimp-vs-extension-0.0.6.vsix](https://github.com/awarelabshq/testchimp-sdk/blob/main/frontend/vs-ext/releases/testchimp-vs-extension-0.0.6.vsix)
+- Install using VSIX: In Cursor, open Command Palette (Cmd+Shift+P) → Install with VSIX → Select the downloaded file
+
+## Features
+
+### 🚀 New AI-Powered Capabilities
+- **Generate Script**: Create Playwright test scripts from natural language descriptions with AI
+- **Run with AI Repair**: Execute tests with intelligent AI-powered error detection and automatic repair
+
+### 🔗 Bridge Functionality
+This extension serves as a communication bridge between the TestChimp Chrome extension and VS Code to enable seamless browser-to-IDE communication for visual coding.
 
 #### Visual Vibe Coding
-
-Just Point and "Say the change you want to see". TestChimp Chrome extension will communicate with the VSCode extension to prompt your AI assistant to make the adjustment requested, passing the complete context about the related files, target components details (ancestry hierarchy, computed styles etc.) and the fix requested.
+Just point and "say the change you want to see". TestChimp Chrome extension will communicate with the VSCode extension to prompt your AI assistant to make the adjustment requested, passing the complete context about the related files, target components details (ancestry hierarchy, computed styles etc.) and the fix requested.
 
 #### Fix Bugs directly from the browser
+TestChimp displays all bugs captured for a given screen in the Chrome extension (both Agent discovered as well as manually reported). With the VS Code extension installed, you can simply click "Fix in IDE" on the bug, and it will communicate with the VSCode extension to prompt the AI assistant in your IDE.
 
-TestChimp displays all bugs captured for a given screen in the Chrome extension (both Agent discovered as well as manually reported). With the VS Code extension installed, you can simply click *"Fix in IDE"* on the bug, and it will communicate with the VSCode extension to prompt the AI assistant in your IDE.
+## Configuration
 
-#### Generate test scripts for test scenarios
+The extension can be configured through VSCode settings:
 
- Similar to bugs, the chrome extension displays all test scenarios identified (both agentically as well as manually added) for the current screen. You can click on *"Generate script in IDE"*, which will communicate with VS Code extension to prompt the AI assistant to generate test scripts - in your codebases' style and structure.
+### Authentication Settings (Required for AI Operations)
+- **Setting**: `testchimp.userAuthKey`
+- **Type**: `string`
+- **Description**: User authentication key for TestChimp API access
+- **Required**: Yes (for AI operations)
 
-## Installation Guide
+- **Setting**: `testchimp.userMail`
+- **Type**: `string`
+- **Description**: User email for TestChimp API access
+- **Required**: Yes (for AI operations)
 
-1. Download the vsix file from [here](https://github.com/awarelabshq/testchimp-sdk/blob/main/frontend/vs-ext/releases/testchimp-vs-extension-0.0.2.vsix).
-2. Open Command Palette in Cursor IDE, then select: *Extensions: Install from VSIX...*, and select the downloaded file.
-3. Once installed, Open Command Palette and run *Start TestChimp Bridge*
+### WebSocket Port
+- **Setting**: `testchimp.websocketPort`
+- **Default**: `53333`
+- **Range**: `1024` - `65535`
+- **Description**: Port number for the WebSocket server
 
-This will open a websocket (listening on port 53333 by default, which can be changed in extension settings) communicating with the TestChimp Chrome extension. 
-Make sure you have installed our [Chrome extension](https://chromewebstore.google.com/detail/testchimp-ai-co-pilot-for/ailhophdeloancmhdklbbkobcbbnbglm), and have started it.
+### Deflake Runs
+- **Setting**: `testchimp.deflakeRuns`
+- **Type**: `number`
+- **Default**: `1`
+- **Description**: Number of times to attempt deflaking a test before AI repair is triggered
 
-You should see the VSCode: Connected status indicator in the Chrome extension.
+## Commands
+
+### AI-Powered Commands
+- `TestChimp: Generate Script`: Creates Playwright test scripts from scenario descriptions
+- `TestChimp: Run with AI Repair`: Executes tests with AI-powered error repair
+- `TestChimp: Run Test`: Executes tests without AI repair
+
+### Bridge Commands
+- `Start TestChimp Bridge`: Starts the WebSocket server
+- `Stop TestChimp Bridge`: Stops the WebSocket server
+
+## Usage
+
+### Setup
+1. Install the extension (see Installation section above)
+2. **Configure authentication settings** (required for AI operations):
+   - Set `testchimp.userAuthKey` to your TestChimp authentication key
+   - Set `testchimp.userMail` to your TestChimp email
+4. Use the "Start TestChimp Bridge" command to start the server
+5. The server will listen for messages from the TestChimp Chrome extension
+6. Install the TestChimp chrome extension from Chrome Web store here: https://chromewebstore.google.com/detail/testchimp-generate-ui-api/ailhophdeloancmhdklbbkobcbbnbglm
+
+### Generate Script from Scenario
+
+1. Write your test scenario in plain English steps in a text file. Save it.
+2. Right click on the file, select **TestChimp → Generate Script**.
+3. This will write the generated script in the tests folder.
+
+### Run Script With AI Repair
+
+1. Open the test script file.
+2. Right click → **TestChimp → Run with AI Repair**
+3. The test will be attempted as is, then deflaked (the number of times deflaking is attempted can be configured in the extension settings). If it still fails, the agent will repair the script and write the updated test.
+
+## Troubleshooting
+
+If you encounter a "Port already in use" error:
+1. Change the port in VSCode settings (`testchimp.websocketPort`)
+2. Or stop the service currently using the port
+3. Restart the WebSocket server
 
 ## Optional - TestChimp MCP Server
 
