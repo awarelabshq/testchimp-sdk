@@ -19,7 +19,7 @@ Before using this extension, ensure you have the following installed:
 - Search for "TestChimp" in the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=TestChimp.testchimp-vs-extension) and install the extension
 
 ### Cursor
-- Download the latest VSIX file: [testchimp-vs-extension-0.0.6.vsix](https://github.com/awarelabshq/testchimp-sdk/blob/main/frontend/vs-ext/releases/testchimp-vs-extension-0.0.6.vsix)
+- Download the [latest VSIX file](https://github.com/awarelabshq/testchimp-sdk/blob/main/frontend/vs-ext/releases/testchimp-vs-extension-0.0.7.vsix)
 - Install using VSIX: In Cursor, open Command Palette (Cmd+Shift+P) → Install with VSIX → Select the downloaded file
 
 ## Features
