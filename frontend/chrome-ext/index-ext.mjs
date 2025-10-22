@@ -12,6 +12,7 @@ if (!window.__scriptInjected) {
 
 
 import { record } from 'rrweb';
+import { processAndConvertEvent } from './eventProcessor.js';
 
 // Buffer to store events for continuous send (when normal recording is enabled)
 var eventBuffer = [];
@@ -321,104 +322,6 @@ function getNodeId(node) {
   return id;
 }
 
-// Convert document nodes to spans to avoid DOM conflicts during replay
-function convertDocumentNodesToSpans(event) {
-  if (!event || !event.data) return event;
-  
-  // Create a deep copy of the event to avoid modifying the original
-  const convertedEvent = JSON.parse(JSON.stringify(event));
-  let hasDocumentNodes = false;
-  
-  // Process FullSnapshot events
-  if (convertedEvent.type === 2 && convertedEvent.data.node) {
-    const originalNode = convertedEvent.data.node;
-    convertedEvent.data.node = convertNode(convertedEvent.data.node);
-    if (originalNode !== convertedEvent.data.node) {
-      hasDocumentNodes = true;
-    }
-  }
-  
-  // Process IncrementalSnapshot events
-  if (convertedEvent.type === 3 && convertedEvent.data) {
-    // Process adds
-    if (convertedEvent.data.adds) {
-      convertedEvent.data.adds.forEach((add, index) => {
-        if (add.node) {
-          const originalNode = add.node;
-          add.node = convertNode(add.node);
-          if (originalNode !== add.node) {
-            hasDocumentNodes = true;
-            console.log(`[PARENT] Converted document node in adds[${index}]`);
-          }
-        }
-      });
-    }
-    
-    // Also check for document nodes in other parts of the event
-    if (convertedEvent.data.removes) {
-      convertedEvent.data.removes.forEach((remove, index) => {
-        if (remove.node && remove.node.type === 11) {
-          console.log(`[PARENT] Found document node in removes[${index}], converting`);
-          remove.node = convertNode(remove.node);
-          hasDocumentNodes = true;
-        }
-      });
-    }
-    
-    // Process texts (no need to convert as they're just text content)
-    // Process attributes (no need to convert as they're just attribute changes)
-  }
-  
-  if (hasDocumentNodes) {
-    console.log(`[PARENT] Converted document nodes in event type ${convertedEvent.type}`);
-  }
-  
-  return convertedEvent;
-}
-
-// Convert document nodes to spans (only top-level, no recursion)
-function convertNode(node) {
-  if (!node) return node;
-  
-  // Convert document nodes (type 11) to span elements (type 1)
-  if (node.type === 11) { // Document type
-    console.log(`[PARENT] Converting document node to span: ${node.id}`);
-    return {
-      type: 1, // Element
-      id: node.id,
-      tagName: 'span',
-      attributes: {
-        'data-original-type': 'document',
-        'data-iframe-document': 'true',
-        style: 'display: block; border: 1px dashed #ccc; padding: 10px; margin: 5px; background: #f9f9f9;'
-      },
-      childNodes: node.childNodes || [] // Keep original child nodes without recursion
-    };
-  }
-  
-  // Also check for any nested document nodes in child nodes (just in case)
-  if (node.childNodes && Array.isArray(node.childNodes)) {
-    node.childNodes = node.childNodes.map(child => {
-      if (child && child.type === 11) {
-        console.log(`[PARENT] Converting nested document node to span: ${child.id}`);
-        return {
-          type: 1, // Element
-          id: child.id,
-          tagName: 'span',
-          attributes: {
-            'data-original-type': 'document',
-            'data-iframe-document': 'true',
-            style: 'display: block; border: 1px dashed #ccc; padding: 5px; margin: 2px; background: #f0f0f0;'
-          },
-          childNodes: child.childNodes || []
-        };
-      }
-      return child;
-    });
-  }
-  
-  return node;
-}
 
 
 function setTrackingIdCookie(sessionId) {
@@ -521,11 +424,9 @@ function startSendingEvents(endpoint, config, sessionId) {
   const recordOptions = {
         emit: function (event) {
           // Process the event before adding it to the buffer
-          const processedEvent = processEvent(event);
+          const processedEvent = processAndConvertEvent(event, 'MAIN');
           if (processedEvent) {
-            // Also convert any document nodes in main page events
-            const convertedEvent = convertDocumentNodesToSpans(processedEvent);
-            eventBuffer.push(convertedEvent);
+            eventBuffer.push(processedEvent);
           }
         },
     sampling: samplingConfig,
@@ -552,36 +453,9 @@ function processEvent(event) {
     return null;
   }
 
-  if (event.type === 2) return event;
-
-  // Note: Document nodes are handled by convertDocumentNodesToSpans() function
-  // No need to filter them here as the conversion will handle them properly
-
-    // Filter out problematic attributes that can cause replay issues
-    if (event.type === 3 && event.data.source === 0 && event.data.attributes?.length > 0) {
-      const filteredAttributes = event.data.attributes.filter(attr => {
-        const isTransform = attr.attributes?.style?.transform || attr.attributes?.transform;
-        const isAnimation = attr.attributes?.style?.animation || attr.attributes?.animation;
-        const isTransition = attr.attributes?.style?.transition || attr.attributes?.transition;
-        
-        // Filter out transform, animation, and transition properties that can cause replay issues
-        return !isTransform && !isAnimation && !isTransition;
-      });
-
-      if (filteredAttributes.length === 0) return null;
-
-      return {
-        ...event,
-        data: {
-          ...event.data,
-          attributes: filteredAttributes
-        }
-      };
-    }
-
-
-    return event;
-  }
+  // Use the shared processing function
+  return processAndConvertEvent(event, 'MAIN');
+}
 
 
   stopFn = record(recordOptions);
@@ -803,7 +677,6 @@ async function startRecording(config) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('[MESSAGE LISTENER] Received message:', message, 'from:', sender.tab?.url);
   try {
     if (message.action === 'startTCRecording') {
       startRecording(message.data);

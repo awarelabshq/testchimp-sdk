@@ -84,47 +84,73 @@
       const iframeEventBuffer = [];
       let fullSnapshotSent = false;
       
+      // Load event processor if not already available
+      if (!window.TestChimpEventProcessor) {
+        console.log('[IFRAME] Loading event processor...');
+        const script = document.createElement('script');
+        script.src = chrome.runtime.getURL('eventProcessor.js');
+        script.onload = function() {
+          console.log('[IFRAME] Event processor loaded');
+        };
+        document.head.appendChild(script);
+      }
+      
       const recordOptions = {
         emit: function(event) {
           try {
+            // Use shared event processor if available, otherwise fallback to basic processing
+            let processedEvent;
+            if (window.TestChimpEventProcessor) {
+              processedEvent = window.TestChimpEventProcessor.processAndConvertEvent(event, `IFRAME ${iframeId}`);
+            } else {
+              // Fallback: basic processing without shared utilities
+              processedEvent = event;
+              console.log(`[IFRAME ${iframeId}] Using fallback processing (shared processor not available)`);
+            }
+            
+            if (!processedEvent) {
+              console.log(`[IFRAME ${iframeId}] Event filtered out by processEvent`);
+              return;
+            }
+            
             // Store events locally for backup
             iframeEventBuffer.push({
-              ...event,
+              ...processedEvent,
               timestamp: Date.now(),
               iframeId: iframeId
             });
             
             // Send events to parent for proper iframe integration
-            if (event.type === 2) { // FullSnapshot
+            if (processedEvent.type === 2) { // FullSnapshot
               // Send FullSnapshot to establish iframe in parent's recording
               window.parent.postMessage({
                 type: 'rrweb-iframe-event',
                 iframeId: iframeId,
-                payload: event,
+                payload: processedEvent,
                 timestamp: Date.now()
               }, '*');
               
               fullSnapshotSent = true;
               console.log(`[IFRAME ${iframeId}] Sent FullSnapshot to parent`);
               
-            } else if (event.type === 3 && fullSnapshotSent) { // IncrementalSnapshot after FullSnapshot
+            } else if (processedEvent.type === 3 && fullSnapshotSent) { // IncrementalSnapshot after FullSnapshot
               // Send incremental events to parent with proper timing
               setTimeout(() => {
                 window.parent.postMessage({
                   type: 'rrweb-iframe-event',
                   iframeId: iframeId,
-                  payload: event,
+                  payload: processedEvent,
                   timestamp: Date.now()
                 }, '*');
                 console.log(`[IFRAME ${iframeId}] Sent IncrementalSnapshot to parent`);
               }, 50); // Small delay to ensure proper ordering
               
-            } else if (event.type === 3 && !fullSnapshotSent) {
+            } else if (processedEvent.type === 3 && !fullSnapshotSent) {
               console.log(`[IFRAME ${iframeId}] Skipping IncrementalSnapshot - FullSnapshot not sent yet`);
             }
             
             console.log(`[IFRAME ${iframeId}] Recorded event:`, {
-              type: event.type,
+              type: processedEvent.type,
               bufferSize: iframeEventBuffer.length,
               fullSnapshotSent: fullSnapshotSent
             });

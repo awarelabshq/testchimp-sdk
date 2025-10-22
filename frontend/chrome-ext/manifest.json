@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TestChimp - AI Co-Pilot for QA teams",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Visual vibe coding on the browser, Identify and track bugs, fix in one click, brainstorm test scenarios and more...",
   "permissions": [
     "activeTab",
@@ -53,6 +53,7 @@
       "resources": [
         "injectScript.js",
         "iframe-rrweb-injector.js",
+        "eventProcessor.js",
         "rrweb.js",
         "menu-config.json",
         "images/icon-128.png",
