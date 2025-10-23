@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input, Popconfirm } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -15,6 +15,11 @@ export const StepItem: React.FC<StepItemProps> = ({ index, value, onChange, onRe
   const [text, setText] = useState<string>(value);
   const [showDelete, setShowDelete] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
+
+  // Sync local state with prop changes
+  useEffect(() => {
+    setText(value);
+  }, [value]);
 
   const handleTextChange = (newText: string) => {
     setText(newText);

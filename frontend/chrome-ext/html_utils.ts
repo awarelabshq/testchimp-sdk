@@ -1,7 +1,26 @@
 // Shared HTML element info extraction utilities for both extension and injected scripts
 
+// Selector cache for performance (WeakMap automatically cleans up when elements are removed)
+const selectorCache = new WeakMap<HTMLElement, string>();
+
 // Enhanced Playwright-style selector generation with better specificity
 export function getUniqueSelector(el: HTMLElement): string {
+    if (!el) return '';
+    
+    // Check cache first for performance
+    const cached = selectorCache.get(el);
+    if (cached) return cached;
+    
+    // Generate selector
+    const selector = generateSelector(el);
+    
+    // Cache result
+    selectorCache.set(el, selector);
+    return selector;
+}
+
+// Internal selector generation logic
+function generateSelector(el: HTMLElement): string {
     if (!el) return '';
     
     // 1. Prefer data-testid, data-test-id, data-test, data-id (highest priority)
@@ -11,8 +30,8 @@ export function getUniqueSelector(el: HTMLElement): string {
         if (val && val.trim()) return `[${attr}="${val.trim()}"]`;
     }
     
-    // 2. Prefer role with accessible name (ARIA)
-    const role = el.getAttribute && el.getAttribute('role');
+    // 2. Prefer role with accessible name (ARIA - including implicit roles)
+    const role = getEffectiveRole(el);
     if (role) {
         const ariaLabel = el.getAttribute('aria-label');
         const ariaLabelledBy = el.getAttribute('aria-labelledby');
@@ -43,8 +62,11 @@ export function getUniqueSelector(el: HTMLElement): string {
             return `role=${role}[name="${cleanName}"]`;
         }
         
-        // Role without accessible name
-        return `role=${role}`;
+        // Role without accessible name (only use if it's a semantic element like nav, main, etc.)
+        const meaningfulRolesWithoutName = ['navigation', 'main', 'complementary', 'banner', 'contentinfo', 'form', 'search'];
+        if (meaningfulRolesWithoutName.includes(role)) {
+            return `role=${role}`;
+        }
     }
     
     // 3. Prefer text selector for elements with meaningful text
@@ -66,35 +88,57 @@ export function getUniqueSelector(el: HTMLElement): string {
     
     // 5. Prefer elements with meaningful IDs
     if (el.id && isMeaningfulId(el.id)) {
-        return `#${el.id}`;
+        const idSelector = `#${el.id}`;
+        return validateAndEnhanceSelector(el, idSelector);
     }
     
     // 6. Use CSS selector with better specificity
-    return getCSSSelector(el);
+    const cssSelector = getCSSSelector(el);
+    return validateAndEnhanceSelector(el, cssSelector);
 }
 
-// Helper function to get visible text content
+// Cache for visible text (performance optimization)
+const visibleTextCache = new WeakMap<HTMLElement, string>();
+
+// Helper function to get visible text content (optimized)
 function getVisibleText(el: HTMLElement): string {
-    const text = el.textContent?.trim() || '';
-    if (!text) return '';
+    // Check cache first
+    const cached = visibleTextCache.get(el);
+    if (cached !== undefined) return cached;
     
-    // For elements that should have short text (buttons, links, etc.)
-    if (['BUTTON', 'A', 'LABEL', 'SPAN', 'DIV'].includes(el.tagName)) {
-        return text;
+    // Get direct text content (faster than textContent for shallow elements)
+    let text = '';
+    for (const node of el.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            text += node.textContent;
+        }
+    }
+    text = text.trim();
+    
+    // If no direct text, fall back to textContent (includes nested elements)
+    if (!text) {
+        text = el.textContent?.trim() || '';
     }
     
-    // For other elements, return text if it's reasonable length
-    if (text.length <= 100) {
-        return text;
+    // Limit text length for performance
+    if (text.length > 100) {
+        text = ''; // Too long, not useful for selector
     }
     
-    return '';
+    // Cache result
+    visibleTextCache.set(el, text);
+    return text;
 }
 
-// Check if element is a text-based element
+// Check if element is a text-based element (extended for better support)
 function isTextElement(el: HTMLElement): boolean {
     const tagName = el.tagName.toLowerCase();
-    return ['button', 'a', 'label', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName);
+    return [
+        'button', 'a', 'label', 'span', 'div', 'p', 
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'td', 'th', 'li', 'dt', 'dd', 'figcaption', 'caption',
+        'summary', 'legend', 'option'
+    ].includes(tagName);
 }
 
 // Check if element is a form element
@@ -103,21 +147,113 @@ function isFormElement(el: HTMLElement): boolean {
     return ['input', 'select', 'textarea', 'button'].includes(tagName);
 }
 
+// Semantic ID prefixes that indicate meaningful IDs
+const SEMANTIC_ID_PREFIXES = [
+    'user', 'main', 'nav', 'header', 'footer', 'content', 
+    'app', 'page', 'section', 'sidebar', 'modal', 'form',
+    'button', 'input', 'menu', 'login', 'signup'
+];
+
+// Implicit ARIA roles from semantic HTML elements (for fast lookup)
+const IMPLICIT_ARIA_ROLES: Record<string, string | ((el: HTMLElement) => string | null)> = {
+    'nav': 'navigation',
+    'aside': 'complementary',
+    'main': 'main',
+    'header': (el) => el.closest('article, section') ? 'banner' : 'banner',
+    'footer': (el) => el.closest('article, section') ? 'contentinfo' : 'contentinfo',
+    'form': 'form',
+    'article': 'article',
+    'section': 'region',
+    'button': 'button',
+    'a': (el) => (el as HTMLAnchorElement).href ? 'link' : null,
+    'img': (el) => (el as HTMLImageElement).alt ? 'img' : 'presentation',
+    'ul': 'list',
+    'ol': 'list',
+    'li': 'listitem',
+    'table': 'table',
+    'tbody': 'rowgroup',
+    'thead': 'rowgroup',
+    'tfoot': 'rowgroup',
+    'tr': 'row',
+    'td': 'cell',
+    'th': 'columnheader',
+    'input': (el) => {
+        const type = (el as HTMLInputElement).type;
+        const typeRoleMap: Record<string, string> = {
+            'button': 'button',
+            'checkbox': 'checkbox',
+            'radio': 'radio',
+            'range': 'slider',
+            'text': 'textbox',
+            'email': 'textbox',
+            'tel': 'textbox',
+            'url': 'textbox',
+            'search': 'searchbox',
+        };
+        return typeRoleMap[type] || 'textbox';
+    },
+    'textarea': 'textbox',
+    'select': (el) => (el as HTMLSelectElement).multiple ? 'listbox' : 'combobox',
+    'h1': 'heading',
+    'h2': 'heading',
+    'h3': 'heading',
+    'h4': 'heading',
+    'h5': 'heading',
+    'h6': 'heading',
+};
+
+// Get effective ARIA role (explicit or implicit)
+function getEffectiveRole(el: HTMLElement): string | null {
+    // Explicit role takes precedence
+    const explicitRole = el.getAttribute('role');
+    if (explicitRole) return explicitRole;
+    
+    // Check for implicit role
+    const tagName = el.tagName.toLowerCase();
+    const implicitRole = IMPLICIT_ARIA_ROLES[tagName];
+    
+    if (typeof implicitRole === 'function') {
+        return implicitRole(el);
+    }
+    
+    return implicitRole || null;
+}
+
 // Check if ID is meaningful (not auto-generated)
 function isMeaningfulId(id: string): boolean {
-    // Skip auto-generated IDs
+    if (!id) return false;
+    
+    // Accept IDs with dashes or underscores (semantic naming convention)
+    if (id.includes('-') || id.includes('_')) return true;
+    
+    // Check semantic prefix whitelist (fast check)
+    const lowerID = id.toLowerCase();
+    if (SEMANTIC_ID_PREFIXES.some(prefix => lowerID.startsWith(prefix))) {
+        return true;
+    }
+    
+    // Reject common auto-generated patterns
     const autoGeneratedPatterns = [
         /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i, // UUID
         /^[a-f0-9]{32}$/i, // MD5 hash
         /^[a-f0-9]{40}$/i, // SHA1 hash
         /^[a-f0-9]{64}$/i, // SHA256 hash
-        /^[a-z0-9]{8,}$/i, // Random strings
-        /^react-/, // React auto-generated
-        /^ember/, // Ember auto-generated
-        /^vue-/, // Vue auto-generated
+        /^[a-f0-9]{12,}$/i, // Hex strings 12+ chars (likely hash)
+        /^react-[a-z0-9]{6,}$/i, // React auto-generated with hash
+        /^ember[0-9]+$/i, // Ember auto-generated
+        /^vue-[a-z0-9]{6,}$/i, // Vue auto-generated with hash
     ];
     
-    return !autoGeneratedPatterns.some(pattern => pattern.test(id));
+    if (autoGeneratedPatterns.some(pattern => pattern.test(id))) {
+        return false;
+    }
+    
+    // Check for low entropy (all same char or sequential)
+    const uniqueChars = new Set(id.toLowerCase()).size;
+    if (uniqueChars < 3) return false; // "aaaaaa", "111111" etc.
+    
+    // Accept if it made it this far
+    return true;
 }
 
 // Generate CSS selector with better specificity
@@ -166,6 +302,104 @@ function getCSSSelector(el: HTMLElement): string {
             const idx = siblings.indexOf(el) + 1;
             selector += `:nth-of-type(${idx})`;
         }
+    }
+    
+    return selector;
+}
+
+// Validate selector uniqueness and enhance with parent context if needed
+function validateAndEnhanceSelector(el: HTMLElement, selector: string): string {
+    if (!selector || !el) return selector;
+    
+    try {
+        // First try querySelector for performance (O(1) vs O(n))
+        const firstMatch = document.querySelector(selector);
+        if (firstMatch === el) {
+            // Check if it's unique by trying querySelectorAll
+            const allMatches = document.querySelectorAll(selector);
+            if (allMatches.length === 1) {
+                return selector; // Unique match
+            }
+            // Multiple matches, enhance with parent context
+            return addParentContext(el, selector);
+        }
+        
+        // No match or wrong element, return original
+        return selector;
+    } catch (e) {
+        // Invalid selector or cross-origin access - return as-is and let it fail downstream
+        if (e instanceof DOMException && e.name === 'SecurityError') {
+            console.warn('[html_utils] Cross-origin access denied for selector:', selector);
+        } else {
+            console.warn('[html_utils] Invalid selector:', selector, e);
+        }
+        return selector;
+    }
+}
+
+// Add parent context to disambiguate similar elements
+function addParentContext(el: HTMLElement, selector: string): string {
+    let parent = el.parentElement;
+    let attempt = selector;
+    
+    // Try up to 3 levels of parent context
+    for (let level = 0; level < 3 && parent; level++) {
+        // Build parent selector
+        let parentSel = '';
+        
+        // Prefer parent ID
+        if (parent.id && isMeaningfulId(parent.id)) {
+            parentSel = `#${parent.id}`;
+        }
+        // Or parent data-testid
+        else if (parent.hasAttribute('data-testid')) {
+            parentSel = `[data-testid="${parent.getAttribute('data-testid')}"]`;
+        }
+        // Or parent role
+        else if (parent.hasAttribute('role')) {
+            parentSel = `[role="${parent.getAttribute('role')}"]`;
+        }
+        // Or parent tag + class
+        else {
+            const tag = parent.tagName.toLowerCase();
+            const classes = parent.className && typeof parent.className === 'string'
+                ? parent.className.trim().split(/\s+/).filter(cls => 
+                    !cls.match(/^(react-|ember-|vue-|ng-|jquery-)/) && 
+                    !cls.match(/^[a-f0-9]{8,}$/) &&
+                    cls.length > 1
+                  )
+                : [];
+            
+            if (classes.length > 0) {
+                parentSel = `${tag}.${classes[0]}`;
+            } else {
+                parentSel = tag;
+            }
+        }
+        
+        // Build scoped selector
+        attempt = `${parentSel} > ${selector}`;
+        
+        try {
+            const matches = document.querySelectorAll(attempt);
+            if (matches.length === 1 && matches[0] === el) {
+                return attempt; // Found unique selector with parent context!
+            }
+        } catch (e) {
+            // Invalid selector or cross-origin access, try next level
+            if (e instanceof DOMException && e.name === 'SecurityError') {
+                console.warn('[html_utils] Cross-origin access denied in parent context:', attempt);
+            }
+        }
+        
+        parent = parent.parentElement;
+    }
+    
+    // If still not unique, add :nth-child as last resort
+    if (el.parentElement) {
+        const siblings = Array.from(el.parentElement.children);
+        const idx = siblings.indexOf(el) + 1;
+        return `${selector}:nth-child(${idx})`;
     }
     
     return selector;

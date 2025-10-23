@@ -186,6 +186,22 @@ function setupIframeObserver() {
   });
 }
 
+// Navigation detection for SPA
+let lastUrl = location.href;
+function detectNavigation() {
+  const currentUrl = location.href;
+  if (currentUrl !== lastUrl) {
+    console.log('[ContentScript] Navigation detected:', lastUrl, '->', currentUrl);
+    lastUrl = currentUrl;
+    
+    // Notify sidebar about navigation
+    window.postMessage({ type: 'tc-navigation-detected', url: currentUrl }, '*');
+  }
+}
+
+// Set up navigation detection
+setInterval(detectNavigation, 1000); // Check every second
+
 // Function to handle iframe events with proper replay integration
 function handleIframeEvent(event) {
   if (event.data && event.data.type === 'rrweb-iframe-event') {
@@ -710,8 +726,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (sendResponse) sendResponse({ success: true });
     } else if (message.action === 'restore_step_capture') {
       // Restore step capture state
-      restoreCaptureState();
-      if (sendResponse) sendResponse({ success: true });
+      console.log('[ContentScript] ===== RESTORE MESSAGE RECEIVED =====');
+      console.log('[ContentScript] Restoring step capture state');
+      restoreCaptureState().then(() => {
+        console.log('[ContentScript] Step capture state restored successfully');
+        if (sendResponse) sendResponse({ success: true });
+      }).catch((error) => {
+        console.error('[ContentScript] Error restoring step capture state:', error);
+        if (sendResponse) sendResponse({ success: false, error: error.message });
+      });
+      return true; // Keep message channel open for async response
     } else {
       // Forward the message back to the webpage
       window.postMessage(message, "*");
@@ -739,7 +763,7 @@ window.addEventListener("message", (event) => {
       const messageKey = `${event.data.cmd}_${event.data.kind}`;
       const now = Date.now();
       
-      if (!window._lastStepMessage || window._lastStepMessage.key !== messageKey || now - window._lastStepMessage.time > 100) {
+      if (!window._lastStepMessage || window._lastStepMessage.key !== messageKey || now - window._lastStepMessage.time > 500) {
         window._lastStepMessage = { key: messageKey, time: now };
         
         // Check local state first (synchronous)

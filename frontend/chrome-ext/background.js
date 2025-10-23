@@ -722,6 +722,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'restore_step_capture_from_sidebar') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (!tabId) {
+        sendResponse && sendResponse({ success: false, error: 'No active tab' });
+        return;
+      }
+      console.log('[Background] Sending restore_step_capture to content script');
+      chrome.tabs.sendMessage(tabId, { action: 'restore_step_capture' }, (resp) => {
+        console.log('[Background] Restore message sent successfully');
+        sendResponse && sendResponse({ success: !chrome.runtime.lastError, error: chrome.runtime.lastError?.message });
+      });
+    });
+    return true;
+  }
+
   // Relay captured steps from content script to sidebar
   if (message.type === 'captured_step') {
     try {
@@ -731,7 +747,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const messageKey = `${message.cmd}_${message.kind}`;
         const now = Date.now();
         
-        if (!global._lastStepMessage || global._lastStepMessage.key !== messageKey || now - global._lastStepMessage.time > 100) {
+        if (!global._lastStepMessage || global._lastStepMessage.key !== messageKey || now - global._lastStepMessage.time > 500) {
           global._lastStepMessage = { key: messageKey, time: now };
           console.log('[Background] Relaying step to sidebar:', message.cmd);
           chrome.tabs.sendMessage(tabId, { type: 'captured_step', cmd: message.cmd, kind: message.kind });

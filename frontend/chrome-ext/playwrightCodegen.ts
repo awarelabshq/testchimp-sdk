@@ -2,9 +2,80 @@ import { getUniqueSelector, getQuerySelector } from './html_utils';
 
 export type PlaywrightCommand = string;
 
+// Structured step data for future DOM snapshot correlation
+export interface CapturedStep {
+  id: string;       // UUID for correlation with DOM snapshots
+  cmd: string;      // "await page.click('button.submit');"
+  kind: string;     // "click", "fill", "select", etc.
+  selector: string; // "button.submit" (parsed selector)
+  timestamp: number; // When action was captured
+  
+  // Optional - for future DOM snapshot capture
+  context?: {
+    element?: {
+      tag: string;
+      attributes: Record<string, string>;
+      text?: string;
+    };
+    domSnapshotId?: string;  // Reference to stored snapshot
+    domSnapshot?: string;    // Or inline simplified HTML
+  };
+}
+
+// Generate UUID for step identification
+export function generateStepId(): string {
+  // Use crypto.randomUUID() if available (modern browsers)
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// Extract selector from generated command
+export function extractSelector(cmd: string): string {
+  // Extract selector from command string
+  // "await page.click('selector');" -> "selector"
+  const match = cmd.match(/\(['`"]([^'"`]+)['`"]/);
+  return match ? match[1] : '';
+}
+
+// Enhanced escape function for template literals with comprehensive Unicode support
 function escapeText(text: string | null | undefined): string {
-  const s = (text ?? '').replace(/\\/g, '\\\\').replace(/`/g, '\\`');
-  return s;
+  if (!text) return '';
+  
+  // Use JSON.stringify for proper Unicode and special character escaping
+  // This handles all Unicode characters, control characters, and special chars
+  const jsonEscaped = JSON.stringify(text);
+  
+  // Remove the outer quotes that JSON.stringify adds
+  return jsonEscaped.slice(1, -1);
+}
+
+// Escape selector values for CSS attribute selectors
+export function escapeSelectorValue(value: string | null | undefined): string {
+  if (!value) return '';
+  
+  // Use CSS.escape() if available (modern browsers)
+  if (typeof CSS !== 'undefined' && CSS.escape) {
+    return CSS.escape(value);
+  }
+  
+  // Fallback: manual escaping for common cases
+  return value
+    .replace(/\\/g, '\\\\')   // Backslash
+    .replace(/"/g, '\\"')     // Double quote
+    .replace(/'/g, "\\'")     // Single quote
+    .replace(/\[/g, '\\[')    // Opening bracket
+    .replace(/\]/g, '\\]')    // Closing bracket
+    .replace(/\(/g, '\\(')    // Opening parenthesis
+    .replace(/\)/g, '\\)')    // Closing parenthesis
+    .replace(/\{/g, '\\{')    // Opening brace
+    .replace(/\}/g, '\\}');   // Closing brace
 }
 
 function quote(text: string | null | undefined): string {
