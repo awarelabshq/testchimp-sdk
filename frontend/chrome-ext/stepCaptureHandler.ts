@@ -453,6 +453,11 @@ export function startStepCapture() {
     // Store the start URL to prevent cross-page step emission
     localStorage.setItem('stepCaptureStartUrl', location.href);
   
+  // Add initial page.goto() step
+  const gotoStep = `await page.goto('${location.href}');`;
+  console.log('[StepCapture] Adding initial page.goto() step:', gotoStep);
+  emitStep(gotoStep, 'goto');
+  
   // Save state to storage
   saveCaptureState(true);
   
@@ -511,6 +516,59 @@ export function stopStepCapture() {
   cleanupFns = [];
   dragSourceEl = null;
   console.log('[StepCapture] Capture stopped, isCapturing:', isCapturing);
+}
+
+// Resume step capture without adding page.goto() (for Cancel button)
+export function resumeStepCapture() {
+  console.log('[StepCapture] Resume requested, current state:', isCapturing);
+  if (isCapturing) {
+    console.log('[StepCapture] Already capturing, ignoring resume request');
+    return;
+  }
+  console.log('[StepCapture] Resuming capture');
+  
+  // Ensure any previous cleanup is complete
+  if (cleanupFns.length > 0) {
+    console.log('[StepCapture] Cleaning up previous listeners before resuming');
+    for (const fn of cleanupFns) {
+      try { fn(); } catch (_) {}
+    }
+    cleanupFns = [];
+  }
+  
+  isCapturing = true;
+  stepCaptureEnabled = true;
+  
+  // Set the global flag for content script
+  (window as any)._stepCaptureActive = true;
+  console.log('[StepCapture] Set window._stepCaptureActive to true (resume)');
+  
+  // Update the start URL for the current page
+  localStorage.setItem('stepCaptureStartUrl', location.href);
+  
+  // Save state to storage
+  saveCaptureState(true);
+  
+  console.log('[StepCapture] Resuming capture with passive listeners (Playwright approach)');
+  
+  // Use capture phase with passive listeners (Playwright approach - no preventDefault)
+  const listenerOptions = { capture: true, passive: true };
+  
+  document.addEventListener('click', handleClicks, listenerOptions);
+  document.addEventListener('change', handleInputs, listenerOptions);
+  document.addEventListener('blur', handleBlur, listenerOptions);
+  document.addEventListener('keydown', handleKeydown, listenerOptions);
+  document.addEventListener('dragstart', handleDragStart, listenerOptions);
+  document.addEventListener('drop', handleDrop, listenerOptions);
+  
+  cleanupFns.push(() => document.removeEventListener('click', handleClicks, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('change', handleInputs, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('blur', handleBlur, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('keydown', handleKeydown, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('dragstart', handleDragStart, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('drop', handleDrop, listenerOptions));
+  
+  console.log('[StepCapture] Capture resumed, isCapturing:', isCapturing);
 }
 
 // Force stop - used when we need to ensure capture is stopped regardless of state
@@ -575,9 +633,9 @@ export async function restoreCaptureState() {
           // Update the start URL for the new page
           localStorage.setItem('stepCaptureStartUrl', location.href);
           
-          // Clear stored steps when navigating to new page (start fresh)
-          console.log('[StepCapture] Clearing stored steps for new page');
-          chrome.storage.local.set({ [STORAGE_KEYS.CAPTURED_STEPS]: [] });
+          // Don't clear stored steps - keep them for the sidebar UI
+          // The sidebar will show the original steps, and new steps will be added
+          console.log('[StepCapture] Keeping stored steps for sidebar UI');
           
           // Set up event listeners with same options as startStepCapture
           const listenerOptions = { capture: true, passive: true };
@@ -612,10 +670,10 @@ export async function restoreCaptureState() {
           cleanupFns.push(() => document.removeEventListener('dragstart', handleDragStart, listenerOptions));
           cleanupFns.push(() => document.removeEventListener('drop', handleDrop, listenerOptions));
           
-          // Notify sidebar that capture is active (but start fresh on new page)
-          console.log('[StepCapture] Sending restoration message to sidebar - starting fresh on new page');
-          console.log('[StepCapture] Current URL:', location.href, 'isCapturing:', isCapturing, 'stepCaptureEnabled:', stepCaptureEnabled);
-          window.postMessage({ type: 'tc-step-capture-restored', steps: [] }, '*'); // Start with empty steps
+              // Notify sidebar that capture is active and restored
+              console.log('[StepCapture] Sending restoration message to sidebar - capture restored');
+              console.log('[StepCapture] Current URL:', location.href, 'isCapturing:', isCapturing, 'stepCaptureEnabled:', stepCaptureEnabled);
+              window.postMessage({ type: 'tc-step-capture-restored', steps: [] }, '*'); // Sidebar will load steps from storage
           console.log('[StepCapture] Event listeners attached, isCapturing:', isCapturing, 'stepCaptureEnabled:', stepCaptureEnabled);
           
           // Test if event listeners are working by simulating a click
@@ -634,9 +692,63 @@ export async function restoreCaptureState() {
     } else {
       console.log('[StepCapture] No active state found in storage');
     }
-  } catch (error) {
-    console.error('[StepCapture] Error restoring state:', error);
+    } catch (error) {
+      console.error('[StepCapture] Error restoring state:', error);
+    }
   }
+
+// Auto-restore capture state on page load (without requiring sidebar to be opened)
+export async function autoRestoreCaptureState() {
+  try {
+    const state = await loadCaptureState();
+    
+    if (state.active) {
+      // Check if we're on the same domain (allow cross-page navigation within same site)
+      const currentDomain = new URL(location.href).hostname;
+      const storedDomain = new URL(state.url).hostname;
+      
+      if (currentDomain === storedDomain) {
+        // Use a timeout to ensure DOM is ready and avoid race conditions
+        setTimeout(() => {
+          setupAutoCaptureAfterNavigation();
+        }, 100);
+      } else {
+        clearCaptureState();
+      }
+    }
+  } catch (error) {
+    console.error('[StepCapture] Error auto-restoring state:', error);
+  }
+}
+
+// Setup capture after navigation for auto-restore
+function setupAutoCaptureAfterNavigation() {
+  isCapturing = true;
+  stepCaptureEnabled = true;
+  
+  // CRITICAL: Set the global flag for content script
+  (window as any)._stepCaptureActive = true;
+
+  // Update the start URL for the new page
+  localStorage.setItem('stepCaptureStartUrl', location.href);
+  
+  // Set up event listeners with same options as startStepCapture
+  const listenerOptions = { capture: true, passive: true };
+  
+  document.addEventListener('click', handleClicks, listenerOptions);
+  document.addEventListener('change', handleInputs, listenerOptions);
+  document.addEventListener('blur', handleBlur, listenerOptions);
+  document.addEventListener('keydown', handleKeydown, listenerOptions);
+  document.addEventListener('dragstart', handleDragStart, listenerOptions);
+  document.addEventListener('drop', handleDrop, listenerOptions);
+  
+  // Add cleanup functions for proper restoration
+  cleanupFns.push(() => document.removeEventListener('click', handleClicks, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('change', handleInputs, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('blur', handleBlur, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('keydown', handleKeydown, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('dragstart', handleDragStart, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('drop', handleDrop, listenerOptions));
 }
 
 

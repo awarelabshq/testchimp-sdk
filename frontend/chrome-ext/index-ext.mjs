@@ -13,7 +13,7 @@ if (!window.__scriptInjected) {
 
 import { record } from 'rrweb';
 import { processAndConvertEvent } from './eventProcessor.js';
-import { startStepCapture, stopStepCapture, restoreCaptureState } from './stepCaptureHandler.ts';
+import { startStepCapture, stopStepCapture, restoreCaptureState, autoRestoreCaptureState, resumeStepCapture } from './stepCaptureHandler.ts';
 
 // Buffer to store events for continuous send (when normal recording is enabled)
 var eventBuffer = [];
@@ -201,6 +201,9 @@ function detectNavigation() {
 
 // Set up navigation detection
 setInterval(detectNavigation, 1000); // Check every second
+
+// Auto-restore step capture state on page load
+autoRestoreCaptureState();
 
 // Function to handle iframe events with proper replay integration
 function handleIframeEvent(event) {
@@ -719,12 +722,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       window._stepCaptureActive = true;
       startStepCapture();
       if (sendResponse) sendResponse({ success: true });
-    } else if (message.action === 'stop_step_capture') {
-      window._stepCaptureActive = false;
-      stopStepCapture();
-      window.postMessage({ type: 'tc-show-sidebar' }, '*');
-      if (sendResponse) sendResponse({ success: true });
-    } else if (message.action === 'restore_step_capture') {
+        } else if (message.action === 'stop_step_capture') {
+          window._stepCaptureActive = false;
+          stopStepCapture();
+          window.postMessage({ type: 'tc-show-sidebar' }, '*');
+          if (sendResponse) sendResponse({ success: true });
+        } else if (message.action === 'resume_step_capture') {
+          window._stepCaptureActive = true;
+          resumeStepCapture();
+          if (sendResponse) sendResponse({ success: true });
+        } else if (message.action === 'restore_step_capture') {
       // Restore step capture state
       console.log('[ContentScript] ===== RESTORE MESSAGE RECEIVED =====');
       console.log('[ContentScript] Restoring step capture state');

@@ -738,6 +738,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'resume_step_capture_from_sidebar') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (!tabId) {
+        sendResponse && sendResponse({ success: false, error: 'No active tab' });
+        return;
+      }
+      console.log('[Background] Sending resume_step_capture to content script');
+      chrome.tabs.sendMessage(tabId, { action: 'resume_step_capture' }, (resp) => {
+        console.log('[Background] Resume message sent successfully');
+        sendResponse && sendResponse({ success: !chrome.runtime.lastError, error: chrome.runtime.lastError?.message });
+      });
+    });
+    return true;
+  }
+
   // Relay captured steps from content script to sidebar
   if (message.type === 'captured_step') {
     try {
