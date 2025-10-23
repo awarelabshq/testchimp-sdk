@@ -196,15 +196,22 @@ export const RecordTestTab: React.FC = () => {
         chrome.storage.local.set({ testHistory: updatedHistory });
       });
       
+      // Clear steps immediately after test creation
+      setSteps([]);
+      
       // Hide the form and show success message
       setShowCreateForm(false);
       
       // After 5 seconds, hide the success message and show start button
       setTimeout(() => {
         setCreatedTestId(null);
-        setSteps([]);
         setIsCapturing(false);
         setTestName('');
+        
+        // Reload test history to show the newly created test
+        chrome.storage.local.get(['testHistory'], (result) => {
+          setTestHistory(result.testHistory || []);
+        });
       }, 5000);
     } catch (error) {
       message.error(`Failed to create smart test: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -217,25 +224,29 @@ export const RecordTestTab: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%' }}>
       {/* Control Area - Always at the top */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
         {!isCapturing && !showCreateForm ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Button 
-              type="primary" 
-              size="small" 
-              onClick={onStart}
-              style={{ backgroundColor: '#72BDA3', borderColor: '#72BDA3', color: '#fff', marginTop: '20px' }}
-            >
-              Start Step Capture
-            </Button>
+          <>
+            {/* Start Step Capture Button - Right aligned */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button 
+                type="primary" 
+                size="small" 
+                onClick={onStart}
+                style={{ backgroundColor: '#72BDA3', borderColor: '#72BDA3', color: '#fff', marginTop: '20px' }}
+              >
+                Start Step Capture
+              </Button>
+            </div>
             
-            {/* Test History */}
+            {/* Test History - Left aligned in separate row */}
             {testHistory.length > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <Typography.Text style={{ color: '#666', fontSize: '12px', marginBottom: 8, display: 'block' }}>
-                  Recent Tests:
-                </Typography.Text>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: '200px', overflowY: 'auto' }}>
+              <div style={{ marginTop: 16, textAlign: 'left', paddingLeft: '8px' }}>
+                <div style={{ marginBottom: 8 }}>
+                  <Typography.Text style={{ color: '#666', fontSize: '12px' }}>
+                    Recent Tests:
+                  </Typography.Text>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: '200px', overflowY: 'auto' }}>
                   {testHistory.map((test, index) => (
                     <a
                       key={test.testId}
@@ -243,25 +254,20 @@ export const RecordTestTab: React.FC = () => {
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
-                        color: '#1890ff',
+                        color: '#fff',
                         fontSize: '12px',
-                        textDecoration: 'none',
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        backgroundColor: '#f0f0f0',
-                        border: '1px solid #d9d9d9',
+                        textDecoration: 'underline',
+                        padding: '2px 0',
                         display: 'block',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#e6f7ff';
-                        e.currentTarget.style.borderColor = '#1890ff';
+                        e.currentTarget.style.color = '#ccc';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f0f0f0';
-                        e.currentTarget.style.borderColor = '#d9d9d9';
+                        e.currentTarget.style.color = '#fff';
                       }}
                     >
                       {test.testName}
@@ -270,18 +276,19 @@ export const RecordTestTab: React.FC = () => {
                 </div>
               </div>
             )}
-          </div>
-          ) : isCapturing ? (
+          </>
+        ) : isCapturing ? (
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button 
               danger 
               size="small" 
               onClick={onStop}
-              style={{ backgroundColor: '#ff6b65', borderColor: '#ff6b65', color: '#fff', marginTop: '20px', marginRight: '12px' }}
+              style={{ backgroundColor: '#ff6b65', borderColor: '#ff6b65', color: '#fff', marginTop: '20px' }}
             >
               End Step Capture
             </Button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         {showCreateForm && !isCapturing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -334,29 +341,27 @@ export const RecordTestTab: React.FC = () => {
         )}
       </div>
 
-      {/* Steps Display Area - Scrollable content below controls */}
-      <div style={{ flex: 1, minHeight: 0, overflow: 'auto', backgroundColor: '#2a2a2a', borderRadius: '6px', padding: '8px' }}>
-        {steps.length === 0 && !isCapturing && !showCreateForm ? (
-          <div style={{ textAlign: 'center', color: '#aaa', padding: 20 }}>
-            Click "Start Step Capture" to begin recording user actions.
-          </div>
-        ) : steps.length === 0 && isCapturing ? (
-          <div style={{ textAlign: 'center', color: '#aaa', padding: 20 }}>
-            Capturing steps... Perform actions on the page.
-          </div>
-        ) : steps.length > 0 ? (
-          <List
-            size="small"
-            dataSource={steps}
-            renderItem={(item, idx) => (
-              <List.Item style={{ backgroundColor: 'transparent', border: 'none', padding: '4px 0' }}>
-                <StepItem key={idx} index={idx} value={item} onChange={next => editAt(idx, next)} onRemove={() => removeAt(idx)} />
-              </List.Item>
-            )}
-            style={{ backgroundColor: 'transparent', padding: 0 }}
-          />
-        ) : null}
-      </div>
+      {/* Steps Display Area - Only show when there are steps or when capturing */}
+      {(steps.length > 0 || isCapturing) && (
+        <div style={{ flex: 1, minHeight: 0, overflow: 'auto', backgroundColor: '#2a2a2a', borderRadius: '6px', padding: '8px' }}>
+          {steps.length === 0 && isCapturing ? (
+            <div style={{ textAlign: 'center', color: '#aaa', padding: 20 }}>
+              Capturing steps... Perform actions on the page.
+            </div>
+          ) : steps.length > 0 ? (
+            <List
+              size="small"
+              dataSource={steps}
+              renderItem={(item, idx) => (
+                <List.Item style={{ backgroundColor: 'transparent', border: 'none', padding: '4px 0' }}>
+                  <StepItem key={idx} index={idx} value={item} onChange={next => editAt(idx, next)} onRemove={() => removeAt(idx)} />
+                </List.Item>
+              )}
+              style={{ backgroundColor: 'transparent', padding: 0 }}
+            />
+          ) : null}
+        </div>
+      )}
     </div>
   );
 };
