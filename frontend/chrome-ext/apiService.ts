@@ -752,3 +752,33 @@ export async function listScreenshots(req: ListScreenshotsRequest = {}): Promise
   };
 }
 
+// Smart Test Generation
+export interface GenerateSmartTestRequest {
+  testName: string;
+  playwrightSteps: string[];
+  projectId?: string;
+}
+
+export interface GenerateSmartTestResponse {
+  testId: string;
+}
+
+export async function generateSmartTest(req: GenerateSmartTestRequest): Promise<GenerateSmartTestResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/ext/generate_smart_test`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to generate smart test: ${res.status} ${res.statusText}`);
+  }
+  const data = await res.json();
+  return {
+    testId: data.testId || '',
+  };
+}
+

@@ -9,7 +9,8 @@ import {
 import { LogoutOutlined, BugOutlined, WarningOutlined, EditOutlined, ReloadOutlined, SettingOutlined, AppstoreOutlined, VideoCameraOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { ReleaseSelect } from './components/ReleaseSelect';
 import { EnvironmentSelect } from './components/EnvironmentSelect';
-import { RecordTab } from './RecordTab';
+// import { RecordTab } from './RecordTab';
+import { RecordTestTab } from './RecordTestTab';
 import { BugsTab } from './bugs/BugsTab';
 import { ScenariosTab } from './scenarios/ScenariosTab';
 import { DevTab } from './dev';
@@ -569,7 +570,7 @@ export const SidebarApp = () => {
                                     <ScenariosTab key={activeTabKey === 'scenarios' ? tabRefreshKey : undefined} setIsMindMapBuilding={setIsMindMapBuilding} />
                                 </Tabs.TabPane>
                                 <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><VideoCameraOutlined style={{ marginRight: 6 }} />Rec</span>} key="record" style={{ height: '100%' }}>
-                                    <RecordTab active={activeTabKey === 'record'} />
+                                    <RecordTestTab />
                                 </Tabs.TabPane>
                             </Tabs>
                         </div>

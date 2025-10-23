@@ -1,33 +1,163 @@
 // Shared HTML element info extraction utilities for both extension and injected scripts
 
-// Prefer Playwright-style selectors
+// Enhanced Playwright-style selector generation with better specificity
 export function getUniqueSelector(el: HTMLElement): string {
     if (!el) return '';
-    // 1. Prefer data-testid, data-test-id, data-test, data-id
-    const testAttrs = ['data-testid', 'data-test-id', 'data-test', 'data-id'];
+    
+    // 1. Prefer data-testid, data-test-id, data-test, data-id (highest priority)
+    const testAttrs = ['data-testid', 'data-test-id', 'data-test', 'data-id', 'data-cy', 'data-qa'];
     for (const attr of testAttrs) {
         const val = el.getAttribute && el.getAttribute(attr);
-        if (val) return `[${attr}="${val}"]`;
+        if (val && val.trim()) return `[${attr}="${val.trim()}"]`;
     }
-    // 2. Prefer role with accessible name
+    
+    // 2. Prefer role with accessible name (ARIA)
     const role = el.getAttribute && el.getAttribute('role');
-    let accName = el.getAttribute && (el.getAttribute('aria-label') || (el.textContent && el.textContent.trim()));
-    if (role && accName) {
-        if (accName.length > 50) accName = accName.slice(0, 50) + '...';
-        return `role=${role}[name="${accName}"]`;
+    if (role) {
+        const ariaLabel = el.getAttribute('aria-label');
+        const ariaLabelledBy = el.getAttribute('aria-labelledby');
+        const title = el.getAttribute('title');
+        const alt = el.getAttribute('alt');
+        
+        let accessibleName = ariaLabel || title || alt;
+        
+        // If no direct accessible name, try to get it from aria-labelledby
+        if (!accessibleName && ariaLabelledBy) {
+            const labelEl = document.getElementById(ariaLabelledBy);
+            if (labelEl) accessibleName = labelEl.textContent?.trim();
+        }
+        
+        // If still no accessible name, try to get visible text
+        if (!accessibleName) {
+            const visibleText = getVisibleText(el);
+            if (visibleText && visibleText.length > 0 && visibleText.length < 100) {
+                accessibleName = visibleText;
+            }
+        }
+        
+        if (accessibleName) {
+            const cleanName = accessibleName.trim();
+            if (cleanName.length > 50) {
+                return `role=${role}[name="${cleanName.slice(0, 47)}..."]`;
+            }
+            return `role=${role}[name="${cleanName}"]`;
+        }
+        
+        // Role without accessible name
+        return `role=${role}`;
     }
-    // 3. Prefer text selector if visible text is present
-    const visibleText = el.textContent && el.textContent.trim();
-    if (visibleText && visibleText.length > 0 && visibleText.length < 100) {
+    
+    // 3. Prefer text selector for elements with meaningful text
+    const visibleText = getVisibleText(el);
+    if (visibleText && visibleText.length > 0 && visibleText.length < 100 && isTextElement(el)) {
         return `text="${visibleText}"`;
     }
-    // 4. Fallback: short CSS selector (id, class, nth-child)
-    if (el.id) return `#${el.id}`;
-    let selector = el.tagName ? el.tagName.toLowerCase() : '';
-    if (el.className && typeof el.className === 'string') {
-        const classPart = el.className.trim().replace(/\s+/g, '.');
-        if (classPart) selector += `.${classPart}`;
+    
+    // 4. Prefer form elements with name/label
+    if (isFormElement(el)) {
+        const name = el.getAttribute('name');
+        const id = el.getAttribute('id');
+        const placeholder = el.getAttribute('placeholder');
+        
+        if (name) return `[name="${name}"]`;
+        if (id) return `#${id}`;
+        if (placeholder) return `[placeholder="${placeholder}"]`;
     }
+    
+    // 5. Prefer elements with meaningful IDs
+    if (el.id && isMeaningfulId(el.id)) {
+        return `#${el.id}`;
+    }
+    
+    // 6. Use CSS selector with better specificity
+    return getCSSSelector(el);
+}
+
+// Helper function to get visible text content
+function getVisibleText(el: HTMLElement): string {
+    const text = el.textContent?.trim() || '';
+    if (!text) return '';
+    
+    // For elements that should have short text (buttons, links, etc.)
+    if (['BUTTON', 'A', 'LABEL', 'SPAN', 'DIV'].includes(el.tagName)) {
+        return text;
+    }
+    
+    // For other elements, return text if it's reasonable length
+    if (text.length <= 100) {
+        return text;
+    }
+    
+    return '';
+}
+
+// Check if element is a text-based element
+function isTextElement(el: HTMLElement): boolean {
+    const tagName = el.tagName.toLowerCase();
+    return ['button', 'a', 'label', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName);
+}
+
+// Check if element is a form element
+function isFormElement(el: HTMLElement): boolean {
+    const tagName = el.tagName.toLowerCase();
+    return ['input', 'select', 'textarea', 'button'].includes(tagName);
+}
+
+// Check if ID is meaningful (not auto-generated)
+function isMeaningfulId(id: string): boolean {
+    // Skip auto-generated IDs
+    const autoGeneratedPatterns = [
+        /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i, // UUID
+        /^[a-f0-9]{32}$/i, // MD5 hash
+        /^[a-f0-9]{40}$/i, // SHA1 hash
+        /^[a-f0-9]{64}$/i, // SHA256 hash
+        /^[a-z0-9]{8,}$/i, // Random strings
+        /^react-/, // React auto-generated
+        /^ember/, // Ember auto-generated
+        /^vue-/, // Vue auto-generated
+    ];
+    
+    return !autoGeneratedPatterns.some(pattern => pattern.test(id));
+}
+
+// Generate CSS selector with better specificity
+function getCSSSelector(el: HTMLElement): string {
+    if (!el) return '';
+    
+    // Start with tag name
+    let selector = el.tagName.toLowerCase();
+    
+    // Add ID if meaningful
+    if (el.id && isMeaningfulId(el.id)) {
+        return `#${el.id}`;
+    }
+    
+    // Add classes (filter out framework-generated classes)
+    if (el.className && typeof el.className === 'string') {
+        const classes = el.className.trim().split(/\s+/).filter(cls => {
+            // Filter out framework-generated classes
+            return !cls.match(/^(react-|ember-|vue-|ng-|jquery-)/) && 
+                   !cls.match(/^[a-f0-9]{8,}$/) && // Random hex strings
+                   cls.length > 1;
+        });
+        
+        if (classes.length > 0) {
+            const classPart = classes.join('.');
+            selector += `.${classPart}`;
+        }
+    }
+    
+    // Add attributes for better specificity
+    const importantAttrs = ['name', 'type', 'value', 'placeholder', 'title', 'alt'];
+    for (const attr of importantAttrs) {
+        const val = el.getAttribute(attr);
+        if (val && val.trim()) {
+            selector += `[${attr}="${val.trim()}"]`;
+            break; // Only add one attribute to keep selector clean
+        }
+    }
+    
+    // Add nth-of-type if needed for uniqueness
     if (el.parentElement) {
         const siblings = Array.from(el.parentElement.children).filter(
             (sib) => sib.tagName === el.tagName
@@ -37,6 +167,7 @@ export function getUniqueSelector(el: HTMLElement): string {
             selector += `:nth-of-type(${idx})`;
         }
     }
+    
     return selector;
 }
 
@@ -105,31 +236,38 @@ export function getAncestorHierarchy(element: HTMLElement, opts?: { full?: boole
 // Returns a valid CSS selector for use with document.querySelector
 export function getQuerySelector(el: HTMLElement): string {
     if (!el) return '';
-    // Prefer id
-    if (el.id) return `#${el.id}`;
-    // Prefer data-testid, data-test-id, data-test, data-id
-    const testAttrs = ['data-testid', 'data-test-id', 'data-test', 'data-id'];
-    for (const attr of testAttrs) {
-        const val = el.getAttribute && el.getAttribute(attr);
-        if (val) return `[${attr}="${val}"]`;
+    
+    // Use the same enhanced logic as getUniqueSelector but return CSS selector format
+    const uniqueSelector = getUniqueSelector(el);
+    
+    // If it's already a CSS selector, return it
+    if (uniqueSelector.startsWith('#') || uniqueSelector.startsWith('[') || uniqueSelector.includes('.')) {
+        return uniqueSelector;
     }
-    // Fallback: tag.class
-    let selector = el.tagName ? el.tagName.toLowerCase() : '';
-    if (el.className && typeof el.className === 'string') {
-        const classPart = el.className.trim().replace(/\s+/g, '.');
-        if (classPart) selector += `.${classPart}`;
-    }
-    // Add nth-of-type if needed for uniqueness
-    if (el.parentElement) {
-        const siblings = Array.from(el.parentElement.children).filter(
-            (sib) => sib.tagName === el.tagName
-        );
-        if (siblings.length > 1) {
-            const idx = siblings.indexOf(el) + 1;
-            selector += `:nth-of-type(${idx})`;
+    
+    // Convert Playwright selectors to CSS selectors
+    if (uniqueSelector.startsWith('role=')) {
+        const roleMatch = uniqueSelector.match(/role=([^[]+)(?:\[name="([^"]+)"\])?/);
+        if (roleMatch) {
+            const role = roleMatch[1];
+            const name = roleMatch[2];
+            if (name) {
+                return `[role="${role}"][aria-label="${name}"], [role="${role}"][title="${name}"], [role="${role}"]:has-text("${name}")`;
+            }
+            return `[role="${role}"]`;
         }
     }
-    return selector;
+    
+    if (uniqueSelector.startsWith('text=')) {
+        const textMatch = uniqueSelector.match(/text="([^"]+)"/);
+        if (textMatch) {
+            const text = textMatch[1];
+            return `:has-text("${text}")`;
+        }
+    }
+    
+    // Fallback to CSS selector generation
+    return getCSSSelector(el);
 }
 
 /**

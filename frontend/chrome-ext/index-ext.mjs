@@ -13,6 +13,7 @@ if (!window.__scriptInjected) {
 
 import { record } from 'rrweb';
 import { processAndConvertEvent } from './eventProcessor.js';
+import { startStepCapture, stopStepCapture, restoreCaptureState } from './stepCaptureHandler.ts';
 
 // Buffer to store events for continuous send (when normal recording is enabled)
 var eventBuffer = [];
@@ -21,6 +22,10 @@ var sessionManager;
 var sessionStartTime;
 var shouldRecordSession = false;
 var shouldRecordSessionOnError = false;
+
+// Global flag for synchronous step capture state in content script
+window._stepCaptureActive = false;
+window._lastStepMessage = null; // For debouncing
 
 // Cross-origin iframe recording support
 var iframeEvents = new Map(); // Store events from different iframes
@@ -692,6 +697,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Always call sendResponse to prevent port closure
         if (sendResponse) sendResponse({ success: true });
       });
+    } else if (message.action === 'start_step_capture') {
+      // Collapse sidebar
+      window.postMessage({ type: 'tc-hide-sidebar' }, '*');
+      window._stepCaptureActive = true;
+      startStepCapture();
+      if (sendResponse) sendResponse({ success: true });
+    } else if (message.action === 'stop_step_capture') {
+      window._stepCaptureActive = false;
+      stopStepCapture();
+      window.postMessage({ type: 'tc-show-sidebar' }, '*');
+      if (sendResponse) sendResponse({ success: true });
+    } else if (message.action === 'restore_step_capture') {
+      // Restore step capture state
+      restoreCaptureState();
+      if (sendResponse) sendResponse({ success: true });
     } else {
       // Forward the message back to the webpage
       window.postMessage(message, "*");
@@ -709,6 +729,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 window.addEventListener("message", (event) => {
   // Ensure the message is from the correct source
   if (event.source !== window) {
+    return;
+  }
+
+  // Relay steps from capture to background so sidebar React can consume
+  if (event.data && event.data.type === 'tc-playwright-step') {
+    try {
+      // Use a simple debounce mechanism to prevent duplicate messages
+      const messageKey = `${event.data.cmd}_${event.data.kind}`;
+      const now = Date.now();
+      
+      if (!window._lastStepMessage || window._lastStepMessage.key !== messageKey || now - window._lastStepMessage.time > 100) {
+        window._lastStepMessage = { key: messageKey, time: now };
+        
+        // Check local state first (synchronous)
+        if (window._stepCaptureActive) {
+          console.log('[ContentScript] Relaying step:', event.data.cmd);
+          chrome.runtime?.sendMessage({ type: 'captured_step', cmd: event.data.cmd, kind: event.data.kind });
+        } else {
+          console.log('[ContentScript] Ignoring step - capture not active (local state):', event.data.cmd);
+        }
+      } else {
+        console.log('[ContentScript] Ignoring duplicate step:', event.data.cmd);
+      }
+    } catch (_) {}
     return;
   }
 

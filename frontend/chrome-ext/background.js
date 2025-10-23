@@ -691,6 +691,58 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     return true; // Keep the message channel open
   }
+  // Start Playwright-style step capture from sidebar
+  if (message.type === 'start_step_capture_from_sidebar') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (!tabId) {
+        sendResponse && sendResponse({ success: false, error: 'No active tab' });
+        return;
+      }
+      chrome.storage.local.set({ stepCaptureInProgress: true });
+      chrome.tabs.sendMessage(tabId, { action: 'start_step_capture' }, (resp) => {
+        sendResponse && sendResponse({ success: !chrome.runtime.lastError, error: chrome.runtime.lastError?.message });
+      });
+    });
+    return true;
+  }
+
+  if (message.type === 'stop_step_capture_from_sidebar') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (!tabId) {
+        sendResponse && sendResponse({ success: false, error: 'No active tab' });
+        return;
+      }
+      chrome.storage.local.set({ stepCaptureInProgress: false });
+      chrome.tabs.sendMessage(tabId, { action: 'stop_step_capture' }, (resp) => {
+        sendResponse && sendResponse({ success: !chrome.runtime.lastError, error: chrome.runtime.lastError?.message });
+      });
+    });
+    return true;
+  }
+
+  // Relay captured steps from content script to sidebar
+  if (message.type === 'captured_step') {
+    try {
+      const tabId = sender?.tab?.id;
+      if (tabId) {
+        // Debounce mechanism to prevent duplicate messages
+        const messageKey = `${message.cmd}_${message.kind}`;
+        const now = Date.now();
+        
+        if (!global._lastStepMessage || global._lastStepMessage.key !== messageKey || now - global._lastStepMessage.time > 100) {
+          global._lastStepMessage = { key: messageKey, time: now };
+          console.log('[Background] Relaying step to sidebar:', message.cmd);
+          chrome.tabs.sendMessage(tabId, { type: 'captured_step', cmd: message.cmd, kind: message.kind });
+        } else {
+          console.log('[Background] Ignoring duplicate step:', message.cmd);
+        }
+      }
+    } catch (_) {}
+    sendResponse && sendResponse({ ok: true });
+    return true;
+  }
 
   if (message.type === 'stop_recording_from_sidebar') {
     chrome.storage.sync.get(['projectId'], (syncData) => {
