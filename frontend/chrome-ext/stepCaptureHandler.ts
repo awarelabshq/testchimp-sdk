@@ -6,6 +6,57 @@ import {
 
 let isCapturing = false;
 let cleanupFns: Array<() => void> = [];
+let eventListenersAttached = false;
+
+// Add unique instance ID to track multiple content scripts
+const instanceId = Math.random().toString(36).substr(2, 9);
+console.log('[StepCapture] Content script instance ID:', instanceId);
+
+// Function to safely attach event listeners only once
+function attachEventListeners() {
+  console.log(`[StepCapture] attachEventListeners called (instance: ${instanceId}) - eventListenersAttached:`, eventListenersAttached, 'cleanupFns.length:', cleanupFns.length);
+  
+  // Check if event listeners are already attached globally (across all instances)
+  if ((window as any)._stepCaptureListenersAttached) {
+    console.log(`[StepCapture] Event listeners already attached globally (instance: ${instanceId}), skipping`);
+    return;
+  }
+  
+  if (eventListenersAttached) {
+    console.log(`[StepCapture] Event listeners already attached (instance: ${instanceId}), skipping`);
+    return;
+  }
+  
+  // CRITICAL: Force cleanup any existing listeners first to prevent duplicates
+  console.log('[StepCapture] Force cleaning up any existing listeners first');
+  for (const fn of cleanupFns) {
+    try { fn(); } catch (_) {}
+  }
+  cleanupFns = [];
+  
+  console.log('[StepCapture] Attaching event listeners');
+  const listenerOptions = { capture: true, passive: true };
+  
+  document.addEventListener('click', handleClicks, listenerOptions);
+  document.addEventListener('change', handleInputs, listenerOptions);
+  document.addEventListener('input', handleInputs, listenerOptions);
+  document.addEventListener('blur', handleBlur, listenerOptions);
+  document.addEventListener('keydown', handleKeydown, listenerOptions);
+  document.addEventListener('dragstart', handleDragStart, listenerOptions);
+  document.addEventListener('drop', handleDrop, listenerOptions);
+  
+  cleanupFns.push(() => document.removeEventListener('click', handleClicks, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('change', handleInputs, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('input', handleInputs, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('blur', handleBlur, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('keydown', handleKeydown, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('dragstart', handleDragStart, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('drop', handleDrop, listenerOptions));
+  
+  eventListenersAttached = true;
+  (window as any)._stepCaptureListenersAttached = true; // Set global flag
+  console.log('[StepCapture] Event listeners attached successfully');
+}
 
 // Replace debounce with WeakMap for blur-based input tracking (Playwright approach)
 const fieldValues = new WeakMap<HTMLElement, string>();
@@ -16,12 +67,66 @@ const frameContextMap = new WeakMap<HTMLElement, string>();
 // Global flag to prevent any step emission
 let stepCaptureEnabled = false;
 
+// Track recent Tab key presses to avoid duplicate steps with blur events
+let recentTabPresses = new Map<HTMLElement, number>();
+
+// Track recent step emissions to prevent duplicates
+let recentStepEmissions = new Map<string, number>();
+const STEP_DEBOUNCE_MS = 500; // Prevent same step within 500ms (reduced from 1000ms due to 200ms time tolerance)
+
+// Helper function to generate a simple selector for an element
+function getElementSelector(element: HTMLElement): string {
+  // Try to get a meaningful selector
+  if (element.id) {
+    return `#${element.id}`;
+  }
+  
+  if (element.name) {
+    return `[name="${element.name}"]`;
+  }
+  
+  if (element.className) {
+    const classes = element.className.split(' ').filter(c => c.trim()).slice(0, 2).join('.');
+    return `.${classes}`;
+  }
+  
+  // Fallback to tag name
+  return element.tagName.toLowerCase();
+}
+
+// Enhanced deduplication key generator with time tolerance
+function generateDeduplicationKey(cmd: string, kind: string, element?: HTMLElement, timestamp?: number): string {
+  // Round to 200ms buckets for tolerance (fast interactions within 200ms are considered same time)
+  const timeKey = timestamp ? Math.floor(timestamp / 200) : Math.floor(Date.now() / 200);
+  
+  if (!element) {
+    return `${cmd}_${kind}_${timeKey}`;
+  }
+  
+  // For input elements, include the value, selector, and timestamp to detect real duplicates
+  if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+    const value = element.value || '';
+    const selector = getElementSelector(element);
+    return `${kind}_${selector}_${value}_${timeKey}`;
+  }
+  
+  // For clickable elements, include the selector, text, and timestamp
+  if (kind === 'click') {
+    const selector = getElementSelector(element);
+    const text = element.textContent?.trim() || '';
+    return `${kind}_${selector}_${text}_${timeKey}`;
+  }
+  
+  // Default fallback with timestamp
+  return `${cmd}_${kind}_${timeKey}`;
+}
+
 // Removed tabKeyPressed flag - using element-specific debouncing instead
 
 // Storage keys for persistence
 const STORAGE_KEYS = {
   STEP_CAPTURE_ACTIVE: 'stepCaptureActive',
-  CAPTURED_STEPS: 'capturedSteps',
+  CAPTURED_STEPS_WITH_CONTEXT: 'capturedStepsWithContext', // Single source of truth
   CURRENT_URL: 'currentCaptureUrl'
 };
 
@@ -335,6 +440,22 @@ function emitStep(cmd: string, kind: string, element?: HTMLElement) {
   const now = Date.now();
   const stepKey = `${cmd}_${kind}`;
   
+  // Calculate relative timestamp for deduplication
+  const relativeTimestamp = captureStartTime ? now - captureStartTime : 0;
+  
+  // Generate enhanced deduplication key based on element type, value, context, and timestamp
+  const deduplicationKey = generateDeduplicationKey(cmd, kind, element, relativeTimestamp);
+  
+  // Check for duplicate step emission within debounce window
+  const lastEmission = recentStepEmissions.get(deduplicationKey);
+  if (lastEmission && (now - lastEmission) < STEP_DEBOUNCE_MS) {
+    console.log(`[StepCapture] Duplicate step detected, ignoring:`, cmd);
+    return;
+  }
+  
+  // Record this step emission with enhanced key
+  recentStepEmissions.set(deduplicationKey, now);
+  
   // Element-specific debouncing for blur events
   if (element && (kind === 'input' || kind === 'fill')) {
     const lastEmitted = elementLastEmitted.get(element);
@@ -425,51 +546,53 @@ function emitStep(cmd: string, kind: string, element?: HTMLElement) {
   // Clean up old contexts to save memory
   cleanupOldContexts();
   
-  console.log('[StepCapture] Emitting step:', step.cmd, 'ID:', step.id, 'URL:', location.href, 'relative_timestamp_ms:', step.timestamp);
+  console.log(`[StepCapture] Emitting step (instance: ${instanceId}):`, step.cmd, 'ID:', step.id, 'URL:', location.href, 'relative_timestamp_ms:', step.timestamp, 'capturedSteps.length:', capturedSteps.length);
   
-  // For now, send command to sidebar (backward compatible)
-  window.postMessage({ type: 'tc-playwright-step', cmd: step.cmd, kind: step.kind }, '*');
-  
-  // Save step to storage
+  // Save step to storage (single source of truth - no need for window.postMessage relay)
   saveStepToStorage(step);
 }
 
 function saveStepToStorage(step: CapturedStep) {
-  chrome.storage.local.get([STORAGE_KEYS.CAPTURED_STEPS, 'capturedStepsWithContext'], (result) => {
-    const steps = result[STORAGE_KEYS.CAPTURED_STEPS] || [];
-    // Store as command strings for backward compatibility with existing UI
-    steps.push(step.cmd);
-    chrome.storage.local.set({ [STORAGE_KEYS.CAPTURED_STEPS]: steps });
+  const timestamp = Date.now();
+  console.log(`[StepCapture] saveStepToStorage called at ${timestamp} for step:`, step.cmd);
+  
+  // Single source of truth: only use capturedStepsWithContext
+  chrome.storage.local.get([STORAGE_KEYS.CAPTURED_STEPS_WITH_CONTEXT], (result) => {
+    const existingSteps = result[STORAGE_KEYS.CAPTURED_STEPS_WITH_CONTEXT] || [];
+    const updatedSteps = [...existingSteps, step];
     
-    // Also store full CapturedStep objects for new async path - accumulate them
-    const existingCapturedSteps = result.capturedStepsWithContext || [];
-    const updatedCapturedSteps = [...existingCapturedSteps, step];
-    chrome.storage.local.set({ capturedStepsWithContext: updatedCapturedSteps });
-    
-    console.log('[StepCapture] Saved step to storage. Total steps in storage:', updatedCapturedSteps.length);
-    console.log('[StepCapture] Step being saved:', step.cmd);
-    console.log('[StepCapture] Existing steps count before save:', existingCapturedSteps.length);
+    // Single atomic operation - only update the single source of truth
+    chrome.storage.local.set({ 
+      [STORAGE_KEYS.CAPTURED_STEPS_WITH_CONTEXT]: updatedSteps
+    }, () => {
+      console.log(`[StepCapture] Step saved:`, step.cmd);
+    });
   });
 }
 
 // Function to get captured steps with context for API
 export async function getCapturedStepsWithContext(): Promise<CapturedStep[]> {
-  console.log('[StepCapture] getCapturedStepsWithContext called, returning', capturedSteps.length, 'steps');
-  console.log('[StepCapture] Captured steps:', capturedSteps);
+  console.log('[StepCapture] getCapturedStepsWithContext called - reading from single source of truth');
   
-  // Always load from storage to get ALL steps from the entire session
-  console.log('[StepCapture] Loading all steps from storage for API...');
+  // Always read from the single source of truth in storage
   return new Promise((resolve) => {
-    chrome.storage.local.get(['capturedStepsWithContext'], (result) => {
-      const storedSteps = result.capturedStepsWithContext || [];
-      console.log('[StepCapture] Loaded from storage:', storedSteps.length, 'steps');
-      console.log('[StepCapture] Storage keys available:', Object.keys(result));
-      if (storedSteps.length > 0) {
-        console.log('[StepCapture] First step:', storedSteps[0].cmd);
-        console.log('[StepCapture] Last step:', storedSteps[storedSteps.length - 1].cmd);
-      }
+    chrome.storage.local.get([STORAGE_KEYS.CAPTURED_STEPS_WITH_CONTEXT], (result) => {
+      const storedSteps = result[STORAGE_KEYS.CAPTURED_STEPS_WITH_CONTEXT] || [];
+      console.log('[StepCapture] Loaded from single source of truth:', storedSteps.length, 'steps');
       resolve(storedSteps);
     });
+  });
+}
+
+// Function to update the single source of truth when steps are modified in UI
+export function updateCapturedSteps(updatedSteps: CapturedStep[]) {
+  console.log('[StepCapture] updateCapturedSteps called with', updatedSteps.length, 'steps');
+  
+  // Update the single source of truth in storage
+  chrome.storage.local.set({ 
+    [STORAGE_KEYS.CAPTURED_STEPS_WITH_CONTEXT]: updatedSteps 
+  }, () => {
+    console.log('[StepCapture] Updated single source of truth with', updatedSteps.length, 'steps');
   });
 }
 
@@ -482,7 +605,7 @@ export function clearCapturedSteps() {
   initialGotoStepAdded = false;
   
   // Clear from storage
-  chrome.storage.local.set({ capturedStepsWithContext: [] });
+  chrome.storage.local.set({ [STORAGE_KEYS.CAPTURED_STEPS_WITH_CONTEXT]: [] });
 }
 
 
@@ -502,12 +625,14 @@ function loadCaptureState(): Promise<{active: boolean, steps: string[], url: str
     console.log('[StepCapture] Loading capture state from storage...');
     chrome.storage.local.get([
       STORAGE_KEYS.STEP_CAPTURE_ACTIVE,
-      STORAGE_KEYS.CAPTURED_STEPS,
+      STORAGE_KEYS.CAPTURED_STEPS_WITH_CONTEXT,
       STORAGE_KEYS.CURRENT_URL
     ], (result) => {
+      const capturedSteps = result[STORAGE_KEYS.CAPTURED_STEPS_WITH_CONTEXT] || [];
+      const steps = capturedSteps.map((step: any) => step.cmd);
       const state = {
         active: result[STORAGE_KEYS.STEP_CAPTURE_ACTIVE] || false,
-        steps: result[STORAGE_KEYS.CAPTURED_STEPS] || [],
+        steps: steps,
         url: result[STORAGE_KEYS.CURRENT_URL] || location.href
       };
       console.log('[StepCapture] Loaded state from storage:', state);
@@ -528,13 +653,13 @@ function clearCaptureState() {
 }
 
 function handleClicks(e: MouseEvent) {
-  console.log('[StepCapture] Click handler called:', { isCapturing, stepCaptureEnabled, target: e.target, url: location.href });
+  console.log(`[StepCapture] Click handler called (instance: ${instanceId}):`, { isCapturing, stepCaptureEnabled, target: e.target, url: location.href });
   if (!isCapturing) {
-    console.log('[StepCapture] Click handler - not capturing, ignoring');
+    console.log(`[StepCapture] Click handler (instance: ${instanceId}) - not capturing, ignoring`);
     return;
   }
   if (isInExtensionUi(e.target)) {
-    console.log('[StepCapture] Click handler - extension UI, ignoring');
+    console.log(`[StepCapture] Click handler (instance: ${instanceId}) - extension UI, ignoring`);
     return;
   }
   const element = e.target as HTMLElement;
@@ -553,12 +678,13 @@ function handleClicks(e: MouseEvent) {
 
 // Handle input changes - track values but don't emit until blur (Playwright approach)
 function handleInputs(e: Event) {
+  console.log(`[StepCapture] handleInputs called (instance: ${instanceId}) - event type:`, e.type, 'isCapturing:', isCapturing, 'target:', e.target);
   if (!isCapturing) return;
   if (isInExtensionUi(e.target)) return;
   const el = e.target as HTMLElement;
   if (!el) return;
   
-  console.log('[StepCapture] Input/Change event detected on element:', el.tagName, 'type:', (el as HTMLInputElement).type, 'event:', e.type);
+  console.log(`[StepCapture] Input/Change event detected (instance: ${instanceId}) on element:`, el.tagName, 'type:', (el as HTMLInputElement).type, 'event:', e.type);
   
   if (el instanceof HTMLInputElement) {
     if (el.type === 'checkbox' || el.type === 'radio') {
@@ -644,6 +770,13 @@ function handleBlur(e: FocusEvent) {
         const frames = getFrameContext(el);
         const finalCmd = frames.length > 0 ? addFrameContextToSelector(cmd, frames) : cmd;
         emitStep(finalCmd, 'input', el);
+        
+        // If this blur was caused by a Tab key press, skip the Tab key step to avoid duplication
+        const tabPressTime = recentTabPresses.get(el);
+        if (tabPressTime && (Date.now() - tabPressTime) < 200) {
+          console.log('[StepCapture] Blur after Tab key - skipping Tab key step to avoid duplication');
+          recentTabPresses.delete(el); // Clean up
+        }
       } else {
         console.warn('[StepCapture] Failed to generate input command for', el.type, 'input');
       }
@@ -664,9 +797,23 @@ function handleKeydown(e: KeyboardEvent) {
   
   // Handle Tab key with element-specific debouncing
   if (e.key === 'Tab') {
+    const element = e.target as HTMLElement | null;
+    if (element) {
+      // Check if this is an input field with a value - if so, skip Tab key step
+      // because the blur event will generate a fill command
+      if ((element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) && 
+          element.value && element.value.trim() !== '') {
+        console.log('[StepCapture] Tab key on input field with value - skipping Tab step (blur will handle fill)');
+        return;
+      }
+      
+      // Track this Tab press for potential blur event filtering
+      recentTabPresses.set(element, Date.now());
+      console.log('[StepCapture] Tab key pressed on element, tracking for potential blur filtering');
+    }
+    
     // Small delay to let blur events settle, but still capture Tab key
     setTimeout(() => {
-      const element = e.target as HTMLElement | null;
       const cmd = genKeyPressCommand({ element, key: e.key });
       if (cmd) {
         const frames = element ? getFrameContext(element) : [];
@@ -718,9 +865,9 @@ function handleMouseOver(e: MouseEvent) {
 
 
 export function startStepCapture() {
-  console.log('[StepCapture] startStepCapture called, current state:', { isCapturing, stepCaptureEnabled });
+  console.log(`[StepCapture] startStepCapture called (instance: ${instanceId}), current state:`, { isCapturing, stepCaptureEnabled, initialGotoStepAdded });
   if (isCapturing) {
-    console.log('[StepCapture] Already capturing, ignoring start request');
+    console.log(`[StepCapture] Already capturing (instance: ${instanceId}), ignoring start request`);
     return;
   }
   
@@ -735,6 +882,7 @@ export function startStepCapture() {
     lastContextStepIndex = null;
     captureStartTime = null;
     lastEmittedSteps.clear();
+    recentStepEmissions.clear();
     initialGotoStepAdded = false;
     
     // Clear storage to prevent old steps from persisting
@@ -775,9 +923,12 @@ export function startStepCapture() {
   // Add initial page.goto() step (only once per session)
   if (!initialGotoStepAdded) {
     const gotoStep = `await page.goto('${location.href}');`;
-    console.log('[StepCapture] Adding initial page.goto() step:', gotoStep);
+    console.log('[StepCapture] Adding initial page.goto() step:', gotoStep, 'initialGotoStepAdded was:', initialGotoStepAdded);
     emitStep(gotoStep, 'goto');
     initialGotoStepAdded = true;
+    console.log('[StepCapture] Set initialGotoStepAdded to:', initialGotoStepAdded);
+  } else {
+    console.log('[StepCapture] Skipping page.goto() step - already added, initialGotoStepAdded:', initialGotoStepAdded);
   }
   
   // Save state to storage
@@ -785,27 +936,8 @@ export function startStepCapture() {
   
   console.log('[StepCapture] Starting capture with passive listeners (Playwright approach)');
   
-  // Use capture phase with passive listeners (Playwright approach - no preventDefault)
-  const listenerOptions = { capture: true, passive: true };
-  
-  document.addEventListener('click', handleClicks, listenerOptions);
-  document.addEventListener('change', handleInputs, listenerOptions);
-  // Remove input listener - we only need change for checkboxes/radios and blur for text inputs
-  // document.addEventListener('input', handleInputs, listenerOptions);
-  document.addEventListener('blur', handleBlur, listenerOptions); // NEW: blur for input completion
-  document.addEventListener('keydown', handleKeydown, listenerOptions);
-  document.addEventListener('dragstart', handleDragStart, listenerOptions);
-  document.addEventListener('drop', handleDrop, listenerOptions);
-  // Hover disabled - too noisy, not useful for tests
-  // document.addEventListener('mouseover', handleMouseOver, listenerOptions);
-  
-  cleanupFns.push(() => document.removeEventListener('click', handleClicks, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('change', handleInputs, listenerOptions));
-  // cleanupFns.push(() => document.removeEventListener('input', handleInputs, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('blur', handleBlur, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('keydown', handleKeydown, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('dragstart', handleDragStart, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('drop', handleDrop, listenerOptions));
+  // Attach event listeners safely (only once)
+  attachEventListeners();
 }
 
 export function stopStepCapture() {
@@ -828,8 +960,9 @@ export function stopStepCapture() {
   // Stop navigation monitoring
   stopNavigationMonitoring();
   
-  // Clear debounce map
+  // Clear debounce maps
   lastEmittedSteps.clear();
+  recentStepEmissions.clear();
   
   // DON'T clear captured steps yet - they should be preserved until sent to server
   // The steps will be cleared by clearCapturedSteps() after successful test creation
@@ -845,9 +978,17 @@ export function stopStepCapture() {
   
   console.log('[StepCapture] Cleaning up', cleanupFns.length, 'event listeners');
   for (const fn of cleanupFns) {
-    try { fn(); } catch (_) {}
+    try { 
+      console.log('[StepCapture] Calling cleanup function');
+      fn(); 
+    } catch (e) {
+      console.error('[StepCapture] Error in cleanup function:', e);
+    }
   }
   cleanupFns = [];
+  eventListenersAttached = false; // Reset flag for next capture session
+  (window as any)._stepCaptureListenersAttached = false; // Reset global flag
+  console.log('[StepCapture] Cleanup completed - eventListenersAttached:', eventListenersAttached, 'cleanupFns.length:', cleanupFns.length);
   dragSourceEl = null;
   console.log('[StepCapture] Capture stopped, isCapturing:', isCapturing);
 }
@@ -885,22 +1026,8 @@ export function resumeStepCapture() {
   
   console.log('[StepCapture] Resuming capture with passive listeners (Playwright approach)');
   
-  // Use capture phase with passive listeners (Playwright approach - no preventDefault)
-  const listenerOptions = { capture: true, passive: true };
-  
-  document.addEventListener('click', handleClicks, listenerOptions);
-  document.addEventListener('change', handleInputs, listenerOptions);
-  document.addEventListener('blur', handleBlur, listenerOptions);
-  document.addEventListener('keydown', handleKeydown, listenerOptions);
-  document.addEventListener('dragstart', handleDragStart, listenerOptions);
-  document.addEventListener('drop', handleDrop, listenerOptions);
-  
-  cleanupFns.push(() => document.removeEventListener('click', handleClicks, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('change', handleInputs, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('blur', handleBlur, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('keydown', handleKeydown, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('dragstart', handleDragStart, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('drop', handleDrop, listenerOptions));
+  // Attach event listeners safely (only once)
+  attachEventListeners();
   
   console.log('[StepCapture] Capture resumed, isCapturing:', isCapturing);
 }
@@ -973,18 +1100,9 @@ export async function restoreCaptureState() {
           // Only reset the goto flag for the new page
           initialGotoStepAdded = false;
           
-          // Set up event listeners with same options as startStepCapture
-          const listenerOptions = { capture: true, passive: true };
-          
+          // Attach event listeners safely (only once)
           console.log('[StepCapture] Adding event listeners for restoration');
-          document.addEventListener('click', handleClicks, listenerOptions);
-          document.addEventListener('change', handleInputs, listenerOptions);
-          // Remove input listener - we only need change for checkboxes/radios and blur for text inputs
-          // document.addEventListener('input', handleInputs, listenerOptions);
-          document.addEventListener('blur', handleBlur, listenerOptions); // CRITICAL: Missing blur listener
-          document.addEventListener('keydown', handleKeydown, listenerOptions);
-          document.addEventListener('dragstart', handleDragStart, listenerOptions);
-          document.addEventListener('drop', handleDrop, listenerOptions);
+          attachEventListeners();
           console.log('[StepCapture] Event listeners added for restoration');
           
           // Test if event listeners are working
@@ -997,14 +1115,7 @@ export async function restoreCaptureState() {
           // Hover disabled - too noisy, not useful for tests
           // document.addEventListener('mouseover', handleMouseOver, listenerOptions);
           
-          // Add cleanup functions for proper restoration
-          cleanupFns.push(() => document.removeEventListener('click', handleClicks, listenerOptions));
-          cleanupFns.push(() => document.removeEventListener('change', handleInputs, listenerOptions));
-          // cleanupFns.push(() => document.removeEventListener('input', handleInputs, listenerOptions));
-          cleanupFns.push(() => document.removeEventListener('blur', handleBlur, listenerOptions));
-          cleanupFns.push(() => document.removeEventListener('keydown', handleKeydown, listenerOptions));
-          cleanupFns.push(() => document.removeEventListener('dragstart', handleDragStart, listenerOptions));
-          cleanupFns.push(() => document.removeEventListener('drop', handleDrop, listenerOptions));
+          // Cleanup functions are now handled by attachEventListeners()
           
               // Notify sidebar that capture is active and restored
               console.log('[StepCapture] Sending restoration message to sidebar - capture restored');
@@ -1046,7 +1157,23 @@ export async function autoRestoreCaptureState() {
       if (currentDomain === storedDomain) {
         // Use a timeout to ensure DOM is ready and avoid race conditions
         setTimeout(() => {
-          setupAutoCaptureAfterNavigation();
+          console.log('[StepCapture] Setting up capture after navigation with timeout');
+          // Set up capture state
+          isCapturing = true;
+          stepCaptureEnabled = true;
+          (window as any)._stepCaptureActive = true;
+          
+          // Update the start URL for the new page
+          localStorage.setItem('stepCaptureStartUrl', location.href);
+          
+          // Preserve steps across navigation
+          initialGotoStepAdded = false;
+          
+          // Attach event listeners safely
+          attachEventListeners();
+          
+          // Notify sidebar
+          window.postMessage({ type: 'tc-step-capture-restored', steps: [] }, '*');
         }, 100);
       } else {
         clearCaptureState();
@@ -1057,34 +1184,5 @@ export async function autoRestoreCaptureState() {
   }
 }
 
-// Setup capture after navigation for auto-restore
-function setupAutoCaptureAfterNavigation() {
-  isCapturing = true;
-  stepCaptureEnabled = true;
-  
-  // CRITICAL: Set the global flag for content script
-  (window as any)._stepCaptureActive = true;
-
-  // Update the start URL for the new page
-  localStorage.setItem('stepCaptureStartUrl', location.href);
-  
-  // Set up event listeners with same options as startStepCapture
-  const listenerOptions = { capture: true, passive: true };
-  
-  document.addEventListener('click', handleClicks, listenerOptions);
-  document.addEventListener('change', handleInputs, listenerOptions);
-  document.addEventListener('blur', handleBlur, listenerOptions);
-  document.addEventListener('keydown', handleKeydown, listenerOptions);
-  document.addEventListener('dragstart', handleDragStart, listenerOptions);
-  document.addEventListener('drop', handleDrop, listenerOptions);
-  
-  // Add cleanup functions for proper restoration
-  cleanupFns.push(() => document.removeEventListener('click', handleClicks, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('change', handleInputs, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('blur', handleBlur, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('keydown', handleKeydown, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('dragstart', handleDragStart, listenerOptions));
-  cleanupFns.push(() => document.removeEventListener('drop', handleDrop, listenerOptions));
-}
 
 

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Input, List, Space, Typography, message } from 'antd';
 import { StepItem } from './components/StepItem';
 import { generateSmartTest } from './apiService';
-import { getCapturedStepsWithContext, clearCapturedSteps } from './stepCaptureHandler';
+import { getCapturedStepsWithContext, clearCapturedSteps, updateCapturedSteps } from './stepCaptureHandler';
 
 export const RecordTestTab: React.FC = () => {
   const [isCapturing, setIsCapturing] = useState(false);
@@ -24,7 +24,12 @@ export const RecordTestTab: React.FC = () => {
           if (msg?.type === 'captured_step' && typeof msg.cmd === 'string') {
             setSteps(prev => [...prev, msg.cmd]);
           } else if (msg?.type === 'tc-step-capture-restored') {
-            setSteps(msg.steps || []);
+            // Load steps from storage (single source of truth) instead of from message
+            chrome.storage.local.get(['capturedStepsWithContext'], (result) => {
+              const capturedSteps = result.capturedStepsWithContext || [];
+              const steps = capturedSteps.map((step: any) => step.cmd);
+              setSteps(steps);
+            });
             setIsCapturing(true);
             setShowCreateForm(false);
           } else if (msg?.type === 'tc-navigation-detected') {
@@ -88,18 +93,14 @@ export const RecordTestTab: React.FC = () => {
       setProjectId(items.projectId);
     });
     
-    // Load persisted step capture state
-    chrome.storage.local.get(['stepCaptureActive', 'capturedStepsWithContext'], (result) => {
+    // Load persisted step capture state (only capture status, not steps)
+    chrome.storage.local.get(['stepCaptureActive'], (result) => {
       console.log('[RecordTestTab] Loading sidebar state from storage:', result);
       if (result.stepCaptureActive) {
-        // Restore steps if they exist, otherwise start with empty array
-        const capturedSteps = result.capturedStepsWithContext || [];
-        console.log('[RecordTestTab] Loaded captured steps for sidebar:', capturedSteps.length, 'steps');
-        // Convert CapturedStep objects to simple strings for display
-        const steps = capturedSteps.map(step => step.cmd);
-        setSteps(steps);
         setIsCapturing(true);
         setShowCreateForm(false);
+        // Don't load steps here - let the storage change listener handle it
+        console.log('[RecordTestTab] Capture is active, steps will be loaded by storage change listener');
       } else {
         // Ensure clean state
         setSteps([]);
@@ -113,18 +114,24 @@ export const RecordTestTab: React.FC = () => {
       setTestHistory(result.testHistory || []);
     });
 
-    // Listen for storage changes to update sidebar when new steps are added
+    // Listen for storage changes to update sidebar when steps are modified
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
       if (areaName === 'local' && changes.capturedStepsWithContext) {
-        console.log('[RecordTestTab] Storage change detected for capturedStepsWithContext');
         const capturedSteps = changes.capturedStepsWithContext.newValue || [];
-        const steps = capturedSteps.map((step: any) => step.cmd);
-        console.log('[RecordTestTab] Storage change - new steps:', steps);
-        console.log('[RecordTestTab] Storage change - step count:', steps.length);
-        setSteps(steps);
-        console.log('[RecordTestTab] Updated sidebar with', steps.length, 'steps');
+        const newSteps = capturedSteps.map((step: any) => step.cmd);
+        
+        // Only update if the steps actually changed
+        setSteps(prevSteps => {
+          if (prevSteps.length !== newSteps.length || 
+              !prevSteps.every((step, index) => step === newSteps[index])) {
+            return newSteps;
+          } else {
+            return prevSteps;
+          }
+        });
       }
     };
+
 
     chrome.storage.onChanged.addListener(handleStorageChange);
 
@@ -132,6 +139,17 @@ export const RecordTestTab: React.FC = () => {
       chrome.storage.onChanged.removeListener(handleStorageChange);
     };
   }, []);
+
+  // Load initial steps when capture becomes active - but only if we don't have steps yet
+  useEffect(() => {
+    if (isCapturing && steps.length === 0) {
+      chrome.storage.local.get(['capturedStepsWithContext'], (result) => {
+        const capturedSteps = result.capturedStepsWithContext || [];
+        const newSteps = capturedSteps.map((step: any) => step.cmd);
+        setSteps(newSteps);
+      });
+    }
+  }, [isCapturing, steps.length]); // Only load if capturing AND no steps loaded yet
 
   const onStart = () => {
     chrome.runtime.sendMessage({ type: 'start_step_capture_from_sidebar' }, (resp) => {
@@ -159,8 +177,31 @@ export const RecordTestTab: React.FC = () => {
     });
   };
 
-  const removeAt = (idx: number) => setSteps(prev => prev.filter((_, i) => i !== idx));
-  const editAt = (idx: number, next: string) => setSteps(prev => prev.map((s, i) => (i === idx ? next : s)));
+  const removeAt = async (idx: number) => {
+    // Get current steps from single source of truth
+    const currentSteps = await getCapturedStepsWithContext();
+    const updatedSteps = currentSteps.filter((_, i) => i !== idx);
+    
+    // Update single source of truth
+    updateCapturedSteps(updatedSteps);
+    
+    // Update UI state
+    setSteps(updatedSteps.map(step => step.cmd));
+  };
+  
+  const editAt = async (idx: number, next: string) => {
+    // Get current steps from single source of truth
+    const currentSteps = await getCapturedStepsWithContext();
+    const updatedSteps = currentSteps.map((step, i) => 
+      i === idx ? { ...step, cmd: next } : step
+    );
+    
+    // Update single source of truth
+    updateCapturedSteps(updatedSteps);
+    
+    // Update UI state
+    setSteps(updatedSteps.map(step => step.cmd));
+  };
 
   const onCancel = () => {
     // Cancel: return to capturing state without losing history
