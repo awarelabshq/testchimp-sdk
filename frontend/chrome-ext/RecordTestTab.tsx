@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Input, List, Space, Typography, message } from 'antd';
 import { StepItem } from './components/StepItem';
 import { generateSmartTest } from './apiService';
+import { getCapturedStepsWithContext, clearCapturedSteps } from './stepCaptureHandler';
 
 export const RecordTestTab: React.FC = () => {
   const [isCapturing, setIsCapturing] = useState(false);
@@ -88,10 +89,14 @@ export const RecordTestTab: React.FC = () => {
     });
     
     // Load persisted step capture state
-    chrome.storage.local.get(['stepCaptureActive', 'capturedSteps'], (result) => {
+    chrome.storage.local.get(['stepCaptureActive', 'capturedStepsWithContext'], (result) => {
+      console.log('[RecordTestTab] Loading sidebar state from storage:', result);
       if (result.stepCaptureActive) {
         // Restore steps if they exist, otherwise start with empty array
-        const steps = result.capturedSteps || [];
+        const capturedSteps = result.capturedStepsWithContext || [];
+        console.log('[RecordTestTab] Loaded captured steps for sidebar:', capturedSteps.length, 'steps');
+        // Convert CapturedStep objects to simple strings for display
+        const steps = capturedSteps.map(step => step.cmd);
         setSteps(steps);
         setIsCapturing(true);
         setShowCreateForm(false);
@@ -107,6 +112,25 @@ export const RecordTestTab: React.FC = () => {
     chrome.storage.local.get(['testHistory'], (result) => {
       setTestHistory(result.testHistory || []);
     });
+
+    // Listen for storage changes to update sidebar when new steps are added
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+      if (areaName === 'local' && changes.capturedStepsWithContext) {
+        console.log('[RecordTestTab] Storage change detected for capturedStepsWithContext');
+        const capturedSteps = changes.capturedStepsWithContext.newValue || [];
+        const steps = capturedSteps.map((step: any) => step.cmd);
+        console.log('[RecordTestTab] Storage change - new steps:', steps);
+        console.log('[RecordTestTab] Storage change - step count:', steps.length);
+        setSteps(steps);
+        console.log('[RecordTestTab] Updated sidebar with', steps.length, 'steps');
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChange);
+
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange);
+    };
   }, []);
 
   const onStart = () => {
@@ -173,9 +197,23 @@ export const RecordTestTab: React.FC = () => {
     
     setIsCreating(true);
     try {
+      // Get captured steps with context for new async path
+      const capturedStepsWithContext = await getCapturedStepsWithContext();
+      console.log('[RecordTestTab] Captured steps count:', capturedStepsWithContext.length);
+      console.log('[RecordTestTab] Captured steps:', capturedStepsWithContext);
+      
       const response = await generateSmartTest({
         testName: testName.trim(),
-        playwrightSteps: steps,
+        capturedSteps: capturedStepsWithContext.map(step => ({
+          id: step.id,
+          command: step.cmd,  // Map cmd to command for API
+          kind: step.kind,
+          timestampMillis: step.timestamp,  // Map timestamp to timestampMillis
+          domContext: step.context?.domContext,
+          pageUrl: step.context?.pageUrl,
+          pageTitle: step.context?.pageTitle,
+          element: step.context?.element,
+        })),  // Rich context for LLM processing
         projectId: projectId,
       });
       setCreatedTestId(response.testId);
@@ -196,8 +234,9 @@ export const RecordTestTab: React.FC = () => {
         chrome.storage.local.set({ testHistory: updatedHistory });
       });
       
-      // Clear steps immediately after test creation
+      // Clear steps and captured steps immediately after test creation
       setSteps([]);
+      clearCapturedSteps();
       
       // Hide the form and show success message
       setShowCreateForm(false);

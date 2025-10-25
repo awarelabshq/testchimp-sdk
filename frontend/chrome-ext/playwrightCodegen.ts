@@ -7,18 +7,18 @@ export interface CapturedStep {
   id: string;       // UUID for correlation with DOM snapshots
   cmd: string;      // "await page.click('button.submit');"
   kind: string;     // "click", "fill", "select", etc.
-  selector: string; // "button.submit" (parsed selector)
   timestamp: number; // When action was captured
   
-  // Optional - for future DOM snapshot capture
+  // Optional - for LLM context and element info
   context?: {
+    domContext?: string;  // Token-efficient ARIA snapshot at key steps only
+    pageUrl?: string;     // Truncated to 200 chars max
+    pageTitle?: string;   // Current page title
     element?: {
-      tag: string;
-      attributes: Record<string, string>;
-      text?: string;
+      tag: string;        // HTML tag name
+      attributes: Record<string, string>;  // Key attributes (id, class, type, etc.)
+      text?: string;      // Visible text content (truncated)
     };
-    domSnapshotId?: string;  // Reference to stored snapshot
-    domSnapshot?: string;    // Or inline simplified HTML
   };
 }
 

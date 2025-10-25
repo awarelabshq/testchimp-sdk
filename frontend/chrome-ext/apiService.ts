@@ -753,9 +753,24 @@ export async function listScreenshots(req: ListScreenshotsRequest = {}): Promise
 }
 
 // Smart Test Generation
+export interface CapturedStep {
+  id: string;
+  command: string;
+  kind: string;
+  timestampMillis: number;  // Relative timestamp in milliseconds since capture start
+  domContext?: string;
+  pageUrl?: string;
+  pageTitle?: string;
+  element?: {
+    tag: string;
+    attributes: Record<string, string>;
+    text?: string;
+  };
+}
+
 export interface GenerateSmartTestRequest {
   testName: string;
-  playwrightSteps: string[];
+  capturedSteps: CapturedStep[];  // Rich steps with context for LLM processing
   projectId?: string;
 }
 
@@ -764,6 +779,9 @@ export interface GenerateSmartTestResponse {
 }
 
 export async function generateSmartTest(req: GenerateSmartTestRequest): Promise<GenerateSmartTestResponse> {
+  console.log('[API] GenerateSmartTest request:', req);
+  console.log('[API] Captured steps count:', req.capturedSteps?.length || 0);
+  
   const headers = await getAuthHeaders();
   const res = await fetch(`${BASE_URL}/ext/generate_smart_test`, {
     method: 'POST',

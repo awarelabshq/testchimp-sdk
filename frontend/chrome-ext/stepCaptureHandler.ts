@@ -1,7 +1,7 @@
 import { 
   genClickCommand, genInputCommand, genSelectCommand, genCheckCommand, 
   genHoverCommand, genKeyPressCommand, genDragDropCommand, genGotoCommand,
-  CapturedStep, generateStepId, extractSelector
+  CapturedStep, generateStepId
 } from './playwrightCodegen';
 
 let isCapturing = false;
@@ -25,12 +25,223 @@ const STORAGE_KEYS = {
   CURRENT_URL: 'currentCaptureUrl'
 };
 
+// Memory management constants
+const MAX_CAPTURED_STEPS = 100;
+const MAX_DOM_CONTEXT_LENGTH = 2000; // ~500 tokens
+
+// Track captured steps with context
+let capturedSteps: CapturedStep[] = [];
+let lastContextStepIndex: number | null = null;
+
+// Capture start time for relative timestamps
+let captureStartTime: number | null = null;
+
+// Flag to prevent duplicate goto steps
+let initialGotoStepAdded: boolean = false;
+
 function isInExtensionUi(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el) return false;
   if (el.closest('#testchimp-sidebar') || el.closest('#testchimp-sidebar-toggle')) return true;
   // ant drawer/modals in sidebar shadowRoot are inside #testchimp-sidebar
   return false;
+}
+
+// DOM context capture functions
+function capturePageContext(): string {
+  try {
+    // Extract key interactive elements
+    const interactiveElements = Array.from(
+      document.querySelectorAll('button, a, input, select, textarea, [role="button"]')
+    ).slice(0, 50) // Limit to first 50 interactive elements
+      .map(el => {
+        const tag = el.tagName.toLowerCase();
+        const role = el.getAttribute('role');
+        const label = el.getAttribute('aria-label') || el.textContent?.trim().slice(0, 30);
+        return `<${tag}${role ? ` role="${role}"` : ''}>${label || ''}</${tag}>`;
+      })
+      .join('\n');
+    
+    const landmarks = document.querySelector('main,nav,header,footer')?.tagName || 'none';
+    const context = `Page landmarks: ${landmarks}\n${interactiveElements}`;
+    
+    // Truncate to max length
+    return context.slice(0, MAX_DOM_CONTEXT_LENGTH);
+  } catch (e) {
+    console.warn('[StepCapture] Failed to capture DOM context:', e);
+    return ''; // Fail gracefully
+  }
+}
+
+// Navigation and DOM context tracking
+let domContextNeeded = false;
+let domContextAvailable = false;
+let currentUrl = window.location.href;
+let currentTitle = document.title;
+
+function shouldCaptureContext(step: CapturedStep, lastContextStep?: CapturedStep): boolean {
+  // Always capture context for first step
+  if (!lastContextStep) {
+    return true;
+  }
+  
+  // Check for actual navigation (URL or title change)
+  const newUrl = window.location.href;
+  const newTitle = document.title;
+  const hasNavigated = newUrl !== currentUrl || newTitle !== currentTitle;
+  
+  if (hasNavigated) {
+    // Navigation detected - update tracking variables and mark as needing DOM context
+    currentUrl = newUrl;
+    currentTitle = newTitle;
+    domContextNeeded = true;
+    domContextAvailable = false;
+    console.log('[StepCapture] Navigation detected, marking DOM context as needed');
+    return false; // Don't capture yet, wait for DOMContentLoaded
+  }
+  
+  // Check if we need DOM context and it's now available
+  if (domContextNeeded && domContextAvailable) {
+    console.log('[StepCapture] DOM context needed and available, capturing context');
+    domContextNeeded = false;
+    domContextAvailable = false;
+    return true; // Capture context now
+  }
+  
+  // If we need DOM context but it's not available yet, don't capture
+  if (domContextNeeded && !domContextAvailable) {
+    return false; // Still waiting for DOMContentLoaded
+  }
+  
+  // Regular context capture logic for non-navigation steps
+  // Only capture for goto commands (page navigation)
+  return step.kind === 'goto';
+}
+
+
+
+
+function startNavigationMonitoring() {
+  console.log('[StepCapture] Starting navigation monitoring');
+  
+  // Reset state
+  domContextNeeded = false;
+  domContextAvailable = false;
+  
+  // Listen for DOMContentLoaded event
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      domContextAvailable = true;
+      console.log('[StepCapture] DOMContentLoaded event fired - DOM context now available');
+    });
+  } else {
+    // Already loaded
+    domContextAvailable = true;
+  }
+  
+  // Listen for SPA navigation events
+  window.addEventListener('popstate', () => {
+    console.log('[StepCapture] SPA navigation detected (popstate)');
+    domContextNeeded = true;
+    domContextAvailable = false;
+  });
+  
+  // Intercept history.pushState and history.replaceState for SPA navigation
+  const originalPushState = history.pushState;
+  const originalReplaceState = history.replaceState;
+  
+  history.pushState = function(...args) {
+    originalPushState.apply(this, args);
+    console.log('[StepCapture] SPA navigation detected (pushState)');
+    domContextNeeded = true;
+    domContextAvailable = false;
+  };
+  
+  history.replaceState = function(...args) {
+    originalReplaceState.apply(this, args);
+    console.log('[StepCapture] SPA navigation detected (replaceState)');
+    domContextNeeded = true;
+    domContextAvailable = false;
+  };
+}
+
+function stopNavigationMonitoring() {
+  console.log('[StepCapture] Stopping navigation monitoring');
+  
+  // Reset state
+  domContextNeeded = false;
+  domContextAvailable = false;
+}
+
+// Utility functions
+function truncateUrl(url: string, maxLength: number = 200): string {
+  if (url.length <= maxLength) return url;
+  try {
+    const urlObj = new URL(url);
+    const base = `${urlObj.protocol}//${urlObj.host}`;
+    const remaining = maxLength - base.length - 3;
+    if (remaining <= 0) return base;
+    return base + url.substring(base.length, base.length + remaining) + "...";
+  } catch {
+    return url.slice(0, maxLength - 3) + "...";
+  }
+}
+
+function captureElementInfo(element: HTMLElement): { tag: string; attributes: Record<string, string>; text?: string } {
+  try {
+    const tag = element.tagName.toLowerCase();
+    const attributes: Record<string, string> = {};
+    
+    // Capture key attributes that are semantically meaningful
+    const keyAttributes = ['id', 'class', 'type', 'name', 'value', 'placeholder', 'aria-label', 'role', 'data-testid'];
+    keyAttributes.forEach(attr => {
+      const value = element.getAttribute(attr);
+      if (value) {
+        // Truncate long values
+        attributes[attr] = value.length > 50 ? value.slice(0, 47) + '...' : value;
+      }
+    });
+    
+    // Get visible text content (truncated)
+    let text: string | undefined;
+    try {
+      const visibleText = element.textContent?.trim();
+      if (visibleText && visibleText.length > 0) {
+        text = visibleText.length > 50 ? visibleText.slice(0, 50) + '...' : visibleText;
+      }
+    } catch (e) {
+      // Ignore if we can't access text content
+    }
+    
+    return { tag, attributes, text };
+  } catch (e) {
+    console.warn('[StepCapture] Failed to capture element info:', e);
+    return { tag: 'unknown', attributes: {}, text: undefined };
+  }
+}
+
+function cleanupOldContexts() {
+  // During capture, we keep ALL contexts to maintain full context for LLM
+  // Only clean up if we exceed the absolute limit to prevent memory issues
+  const MAX_TOTAL_CONTEXTS = 50; // Allow more contexts during capture
+  
+  // Find all steps with context
+  const stepsWithContext: number[] = [];
+  capturedSteps.forEach((step, index) => {
+    if (step.context?.domContext) {
+      stepsWithContext.push(index);
+    }
+  });
+  
+  // Only clean up if we exceed the absolute limit
+  if (stepsWithContext.length > MAX_TOTAL_CONTEXTS) {
+    const indexesToClear = stepsWithContext.slice(0, stepsWithContext.length - MAX_TOTAL_CONTEXTS);
+    indexesToClear.forEach(index => {
+      if (capturedSteps[index].context) {
+        delete capturedSteps[index].context!.domContext; // Clear DOM context but keep URL/title
+      }
+    });
+  }
 }
 
 // Get frame chain for element (for iframe support)
@@ -103,10 +314,21 @@ const DEBOUNCE_TIME = 1000; // 1 second debounce for identical steps
 const MIN_STEP_INTERVAL = 300; // 300ms minimum between any steps
 const RAPID_FIRE_THRESHOLD = 3; // Max 3 identical steps in 1 second
 
-// Emit structured step (future-ready for DOM snapshots)
+// Emit structured step with context capture and memory management
 function emitStep(cmd: string, kind: string, element?: HTMLElement) {
   if (!isCapturing || !stepCaptureEnabled) {
     console.log('[StepCapture] Ignoring step emission - not capturing or disabled:', cmd);
+    return;
+  }
+  
+  // Check if we've hit the step limit
+  if (capturedSteps.length >= MAX_CAPTURED_STEPS) {
+    console.warn(`[StepCapture] Reached max steps limit (${MAX_CAPTURED_STEPS}). Stopping capture.`);
+    // Emit warning to UI
+    window.postMessage({ 
+      type: 'step_capture_limit_reached', 
+      maxSteps: MAX_CAPTURED_STEPS 
+    }, '*');
     return;
   }
   
@@ -172,12 +394,38 @@ function emitStep(cmd: string, kind: string, element?: HTMLElement) {
     id: generateStepId(),
     cmd,
     kind,
-    selector: extractSelector(cmd),
-    timestamp: Date.now()
-    // context field can be added in Phase 5 for DOM snapshots
+    timestamp: captureStartTime ? Date.now() - captureStartTime : 0
   };
   
-  console.log('[StepCapture] Emitting step:', step.cmd, 'ID:', step.id, 'URL:', location.href, 'timestamp:', new Date().toISOString());
+  // Always capture element info for each step (lightweight)
+  if (element) {
+    step.context = {
+      element: captureElementInfo(element)
+    };
+  }
+  
+  // Determine if we should capture additional context for this step
+  const lastContextStep = lastContextStepIndex !== null 
+    ? capturedSteps[lastContextStepIndex] 
+    : undefined;
+  
+  if (shouldCaptureContext(step, lastContextStep)) {
+    step.context = {
+      ...step.context,
+      domContext: capturePageContext(),
+      pageUrl: truncateUrl(window.location.href, 200),
+      pageTitle: document.title
+    };
+    lastContextStepIndex = capturedSteps.length;
+  }
+  
+  // Add to captured steps array
+  capturedSteps.push(step);
+  
+  // Clean up old contexts to save memory
+  cleanupOldContexts();
+  
+  console.log('[StepCapture] Emitting step:', step.cmd, 'ID:', step.id, 'URL:', location.href, 'relative_timestamp_ms:', step.timestamp);
   
   // For now, send command to sidebar (backward compatible)
   window.postMessage({ type: 'tc-playwright-step', cmd: step.cmd, kind: step.kind }, '*');
@@ -187,14 +435,56 @@ function emitStep(cmd: string, kind: string, element?: HTMLElement) {
 }
 
 function saveStepToStorage(step: CapturedStep) {
-  chrome.storage.local.get([STORAGE_KEYS.CAPTURED_STEPS], (result) => {
+  chrome.storage.local.get([STORAGE_KEYS.CAPTURED_STEPS, 'capturedStepsWithContext'], (result) => {
     const steps = result[STORAGE_KEYS.CAPTURED_STEPS] || [];
-    // For now, store as command strings for backward compatibility
-    // Phase 5: can store full CapturedStep objects
+    // Store as command strings for backward compatibility with existing UI
     steps.push(step.cmd);
     chrome.storage.local.set({ [STORAGE_KEYS.CAPTURED_STEPS]: steps });
+    
+    // Also store full CapturedStep objects for new async path - accumulate them
+    const existingCapturedSteps = result.capturedStepsWithContext || [];
+    const updatedCapturedSteps = [...existingCapturedSteps, step];
+    chrome.storage.local.set({ capturedStepsWithContext: updatedCapturedSteps });
+    
+    console.log('[StepCapture] Saved step to storage. Total steps in storage:', updatedCapturedSteps.length);
+    console.log('[StepCapture] Step being saved:', step.cmd);
+    console.log('[StepCapture] Existing steps count before save:', existingCapturedSteps.length);
   });
 }
+
+// Function to get captured steps with context for API
+export async function getCapturedStepsWithContext(): Promise<CapturedStep[]> {
+  console.log('[StepCapture] getCapturedStepsWithContext called, returning', capturedSteps.length, 'steps');
+  console.log('[StepCapture] Captured steps:', capturedSteps);
+  
+  // Always load from storage to get ALL steps from the entire session
+  console.log('[StepCapture] Loading all steps from storage for API...');
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['capturedStepsWithContext'], (result) => {
+      const storedSteps = result.capturedStepsWithContext || [];
+      console.log('[StepCapture] Loaded from storage:', storedSteps.length, 'steps');
+      console.log('[StepCapture] Storage keys available:', Object.keys(result));
+      if (storedSteps.length > 0) {
+        console.log('[StepCapture] First step:', storedSteps[0].cmd);
+        console.log('[StepCapture] Last step:', storedSteps[storedSteps.length - 1].cmd);
+      }
+      resolve(storedSteps);
+    });
+  });
+}
+
+// Function to clear captured steps (called after test creation)
+export function clearCapturedSteps() {
+  // Clear all captured steps and reset context tracking
+  capturedSteps = [];
+  lastContextStepIndex = null;
+  captureStartTime = null;
+  initialGotoStepAdded = false;
+  
+  // Clear from storage
+  chrome.storage.local.set({ capturedStepsWithContext: [] });
+}
+
 
 function saveCaptureState(active: boolean, url?: string) {
   const state = {
@@ -434,6 +724,29 @@ export function startStepCapture() {
     return;
   }
   
+  // Only clear state when starting a completely new capture session
+  // Don't clear if this is called during navigation restoration
+  const isNewCapture = !isCapturing;
+  
+  if (isNewCapture) {
+    console.log('[StepCapture] Starting NEW capture session - clearing all previous state');
+    // CRITICAL: Clear all previous state and storage before starting new capture
+    capturedSteps = [];
+    lastContextStepIndex = null;
+    captureStartTime = null;
+    lastEmittedSteps.clear();
+    initialGotoStepAdded = false;
+    
+    // Clear storage to prevent old steps from persisting
+    chrome.storage.local.set({ 
+      capturedStepsWithContext: [],
+      stepCaptureActive: false,
+      currentCaptureUrl: null
+    });
+  } else {
+    console.log('[StepCapture] Restoring capture after navigation - preserving existing steps');
+  }
+  
   // Ensure any previous cleanup is complete
   if (cleanupFns.length > 0) {
     console.log('[StepCapture] Cleaning up previous listeners before starting');
@@ -446,6 +759,9 @@ export function startStepCapture() {
     isCapturing = true;
     stepCaptureEnabled = true;
     
+    // Set capture start time for relative timestamps
+    captureStartTime = Date.now();
+    
     // Set the global flag for content script
     (window as any)._stepCaptureActive = true;
     console.log('[StepCapture] Set window._stepCaptureActive to true');
@@ -453,10 +769,16 @@ export function startStepCapture() {
     // Store the start URL to prevent cross-page step emission
     localStorage.setItem('stepCaptureStartUrl', location.href);
   
-  // Add initial page.goto() step
-  const gotoStep = `await page.goto('${location.href}');`;
-  console.log('[StepCapture] Adding initial page.goto() step:', gotoStep);
-  emitStep(gotoStep, 'goto');
+  // Start monitoring navigation events
+  startNavigationMonitoring();
+  
+  // Add initial page.goto() step (only once per session)
+  if (!initialGotoStepAdded) {
+    const gotoStep = `await page.goto('${location.href}');`;
+    console.log('[StepCapture] Adding initial page.goto() step:', gotoStep);
+    emitStep(gotoStep, 'goto');
+    initialGotoStepAdded = true;
+  }
   
   // Save state to storage
   saveCaptureState(true);
@@ -500,14 +822,26 @@ export function stopStepCapture() {
     (window as any)._stepCaptureActive = false;
     console.log('[StepCapture] Set window._stepCaptureActive to false');
     
-    // Clear the start URL
-    localStorage.removeItem('stepCaptureStartUrl');
+  // Clear the start URL
+  localStorage.removeItem('stepCaptureStartUrl');
+  
+  // Stop navigation monitoring
+  stopNavigationMonitoring();
   
   // Clear debounce map
   lastEmittedSteps.clear();
   
-  // Clear state from storage
-  clearCaptureState();
+  // DON'T clear captured steps yet - they should be preserved until sent to server
+  // The steps will be cleared by clearCapturedSteps() after successful test creation
+  console.log('[StepCapture] Preserving captured steps in storage until test is created');
+  
+  // Clear state from storage (but keep capturedStepsWithContext for test creation)
+  chrome.storage.local.set({ 
+    stepCaptureActive: false,
+    currentCaptureUrl: null
+  }, () => {
+    console.log('[StepCapture] Storage cleared successfully');
+  });
   
   console.log('[StepCapture] Cleaning up', cleanupFns.length, 'event listeners');
   for (const fn of cleanupFns) {
@@ -633,9 +967,11 @@ export async function restoreCaptureState() {
           // Update the start URL for the new page
           localStorage.setItem('stepCaptureStartUrl', location.href);
           
-          // Don't clear stored steps - keep them for the sidebar UI
-          // The sidebar will show the original steps, and new steps will be added
-          console.log('[StepCapture] Keeping stored steps for sidebar UI');
+          // DON'T clear old steps on navigation - preserve them for the full session
+          // The sidebar should show all steps from the entire capture session
+          console.log('[StepCapture] Preserving steps across navigation - keeping all session steps');
+          // Only reset the goto flag for the new page
+          initialGotoStepAdded = false;
           
           // Set up event listeners with same options as startStepCapture
           const listenerOptions = { capture: true, passive: true };

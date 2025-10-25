@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../../AwareRepo/services/featureservice"
+		},
+		{
+			"path": "../../../AwareRepo/services/protos"
+		},
+		{
+			"path": "../../../AwareRepo/ui"
+		}
+	],
+	"settings": {}
+}
