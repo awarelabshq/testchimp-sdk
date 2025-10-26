@@ -754,6 +754,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'set_assertion_mode') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (!tabId) {
+        sendResponse && sendResponse({ success: false, error: 'No active tab' });
+        return;
+      }
+      console.log('[Background] Setting assertion mode:', message.mode, 'sticky:', message.sticky);
+      chrome.tabs.sendMessage(tabId, { 
+        action: 'set_assertion_mode', 
+        mode: message.mode, 
+        sticky: message.sticky 
+      }, (resp) => {
+        console.log('[Background] Assertion mode message sent successfully');
+        sendResponse && sendResponse({ success: !chrome.runtime.lastError, error: chrome.runtime.lastError?.message });
+      });
+    });
+    return true;
+  }
+
   // Relay captured steps from content script to sidebar
   if (message.type === 'captured_step') {
     try {

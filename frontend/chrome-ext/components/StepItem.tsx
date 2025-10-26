@@ -21,6 +21,10 @@ export const StepItem: React.FC<StepItemProps> = ({ index, value, onChange, onRe
     setText(value);
   }, [value]);
 
+  // Check if this is an assertion step
+  const isAssertion = text.includes('await expect(');
+  const stepColor = isAssertion ? '#52c41a' : '#1890ff';
+
   const handleTextChange = (newText: string) => {
     setText(newText);
     onChange(newText);
@@ -48,13 +52,13 @@ export const StepItem: React.FC<StepItemProps> = ({ index, value, onChange, onRe
             style={{ 
               cursor: 'text',
               padding: '8px 12px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
+              border: `1px solid ${stepColor}20`,
               borderRadius: '6px',
-              backgroundColor: '#2a2a2a',
+              backgroundColor: isAssertion ? '#1a2f1a' : '#2a2a2a',
               fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
               fontSize: '13px',
               lineHeight: '1.4',
-              color: 'white',
+              color: stepColor,
               width: '100%',
               wordWrap: 'break-word',
               overflowWrap: 'break-word',
@@ -76,7 +80,8 @@ export const StepItem: React.FC<StepItemProps> = ({ index, value, onChange, onRe
                 overflowWrap: 'break-word',
                 whiteSpace: 'pre-wrap',
                 overflow: 'hidden',
-                maxWidth: '100%'
+                maxWidth: '100%',
+                color: stepColor
               }}
               showLineNumbers={false}
               wrapLines={true}

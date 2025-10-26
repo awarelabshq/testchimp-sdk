@@ -1,8 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Input, List, Space, Typography, message } from 'antd';
+import { Button, Input, List, Space, Typography, message, Tooltip } from 'antd';
+import { 
+  EyeOutlined, 
+  FontSizeOutlined, 
+  FormOutlined, 
+  CheckCircleOutlined, 
+  NumberOutlined,
+  PlayCircleOutlined
+} from '@ant-design/icons';
 import { StepItem } from './components/StepItem';
 import { generateSmartTest } from './apiService';
 import { getCapturedStepsWithContext, clearCapturedSteps, updateCapturedSteps } from './stepCaptureHandler';
+import { AssertionMode } from './playwrightCodegen';
 
 export const RecordTestTab: React.FC = () => {
   const [isCapturing, setIsCapturing] = useState(false);
@@ -18,6 +27,11 @@ export const RecordTestTab: React.FC = () => {
     projectId: string;
     createdAt: string;
   }>>([]);
+  
+  // Assertion mode state
+  const [assertionMode, setAssertionMode] = useState<AssertionMode>('normal');
+  const [isAssertionSticky, setIsAssertionSticky] = useState<boolean>(true);
+  const [lastClickTime, setLastClickTime] = useState<number>(0);
 
       useEffect(() => {
         const handler = (msg: any) => {
@@ -32,6 +46,10 @@ export const RecordTestTab: React.FC = () => {
             });
             setIsCapturing(true);
             setShowCreateForm(false);
+            
+            // Reset assertion mode to normal when restoring
+            setAssertionMode('normal');
+            setIsAssertionSticky(true);
           } else if (msg?.type === 'tc-navigation-detected') {
             // Check if we should restore capture state after navigation
             chrome.storage.local.get(['stepCaptureActive'], (result) => {
@@ -45,6 +63,10 @@ export const RecordTestTab: React.FC = () => {
                 });
               }
             });
+          } else if (msg?.type === 'tc-assertion-mode-changed') {
+            // Update sidebar UI when assertion mode changes in content script
+            setAssertionMode(msg.mode);
+            setIsAssertionSticky(msg.sticky);
           }
         };
         
@@ -88,6 +110,19 @@ export const RecordTestTab: React.FC = () => {
     };
   }, []);
 
+  // Listen for assertion mode changes from content script
+  useEffect(() => {
+    const handleWindowMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'tc-assertion-mode-changed') {
+        setAssertionMode(event.data.mode);
+        setIsAssertionSticky(event.data.sticky);
+      }
+    };
+
+    window.addEventListener('message', handleWindowMessage);
+    return () => window.removeEventListener('message', handleWindowMessage);
+  }, []);
+
   useEffect(() => {
     chrome.storage.sync.get(['projectId'], (items) => {
       setProjectId(items.projectId);
@@ -99,6 +134,7 @@ export const RecordTestTab: React.FC = () => {
       if (result.stepCaptureActive) {
         setIsCapturing(true);
         setShowCreateForm(false);
+        // Don't reset assertion mode here - let the restoration message handle it
         // Don't load steps here - let the storage change listener handle it
         console.log('[RecordTestTab] Capture is active, steps will be loaded by storage change listener');
       } else {
@@ -106,6 +142,8 @@ export const RecordTestTab: React.FC = () => {
         setSteps([]);
         setIsCapturing(false);
         setShowCreateForm(false);
+        setAssertionMode('normal');
+        setIsAssertionSticky(true);
       }
     });
     
@@ -232,6 +270,77 @@ export const RecordTestTab: React.FC = () => {
     setIsCapturing(false);
     setCreatedTestId(null);
   };
+
+  // Assertion mode control functions
+  const handleAssertionModeClick = (mode: AssertionMode) => {
+    const now = Date.now();
+    const isDoubleClick = now - lastClickTime < 300; // 300ms double-click threshold
+    
+    setLastClickTime(now);
+    
+    if (mode === 'normal') {
+      // Normal mode is always sticky
+      setAssertionMode('normal');
+      setIsAssertionSticky(true);
+    } else {
+      if (isDoubleClick) {
+        // Double click: sticky mode
+        setAssertionMode(mode);
+        setIsAssertionSticky(true);
+      } else {
+        // Single click: one-shot mode
+        setAssertionMode(mode);
+        setIsAssertionSticky(false);
+      }
+    }
+    
+    // Send mode change to content script
+    chrome.runtime.sendMessage({ 
+      type: 'set_assertion_mode', 
+      mode, 
+      sticky: mode === 'normal' ? true : isDoubleClick 
+    });
+  };
+
+  // Assertion mode button configuration
+  const assertionButtons = [
+    { 
+      mode: 'normal' as AssertionMode, 
+      icon: <PlayCircleOutlined />, 
+      tooltip: 'Normal Mode (Actions)',
+      color: assertionMode === 'normal' ? '#1890ff' : undefined
+    },
+    { 
+      mode: 'assertVisible' as AssertionMode, 
+      icon: <EyeOutlined />, 
+      tooltip: 'Assert Visible',
+      color: assertionMode === 'assertVisible' ? '#52c41a' : undefined
+    },
+    { 
+      mode: 'assertText' as AssertionMode, 
+      icon: <FontSizeOutlined />, 
+      tooltip: 'Assert Text',
+      color: assertionMode === 'assertText' ? '#52c41a' : undefined
+    },
+    { 
+      mode: 'assertValue' as AssertionMode, 
+      icon: <FormOutlined />, 
+      tooltip: 'Assert Value',
+      color: assertionMode === 'assertValue' ? '#52c41a' : undefined
+    },
+    { 
+      mode: 'assertEnabled' as AssertionMode, 
+      icon: <CheckCircleOutlined />, 
+      tooltip: 'Assert Enabled/Disabled',
+      color: assertionMode === 'assertEnabled' ? '#52c41a' : undefined
+    },
+    { 
+      mode: 'assertCount' as AssertionMode, 
+      icon: <NumberOutlined />, 
+      tooltip: 'Assert Count',
+      color: assertionMode === 'assertCount' ? '#52c41a' : undefined
+    }
+  ];
 
   const onCreateSmartTest = async () => {
     if (!testName.trim() || !projectId) return;
@@ -369,6 +478,52 @@ export const RecordTestTab: React.FC = () => {
             </Button>
           </div>
         ) : null}
+
+        {/* Assertion Mode Control Panel - Only show when capturing */}
+        {isCapturing && (
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: 8, 
+            marginBottom: 12,
+            padding: '8px 0',
+            borderBottom: '1px solid #333',
+            alignItems: 'center'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Typography.Text style={{ color: '#aaa', fontSize: '12px', minWidth: 'fit-content' }}>
+                Mode:
+              </Typography.Text>
+              {assertionButtons.map((button) => (
+                <Tooltip key={button.mode} title={button.tooltip}>
+                  <Button
+                    size="small"
+                    icon={button.icon}
+                    onClick={() => handleAssertionModeClick(button.mode)}
+                    style={{
+                      backgroundColor: button.color || 'transparent',
+                      borderColor: button.color || '#555',
+                      color: button.color ? '#fff' : '#aaa',
+                      minWidth: '32px',
+                      height: '28px'
+                    }}
+                  />
+                </Tooltip>
+              ))}
+            </div>
+            
+            {/* Info label */}
+            <div style={{ 
+              fontSize: '11px', 
+              color: '#888', 
+              lineHeight: '1.3',
+              marginTop: '4px',
+              textAlign: 'center'
+            }}>
+              Single click: one-shot mode • Double click: sticky mode • Click Normal to return to actions
+            </div>
+          </div>
+        )}
 
         {showCreateForm && !isCapturing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

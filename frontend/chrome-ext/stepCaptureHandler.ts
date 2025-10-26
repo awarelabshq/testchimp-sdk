@@ -1,7 +1,7 @@
 import { 
   genClickCommand, genInputCommand, genSelectCommand, genCheckCommand, 
   genHoverCommand, genKeyPressCommand, genDragDropCommand, genGotoCommand,
-  CapturedStep, generateStepId
+  CapturedStep, generateStepId, AssertionMode, generateAssertion
 } from './playwrightCodegen';
 
 let isCapturing = false;
@@ -36,22 +36,27 @@ function attachEventListeners() {
   
   console.log('[StepCapture] Attaching event listeners');
   const listenerOptions = { capture: true, passive: true };
+  const clickListenerOptions = { capture: true, passive: false }; // Allow preventDefault for clicks
   
-  document.addEventListener('click', handleClicks, listenerOptions);
+  document.addEventListener('click', handleClicks, clickListenerOptions);
   document.addEventListener('change', handleInputs, listenerOptions);
   document.addEventListener('input', handleInputs, listenerOptions);
   document.addEventListener('blur', handleBlur, listenerOptions);
   document.addEventListener('keydown', handleKeydown, listenerOptions);
   document.addEventListener('dragstart', handleDragStart, listenerOptions);
   document.addEventListener('drop', handleDrop, listenerOptions);
+  document.addEventListener('mouseover', handleMouseOver, listenerOptions);
+  document.addEventListener('mouseout', handleMouseOut, listenerOptions);
   
-  cleanupFns.push(() => document.removeEventListener('click', handleClicks, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('click', handleClicks, clickListenerOptions));
   cleanupFns.push(() => document.removeEventListener('change', handleInputs, listenerOptions));
   cleanupFns.push(() => document.removeEventListener('input', handleInputs, listenerOptions));
   cleanupFns.push(() => document.removeEventListener('blur', handleBlur, listenerOptions));
   cleanupFns.push(() => document.removeEventListener('keydown', handleKeydown, listenerOptions));
   cleanupFns.push(() => document.removeEventListener('dragstart', handleDragStart, listenerOptions));
   cleanupFns.push(() => document.removeEventListener('drop', handleDrop, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('mouseover', handleMouseOver, listenerOptions));
+  cleanupFns.push(() => document.removeEventListener('mouseout', handleMouseOut, listenerOptions));
   
   eventListenersAttached = true;
   (window as any)._stepCaptureListenersAttached = true; // Set global flag
@@ -67,6 +72,136 @@ const frameContextMap = new WeakMap<HTMLElement, string>();
 // Global flag to prevent any step emission
 let stepCaptureEnabled = false;
 
+// Assertion mode state management
+let currentAssertionMode: AssertionMode = 'normal';
+let isAssertionModeSticky: boolean = true; // Normal is always sticky
+
+// Visual feedback elements
+let highlightOverlay: HTMLElement | null = null;
+let currentHoveredElement: HTMLElement | null = null;
+
+export function setAssertionMode(mode: AssertionMode, sticky: boolean) {
+  currentAssertionMode = mode;
+  isAssertionModeSticky = sticky;
+  console.log(`[StepCapture] Assertion mode set to: ${mode}, sticky: ${sticky}`);
+  
+  // Update cursor and visual feedback
+  updateVisualFeedback();
+}
+
+export function getCurrentAssertionMode(): { mode: AssertionMode; sticky: boolean } {
+  return { mode: currentAssertionMode, sticky: isAssertionModeSticky };
+}
+
+// Update cursor and visual feedback based on current mode
+function updateVisualFeedback() {
+  if (currentAssertionMode === 'normal') {
+    document.body.style.cursor = 'default';
+    removeHighlightOverlay();
+  } else {
+    // Set cursor based on assertion mode
+    const cursorMap = {
+      'assertVisible': 'crosshair',
+      'assertText': 'text',
+      'assertValue': 'text',
+      'assertEnabled': 'help',
+      'assertCount': 'crosshair'
+    };
+    document.body.style.cursor = cursorMap[currentAssertionMode] || 'crosshair';
+  }
+}
+
+// Create or update highlight overlay
+function createHighlightOverlay(element: HTMLElement) {
+  if (!highlightOverlay) {
+    highlightOverlay = document.createElement('div');
+    highlightOverlay.style.cssText = `
+      position: absolute;
+      pointer-events: none;
+      z-index: 999999;
+      border: 2px solid #52c41a;
+      background: rgba(82, 196, 26, 0.1);
+      border-radius: 4px;
+      transition: all 0.1s ease;
+    `;
+    document.body.appendChild(highlightOverlay);
+  }
+
+  const rect = element.getBoundingClientRect();
+  const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+  highlightOverlay.style.left = (rect.left + scrollX) + 'px';
+  highlightOverlay.style.top = (rect.top + scrollY) + 'px';
+  highlightOverlay.style.width = rect.width + 'px';
+  highlightOverlay.style.height = rect.height + 'px';
+  highlightOverlay.style.display = 'block';
+
+  // Add mode-specific styling
+  const modeColors = {
+    'assertVisible': '#52c41a',
+    'assertText': '#1890ff',
+    'assertValue': '#722ed1',
+    'assertEnabled': '#fa8c16',
+    'assertCount': '#eb2f96'
+  };
+  
+  const color = modeColors[currentAssertionMode] || '#52c41a';
+  highlightOverlay.style.borderColor = color;
+  highlightOverlay.style.background = color + '20';
+
+  // Add tooltip text
+  const tooltipText = getAssertionTooltipText(currentAssertionMode);
+  highlightOverlay.setAttribute('data-tooltip', tooltipText);
+}
+
+function getAssertionTooltipText(mode: AssertionMode): string {
+  const tooltips = {
+    'assertVisible': 'Assert Visible',
+    'assertText': 'Assert Text',
+    'assertValue': 'Assert Value',
+    'assertEnabled': 'Assert Enabled/Disabled',
+    'assertCount': 'Assert Count'
+  };
+  return tooltips[mode] || 'Assert';
+}
+
+function removeHighlightOverlay() {
+  if (highlightOverlay) {
+    highlightOverlay.style.display = 'none';
+  }
+  currentHoveredElement = null;
+}
+
+// Handle mouse over events for highlighting
+function handleMouseOver(e: MouseEvent) {
+  if (currentAssertionMode === 'normal' || !isCapturing) {
+    return;
+  }
+
+  const element = e.target as HTMLElement;
+  if (!element || isInExtensionUi(element)) {
+    removeHighlightOverlay();
+    return;
+  }
+
+  currentHoveredElement = element;
+  createHighlightOverlay(element);
+}
+
+// Handle mouse out events
+function handleMouseOut(e: MouseEvent) {
+  if (currentAssertionMode === 'normal' || !isCapturing) {
+    return;
+  }
+
+  // Only remove highlight if we're moving away from the current element
+  const element = e.target as HTMLElement;
+  if (element === currentHoveredElement) {
+    removeHighlightOverlay();
+  }
+}
+
 // Track recent Tab key presses to avoid duplicate steps with blur events
 let recentTabPresses = new Map<HTMLElement, number>();
 
@@ -81,8 +216,8 @@ function getElementSelector(element: HTMLElement): string {
     return `#${element.id}`;
   }
   
-  if (element.name) {
-    return `[name="${element.name}"]`;
+  if (element.getAttribute('name')) {
+    return `[name="${element.getAttribute('name')}"]`;
   }
   
   if (element.className) {
@@ -645,7 +780,7 @@ function clearCaptureState() {
   console.log('[StepCapture] Clearing capture state from storage');
   chrome.storage.local.remove([
     STORAGE_KEYS.STEP_CAPTURE_ACTIVE,
-    STORAGE_KEYS.CAPTURED_STEPS,
+    STORAGE_KEYS.CAPTURED_STEPS_WITH_CONTEXT,
     STORAGE_KEYS.CURRENT_URL
   ], () => {
     console.log('[StepCapture] Storage cleared successfully');
@@ -664,7 +799,49 @@ function handleClicks(e: MouseEvent) {
   }
   const element = e.target as HTMLElement;
   
-  // Generate base command
+  // Check if we're in assertion mode
+  if (currentAssertionMode !== 'normal') {
+    console.log(`[StepCapture] In assertion mode: ${currentAssertionMode}, generating assertion`);
+    
+    // Prevent default behavior and stop propagation for assertion mode
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    
+    // Remove highlight overlay
+    removeHighlightOverlay();
+    
+    // Generate assertion instead of action
+    const assertion = generateAssertion(element, currentAssertionMode);
+    if (assertion) {
+      // Apply iframe context if needed
+      const frames = getFrameContext(element);
+      const finalAssertion = frames.length > 0 ? addFrameContextToSelector(assertion, frames) : assertion;
+      
+      console.log('[StepCapture] Generated assertion:', finalAssertion, frames.length > 0 ? `(in ${frames.length} iframe(s))` : '');
+      emitStep(finalAssertion, `assert_${currentAssertionMode.replace('assert', '').toLowerCase()}`, element);
+      
+      // Revert to normal if not sticky
+      if (!isAssertionModeSticky) {
+        console.log('[StepCapture] Reverting to normal mode (one-shot assertion)');
+        currentAssertionMode = 'normal';
+        isAssertionModeSticky = true;
+        updateVisualFeedback();
+        
+        // Notify sidebar of mode change
+        window.postMessage({ 
+          type: 'tc-assertion-mode-changed', 
+          mode: 'normal', 
+          sticky: true 
+        }, '*');
+      }
+    } else {
+      console.log('[StepCapture] Failed to generate assertion for element:', element);
+    }
+    return;
+  }
+  
+  // Generate base command (normal mode)
   const cmd = genClickCommand({ element, dblclick: e.detail === 2, button: e.button === 1 ? 'middle' : e.button === 2 ? 'right' : 'left', modifiers: [] });
   if (!cmd) return;
   
@@ -857,11 +1034,6 @@ function handleDrop(e: DragEvent) {
   dragSourceEl = null;
 }
 
-function handleMouseOver(e: MouseEvent) {
-  // Disable hover capture to reduce noise - only capture explicit user actions
-  // Most hovers are accidental and don't represent meaningful test steps
-  return;
-}
 
 
 export function startStepCapture() {
@@ -963,6 +1135,12 @@ export function stopStepCapture() {
   // Clear debounce maps
   lastEmittedSteps.clear();
   recentStepEmissions.clear();
+  
+  // Reset assertion mode and visual feedback
+  currentAssertionMode = 'normal';
+  isAssertionModeSticky = true;
+  document.body.style.cursor = 'default';
+  removeHighlightOverlay();
   
   // DON'T clear captured steps yet - they should be preserved until sent to server
   // The steps will be cleared by clearCapturedSteps() after successful test creation
@@ -1121,6 +1299,11 @@ export async function restoreCaptureState() {
               console.log('[StepCapture] Sending restoration message to sidebar - capture restored');
               console.log('[StepCapture] Current URL:', location.href, 'isCapturing:', isCapturing, 'stepCaptureEnabled:', stepCaptureEnabled);
               window.postMessage({ type: 'tc-step-capture-restored', steps: [] }, '*'); // Sidebar will load steps from storage
+              
+              // Also reset assertion mode to normal when restoring
+              currentAssertionMode = 'normal';
+              isAssertionModeSticky = true;
+              updateVisualFeedback();
           console.log('[StepCapture] Event listeners attached, isCapturing:', isCapturing, 'stepCaptureEnabled:', stepCaptureEnabled);
           
           // Test if event listeners are working by simulating a click

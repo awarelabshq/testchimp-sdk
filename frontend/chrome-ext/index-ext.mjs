@@ -743,6 +743,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (sendResponse) sendResponse({ success: false, error: error.message });
       });
       return true; // Keep message channel open for async response
+    } else if (message.action === 'set_assertion_mode') {
+      // Import and call the assertion mode setter
+      import('./stepCaptureHandler.ts').then(module => {
+        module.setAssertionMode(message.mode, message.sticky);
+        if (sendResponse) sendResponse({ success: true });
+      }).catch(err => {
+        console.error('[ContentScript] Failed to set assertion mode:', err);
+        if (sendResponse) sendResponse({ success: false, error: err.message });
+      });
+      return true; // Keep message channel open for async response
     } else {
       // Forward the message back to the webpage
       window.postMessage(message, "*");

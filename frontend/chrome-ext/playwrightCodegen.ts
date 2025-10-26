@@ -187,6 +187,70 @@ export function genGotoCommand(url: string): PlaywrightCommand {
   return `await page.goto(${quote(url)});`;
 }
 
+// Assertion generation functions
+export function genAssertVisible(element: HTMLElement): PlaywrightCommand | undefined {
+  const sel = selectorFor(element);
+  if (!sel) return undefined;
+  return `await expect(page.locator(${quote(sel)})).toBeVisible();`;
+}
+
+export function genAssertText(element: HTMLElement): PlaywrightCommand | undefined {
+  const sel = selectorFor(element);
+  if (!sel) return undefined;
+  const text = element.textContent?.trim() || '';
+  return `await expect(page.locator(${quote(sel)})).toHaveText(${quote(text)});`;
+}
+
+export function genAssertValue(element: HTMLElement): PlaywrightCommand | undefined {
+  const sel = selectorFor(element);
+  if (!sel) return undefined;
+  
+  // Only works for input elements
+  if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
+    return undefined;
+  }
+  
+  const value = (element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value || '';
+  return `await expect(page.locator(${quote(sel)})).toHaveValue(${quote(value)});`;
+}
+
+export function genAssertEnabled(element: HTMLElement): PlaywrightCommand | undefined {
+  const sel = selectorFor(element);
+  if (!sel) return undefined;
+  
+  const isDisabled = element.hasAttribute('disabled');
+  return isDisabled 
+    ? `await expect(page.locator(${quote(sel)})).toBeDisabled();`
+    : `await expect(page.locator(${quote(sel)})).toBeEnabled();`;
+}
+
+export function genAssertCount(element: HTMLElement): PlaywrightCommand | undefined {
+  const sel = selectorFor(element);
+  if (!sel) return undefined;
+  
+  // Count elements with same selector
+  const count = document.querySelectorAll(sel).length;
+  return `await expect(page.locator(${quote(sel)})).toHaveCount(${count});`;
+}
+
+// Helper function to generate assertion based on mode
+export function generateAssertion(element: HTMLElement, mode: AssertionMode): PlaywrightCommand | undefined {
+  switch (mode) {
+    case 'assertVisible':
+      return genAssertVisible(element);
+    case 'assertText':
+      return genAssertText(element);
+    case 'assertValue':
+      return genAssertValue(element);
+    case 'assertEnabled':
+      return genAssertEnabled(element);
+    case 'assertCount':
+      return genAssertCount(element);
+    default:
+      return undefined;
+  }
+}
+
 export type GeneratedCommand = {
   cmd: PlaywrightCommand;
   kind:
@@ -198,7 +262,21 @@ export type GeneratedCommand = {
     | 'hover'
     | 'keypress'
     | 'dragdrop'
-    | 'goto';
+    | 'goto'
+    | 'assert_visible'
+    | 'assert_text'
+    | 'assert_value'
+    | 'assert_enabled'
+    | 'assert_count';
 };
+
+// Assertion mode types
+export type AssertionMode = 
+  | 'normal'
+  | 'assertVisible'
+  | 'assertText'
+  | 'assertValue'
+  | 'assertEnabled'
+  | 'assertCount';
 
 
