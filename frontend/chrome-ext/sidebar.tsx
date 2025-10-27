@@ -15,7 +15,6 @@ import { BugsTab } from './bugs/BugsTab';
 import { ScenariosTab } from './scenarios/ScenariosTab';
 import { DevTab } from './dev';
 import { simplifyDOMForLLM } from './html_utils';
-import { getMindMapStatus, MindMapStatus } from './apiService';
 import { BASE_URL } from './config';
 
 export interface ListUserProjectConfigsResponse {
@@ -44,8 +43,6 @@ export const SidebarApp = () => {
     const [selectedRelease, setSelectedRelease] = useState<string | undefined>(undefined);
     const logoRef = useRef<HTMLImageElement>(null);
     const textRef = useRef<HTMLDivElement>(null);
-    const [mindMapStatus, setMindMapStatus] = useState<MindMapStatus | undefined>(undefined);
-    const [showMindMapPanel, setShowMindMapPanel] = useState(true);
 
     // Save environment and release to chrome storage when they change
     useEffect(() => {
@@ -274,27 +271,6 @@ export const SidebarApp = () => {
         };
     }, [activeTabKey]);
 
-    // Check mindmap status after login
-    useEffect(() => {
-        if (userAuthKey) {
-            getMindMapStatus().then((resp) => {
-                setMindMapStatus(resp.status);
-                // Only show the panel if NOT_BUILT or BUILD_IN_PROGRESS
-                if (resp.status === MindMapStatus.MINDMAP_NOT_BUILT || resp.status === MindMapStatus.MINDMAP_BUILD_IN_PROGRESS) {
-                    setShowMindMapPanel(true);
-                } else {
-                    setShowMindMapPanel(false);
-                }
-            }).catch(() => {
-                setMindMapStatus(undefined);
-                setShowMindMapPanel(false);
-            });
-        } else {
-            setMindMapStatus(undefined);
-            setShowMindMapPanel(false);
-        }
-    }, [userAuthKey]);
-
     chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (msg.type === 'get_dom_snapshot') {
             try {
@@ -357,86 +333,7 @@ export const SidebarApp = () => {
                     </div>
                 </div>
             ) : (
-                // MindMap status panel logic
-                mindMapStatus === MindMapStatus.MINDMAP_NOT_BUILT && showMindMapPanel ? (
-                    <div className='fade-in-slide-up' style={{
-                        background: '#232323',
-                        borderRadius: 12,
-                        padding: 24,
-                        margin: 'auto',
-                        maxWidth: 420,
-                        color: '#fff',
-                        boxShadow: '0 2px 16px rgba(0,0,0,0.18)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        minHeight: 320,
-                    }}>
-                        <img
-                            src={chrome.runtime.getURL('images/icon-128.png')}
-                            alt="TestChimp Logo"
-                            style={{ width: 48, height: 48, marginBottom: 18 }}
-                        />
-                        <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 16, textAlign: 'center' }}>
-                            It seems TestChimp has not run an exploration on your project yet.
-                        </div>
-                        <div style={{ fontSize: 15, color: '#aaa', marginBottom: 24, textAlign: 'center' }}>
-                            Login to <a href="https://prod.testchimp.io/" target="_blank" rel="noopener noreferrer" style={{ color: '#e6c200', textDecoration: 'underline' }}>testchimp</a>, and run an exploration during which it will build a MindMap about your app, identify bugs, and generate test scenarios for each screen.
-                        </div>
-                        <div style={{ fontSize: 15, color: '#aaa', marginBottom: 24, textAlign: 'center' }}>
-                            The Chrome extension will then display bugs / scenarios identified for the current screen, and provide AI assistance collaborating with your AI enabled IDEs for a seamless QA experience.
-                        </div>
-                        <div style={{ display: 'flex', gap: 16, width: '100%', justifyContent: 'center' }}>
-                            <Button
-                                type="default"
-                                style={{ fontWeight: 500, flex: 1 }}
-                                onClick={() => setShowMindMapPanel(false)}
-                            >
-                                Skip for now
-                            </Button>
-                            <Button
-                                type="primary"
-                                style={{ fontWeight: 500, flex: 1 }}
-                                onClick={() => window.open('https://prod.testchimp.io/signin?flow=run_first_exploration', '_blank')}
-                            >
-                                Run Exploration
-                            </Button>
-                        </div>
-                    </div>
-                ) : mindMapStatus === MindMapStatus.MINDMAP_BUILD_IN_PROGRESS && showMindMapPanel ? (
-                    <div className='fade-in-slide-up' style={{
-                        background: '#232323',
-                        borderRadius: 12,
-                        padding: 24,
-                        margin: 'auto',
-                        maxWidth: 420,
-                        color: '#fff',
-                        boxShadow: '0 2px 16px rgba(0,0,0,0.18)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        minHeight: 220,
-                    }}>
-                        <img
-                            src={chrome.runtime.getURL('images/icon-128.png')}
-                            alt="TestChimp Logo"
-                            style={{ width: 48, height: 48, marginBottom: 18 }}
-                        />
-                        <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 18, textAlign: 'center' }}>
-                            TestChimp is still exploring your webapp to identify different screens, bugs and generate test scenarios.
-                        </div>
-                        <Button
-                            type="primary"
-                            style={{ fontWeight: 500, width: '100%' }}
-                            onClick={() => setShowMindMapPanel(false)}
-                        >
-                            Continue Anyway
-                        </Button>
-                    </div>
-                ) : (
-                    <div className="tc-panel" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', padding: 0 }}>
+                <div className="tc-panel" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', padding: 0 }}>
                         {/* Project selection row (no Collapse) */}
                         <div style={{
                             display: 'flex',
@@ -575,8 +472,7 @@ export const SidebarApp = () => {
                             </Tabs>
                         </div>
                     </div>
-                )
-            )}
+                )}
         </div>
     );
 };
