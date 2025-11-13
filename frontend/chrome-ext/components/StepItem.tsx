@@ -1,50 +1,91 @@
 import React, { useState, useEffect } from 'react';
-import { Input, Popconfirm } from 'antd';
-import { DeleteOutlined } from '@ant-design/icons';
+import { Input, Popconfirm, Tooltip } from 'antd';
+import { DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface StepItemProps {
   index: number;
-  value: string;
-  onChange: (next: string) => void;
+  commands: string[];  // Array of commands
+  selectedIndex: number;  // Current selected index
+  onChange: (selectedIndex: number) => void;  // Callback when cycling commands
+  onEdit?: (newCommand: string) => void;  // Callback when manually editing text
   onRemove: () => void;
 }
 
-export const StepItem: React.FC<StepItemProps> = ({ index, value, onChange, onRemove }) => {
-  const [text, setText] = useState<string>(value);
-  const [showDelete, setShowDelete] = useState<boolean>(false);
+export const StepItem: React.FC<StepItemProps> = ({ index, commands, selectedIndex, onChange, onEdit, onRemove }) => {
+  const [showControls, setShowControls] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [text, setText] = useState<string>('');
 
-  // Sync local state with prop changes
+  // Get the current command
+  const currentCommand = commands[selectedIndex] || commands[0] || '';
+  const hasMultipleCommands = commands.length > 1;
+
+  // Sync local text with current command
   useEffect(() => {
-    setText(value);
-  }, [value]);
+    setText(currentCommand);
+  }, [currentCommand]);
 
   // Check if this is an assertion step
-  const isAssertion = text.includes('await expect(');
+  const isAssertion = currentCommand.includes('await expect(');
   const stepColor = isAssertion ? '#52c41a' : '#1890ff';
 
+  const handleCycleCommand = () => {
+    // Cycle to next command (wrap around)
+    const nextIndex = (selectedIndex + 1) % commands.length;
+    onChange(nextIndex);
+  };
+  
   const handleTextChange = (newText: string) => {
     setText(newText);
-    onChange(newText);
+  };
+  
+  const handleBlur = () => {
+    setIsEditing(false);
+    // If text was edited and differs from current command, notify parent
+    if (onEdit && text !== currentCommand) {
+      onEdit(text);
+    }
   };
 
   return (
     <div 
-      style={{ display: 'flex', gap: 8, width: '100%', position: 'relative', margin: 0, padding: 0 }}
-      onMouseEnter={() => setShowDelete(true)}
-      onMouseLeave={() => setShowDelete(false)}
+      style={{ display: 'flex', gap: 8, width: '100%', position: 'relative', margin: 0, padding: 0, alignItems: 'flex-start' }}
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => setShowControls(false)}
     >
-      <div style={{ flex: 1, position: 'relative', width: '100%' }}>
+      {/* Refresh icon - only show on hover if multiple commands */}
+      {hasMultipleCommands && showControls && (
+        <Tooltip title={`Command ${selectedIndex + 1} of ${commands.length} (click to cycle)`}>
+          <ReloadOutlined 
+            onClick={handleCycleCommand}
+            style={{ 
+              color: stepColor,
+              cursor: 'pointer',
+              fontSize: 14,
+              marginTop: 12,
+              flexShrink: 0
+            }}
+          />
+        </Tooltip>
+      )}
+      
+      <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
         {isEditing ? (
           <Input.TextArea 
-            autoSize 
+            autoSize={{ minRows: 1, maxRows: 10 }}
             value={text} 
             onChange={e => handleTextChange(e.target.value)}
-            onBlur={() => setIsEditing(false)}
+            onBlur={handleBlur}
             autoFocus
-            style={{ width: '100%', fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace' }}
+            style={{ 
+              width: '100%', 
+              fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+              fontSize: '13px',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word'
+            }}
           />
         ) : (
           <div 
@@ -60,10 +101,11 @@ export const StepItem: React.FC<StepItemProps> = ({ index, value, onChange, onRe
               lineHeight: '1.4',
               color: stepColor,
               width: '100%',
-              wordWrap: 'break-word',
+              wordBreak: 'break-word',
               overflowWrap: 'break-word',
               whiteSpace: 'pre-wrap',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              boxSizing: 'border-box'
             }}
           >
             <SyntaxHighlighter
@@ -76,37 +118,37 @@ export const StepItem: React.FC<StepItemProps> = ({ index, value, onChange, onRe
                 fontSize: 'inherit',
                 fontFamily: 'inherit',
                 width: '100%',
-                wordWrap: 'break-word',
+                wordBreak: 'break-word',
                 overflowWrap: 'break-word',
                 whiteSpace: 'pre-wrap',
                 overflow: 'hidden',
                 maxWidth: '100%',
+                boxSizing: 'border-box',
                 color: stepColor
               }}
               showLineNumbers={false}
               wrapLines={true}
+              wrapLongLines={true}
             >
               {text}
             </SyntaxHighlighter>
           </div>
         )}
       </div>
-      <div style={{ 
-        position: 'absolute',
-        right: 8,
-        top: '50%',
-        transform: 'translateY(-50%)',
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        opacity: showDelete ? 1 : 0,
-        transition: 'opacity 0.2s ease',
-        zIndex: 1
-      }}>
-        <Popconfirm title="Remove this step?" onConfirm={onRemove} okText="Remove" cancelText="Cancel">
-          <DeleteOutlined style={{ color: '#ff4d4f', cursor: 'pointer', fontSize: 14 }} />
-        </Popconfirm>
-      </div>
+      
+      {showControls && (
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          marginTop: 8,
+          flexShrink: 0
+        }}>
+          <Popconfirm title="Remove this step?" onConfirm={onRemove} okText="Remove" cancelText="Cancel">
+            <DeleteOutlined style={{ color: '#ff4d4f', cursor: 'pointer', fontSize: 14 }} />
+          </Popconfirm>
+        </div>
+      )}
     </div>
   );
 };

@@ -4,6 +4,33 @@ import {
   CapturedStep, generateStepId, AssertionMode, generateAssertion
 } from './playwrightCodegen';
 
+// Helper to apply frame context to commands
+function applyFrameContextToCommands(
+  commands: string[], 
+  element: HTMLElement | null
+): string[] {
+  if (!element) return commands;
+  const frames = getFrameContext(element);
+  return frames.length > 0 
+    ? commands.map(cmd => addFrameContextToSelector(cmd, frames))
+    : commands;
+}
+
+// Helper to log generated commands
+function logGeneratedCommands(
+  kind: string, 
+  commands: string[], 
+  element: HTMLElement | null
+): void {
+  const frames = element ? getFrameContext(element) : [];
+  console.log(
+    `[StepCapture] Generated ${kind} commands:`, 
+    commands[0], 
+    `(${commands.length} variants)`, 
+    frames.length > 0 ? `(in ${frames.length} iframe(s))` : ''
+  );
+}
+
 let isCapturing = false;
 let cleanupFns: Array<() => void> = [];
 let eventListenersAttached = false;
@@ -555,9 +582,15 @@ const MIN_STEP_INTERVAL = 300; // 300ms minimum between any steps
 const RAPID_FIRE_THRESHOLD = 3; // Max 3 identical steps in 1 second
 
 // Emit structured step with context capture and memory management
-function emitStep(cmd: string, kind: string, element?: HTMLElement) {
+function emitStep(commands: string[], kind: string, element?: HTMLElement) {
   if (!isCapturing || !stepCaptureEnabled) {
-    console.log('[StepCapture] Ignoring step emission - not capturing or disabled:', cmd);
+    console.log('[StepCapture] Ignoring step emission - not capturing or disabled:', commands);
+    return;
+  }
+  
+  // Ensure commands is an array
+  if (!Array.isArray(commands) || commands.length === 0) {
+    console.warn('[StepCapture] No commands provided, skipping step');
     return;
   }
   
@@ -573,18 +606,19 @@ function emitStep(cmd: string, kind: string, element?: HTMLElement) {
   }
   
   const now = Date.now();
-  const stepKey = `${cmd}_${kind}`;
+  const firstCmd = commands[0]; // Use first command for deduplication key
+  const stepKey = `${firstCmd}_${kind}`;
   
   // Calculate relative timestamp for deduplication
   const relativeTimestamp = captureStartTime ? now - captureStartTime : 0;
   
   // Generate enhanced deduplication key based on element type, value, context, and timestamp
-  const deduplicationKey = generateDeduplicationKey(cmd, kind, element, relativeTimestamp);
+  const deduplicationKey = generateDeduplicationKey(firstCmd, kind, element, relativeTimestamp);
   
   // Check for duplicate step emission within debounce window
   const lastEmission = recentStepEmissions.get(deduplicationKey);
   if (lastEmission && (now - lastEmission) < STEP_DEBOUNCE_MS) {
-    console.log(`[StepCapture] Duplicate step detected, ignoring:`, cmd);
+    console.log(`[StepCapture] Duplicate step detected, ignoring:`, firstCmd);
     return;
   }
   
@@ -595,7 +629,7 @@ function emitStep(cmd: string, kind: string, element?: HTMLElement) {
   if (element && (kind === 'input' || kind === 'fill')) {
     const lastEmitted = elementLastEmitted.get(element);
     if (lastEmitted && (now - lastEmitted) < MIN_STEP_INTERVAL) {
-      console.log('[StepCapture] Debouncing element-specific step:', cmd, 'time diff:', (now - lastEmitted) + 'ms');
+      console.log('[StepCapture] Debouncing element-specific step:', firstCmd, 'time diff:', (now - lastEmitted) + 'ms');
       return;
     }
     elementLastEmitted.set(element, now);
@@ -608,7 +642,7 @@ function emitStep(cmd: string, kind: string, element?: HTMLElement) {
     
     // For any step type, if it's the same command within 1 second, debounce it
     if (timeDiff < DEBOUNCE_TIME) {
-      console.log('[StepCapture] Debouncing duplicate step:', cmd, 'time diff:', timeDiff + 'ms');
+      console.log('[StepCapture] Debouncing duplicate step:', firstCmd, 'time diff:', timeDiff + 'ms');
       return;
     }
     
@@ -618,7 +652,7 @@ function emitStep(cmd: string, kind: string, element?: HTMLElement) {
       .length;
     
     if (recentSteps >= RAPID_FIRE_THRESHOLD) {
-      console.log('[StepCapture] Blocking rapid-fire step:', cmd, 'count:', recentSteps);
+      console.log('[StepCapture] Blocking rapid-fire step:', firstCmd, 'count:', recentSteps);
       return;
     }
   }
@@ -648,7 +682,8 @@ function emitStep(cmd: string, kind: string, element?: HTMLElement) {
   // Create structured step with UUID
   const step: CapturedStep = {
     id: generateStepId(),
-    cmd,
+    commands: commands,
+    selectedCommandIndex: 0,  // Default to first command
     kind,
     timestamp: captureStartTime ? Date.now() - captureStartTime : 0
   };
@@ -681,7 +716,7 @@ function emitStep(cmd: string, kind: string, element?: HTMLElement) {
   // Clean up old contexts to save memory
   cleanupOldContexts();
   
-  console.log(`[StepCapture] Emitting step (instance: ${instanceId}):`, step.cmd, 'ID:', step.id, 'URL:', location.href, 'relative_timestamp_ms:', step.timestamp, 'capturedSteps.length:', capturedSteps.length);
+  console.log(`[StepCapture] Emitting step (instance: ${instanceId}):`, step.commands[0], 'ID:', step.id, 'commands:', step.commands.length, 'URL:', location.href, 'relative_timestamp_ms:', step.timestamp, 'capturedSteps.length:', capturedSteps.length);
   
   // Save step to storage (single source of truth - no need for window.postMessage relay)
   saveStepToStorage(step);
@@ -689,7 +724,7 @@ function emitStep(cmd: string, kind: string, element?: HTMLElement) {
 
 function saveStepToStorage(step: CapturedStep) {
   const timestamp = Date.now();
-  console.log(`[StepCapture] saveStepToStorage called at ${timestamp} for step:`, step.cmd);
+  console.log(`[StepCapture] saveStepToStorage called at ${timestamp} for step:`, step.commands[0]);
   
   // Single source of truth: only use capturedStepsWithContext
   chrome.storage.local.get([STORAGE_KEYS.CAPTURED_STEPS_WITH_CONTEXT], (result) => {
@@ -700,7 +735,7 @@ function saveStepToStorage(step: CapturedStep) {
     chrome.storage.local.set({ 
       [STORAGE_KEYS.CAPTURED_STEPS_WITH_CONTEXT]: updatedSteps
     }, () => {
-      console.log(`[StepCapture] Step saved:`, step.cmd);
+      console.log(`[StepCapture] Step saved:`, step.commands[0]);
     });
   });
 }
@@ -764,7 +799,14 @@ function loadCaptureState(): Promise<{active: boolean, steps: string[], url: str
       STORAGE_KEYS.CURRENT_URL
     ], (result) => {
       const capturedSteps = result[STORAGE_KEYS.CAPTURED_STEPS_WITH_CONTEXT] || [];
-      const steps = capturedSteps.map((step: any) => step.cmd);
+      // Get the selected command from each step
+      const steps = capturedSteps.map((step: any) => {
+        if (step.commands && Array.isArray(step.commands)) {
+          const index = step.selectedCommandIndex || 0;
+          return step.commands[index] || step.commands[0] || '';
+        }
+        return step.cmd || ''; // Fallback for old format
+      });
       const state = {
         active: result[STORAGE_KEYS.STEP_CAPTURE_ACTIVE] || false,
         steps: steps,
@@ -812,14 +854,11 @@ function handleClicks(e: MouseEvent) {
     removeHighlightOverlay();
     
     // Generate assertion instead of action
-    const assertion = generateAssertion(element, currentAssertionMode);
-    if (assertion) {
-      // Apply iframe context if needed
-      const frames = getFrameContext(element);
-      const finalAssertion = frames.length > 0 ? addFrameContextToSelector(assertion, frames) : assertion;
-      
-      console.log('[StepCapture] Generated assertion:', finalAssertion, frames.length > 0 ? `(in ${frames.length} iframe(s))` : '');
-      emitStep(finalAssertion, `assert_${currentAssertionMode.replace('assert', '').toLowerCase()}`, element);
+    const assertions = generateAssertion(element, currentAssertionMode);
+    if (assertions?.length) {
+      const finalAssertions = applyFrameContextToCommands(assertions, element);
+      logGeneratedCommands(`assertion (${currentAssertionMode})`, finalAssertions, element);
+      emitStep(finalAssertions, `assert_${currentAssertionMode.replace('assert', '').toLowerCase()}`, element);
       
       // Revert to normal if not sticky
       if (!isAssertionModeSticky) {
@@ -841,16 +880,13 @@ function handleClicks(e: MouseEvent) {
     return;
   }
   
-  // Generate base command (normal mode)
-  const cmd = genClickCommand({ element, dblclick: e.detail === 2, button: e.button === 1 ? 'middle' : e.button === 2 ? 'right' : 'left', modifiers: [] });
-  if (!cmd) return;
+  // Generate base commands (normal mode)
+  const cmds = genClickCommand({ element, dblclick: e.detail === 2, button: e.button === 1 ? 'middle' : e.button === 2 ? 'right' : 'left', modifiers: [] });
+  if (!cmds?.length) return;
   
-  // Apply iframe context if needed
-  const frames = getFrameContext(element);
-  const finalCmd = frames.length > 0 ? addFrameContextToSelector(cmd, frames) : cmd;
-  
-  console.log('[StepCapture] Generated click command:', finalCmd, frames.length > 0 ? `(in ${frames.length} iframe(s))` : '');
-  emitStep(finalCmd, e.detail === 2 ? 'dblclick' : 'click');
+  const finalCmds = applyFrameContextToCommands(cmds, element);
+  logGeneratedCommands(e.detail === 2 ? 'dblclick' : 'click', finalCmds, element);
+  emitStep(finalCmds, e.detail === 2 ? 'dblclick' : 'click');
 }
 
 // Handle input changes - track values but don't emit until blur (Playwright approach)
@@ -866,11 +902,11 @@ function handleInputs(e: Event) {
   if (el instanceof HTMLInputElement) {
     if (el.type === 'checkbox' || el.type === 'radio') {
       // Immediate capture for checkboxes/radios (on change)
-      const cmd = genCheckCommand({ element: el, checked: !!el.checked });
-      if (cmd) {
-        const frames = getFrameContext(el);
-        const finalCmd = frames.length > 0 ? addFrameContextToSelector(cmd, frames) : cmd;
-        emitStep(finalCmd, 'check');
+      const cmds = genCheckCommand({ element: el, checked: !!el.checked });
+      if (cmds?.length) {
+        const finalCmds = applyFrameContextToCommands(cmds, el);
+        logGeneratedCommands('check', finalCmds, el);
+        emitStep(finalCmds, 'check');
       }
       return;
     }
@@ -896,11 +932,11 @@ function handleInputs(e: Event) {
   if (el instanceof HTMLSelectElement) {
     // Immediate capture for select (on change)
     const value = el.multiple ? Array.from(el.selectedOptions).map(o => o.value) : el.value;
-    const cmd = genSelectCommand({ element: el, value });
-    if (cmd) {
-      const frames = getFrameContext(el);
-      const finalCmd = frames.length > 0 ? addFrameContextToSelector(cmd, frames) : cmd;
-      emitStep(finalCmd, 'select');
+    const cmds = genSelectCommand({ element: el, value });
+    if (cmds?.length) {
+      const finalCmds = applyFrameContextToCommands(cmds, el);
+      logGeneratedCommands('select', finalCmds, el);
+      emitStep(finalCmds, 'select');
     }
   }
 }
@@ -941,12 +977,11 @@ function handleBlur(e: FocusEvent) {
     
     console.log('[StepCapture] Blur event for', el.type, 'input, value:', value ? '***' : '(empty)');
     if (value !== undefined && value !== '') {
-      const cmd = genInputCommand({ element: el, value, type: 'fill' });
-      if (cmd) {
-        console.log('[StepCapture] Generated input command for', el.type, ':', cmd);
-        const frames = getFrameContext(el);
-        const finalCmd = frames.length > 0 ? addFrameContextToSelector(cmd, frames) : cmd;
-        emitStep(finalCmd, 'input', el);
+      const cmds = genInputCommand({ element: el, value, type: 'fill' });
+      if (cmds?.length) {
+        const finalCmds = applyFrameContextToCommands(cmds, el);
+        logGeneratedCommands('input', finalCmds, el);
+        emitStep(finalCmds, 'input', el);
         
         // If this blur was caused by a Tab key press, skip the Tab key step to avoid duplication
         const tabPressTime = recentTabPresses.get(el);
@@ -991,22 +1026,22 @@ function handleKeydown(e: KeyboardEvent) {
     
     // Small delay to let blur events settle, but still capture Tab key
     setTimeout(() => {
-      const cmd = genKeyPressCommand({ element, key: e.key });
-      if (cmd) {
-        const frames = element ? getFrameContext(element) : [];
-        const finalCmd = frames.length > 0 ? addFrameContextToSelector(cmd, frames) : cmd;
-        emitStep(finalCmd, 'keypress', element || undefined);
+      const cmds = genKeyPressCommand({ element, key: e.key });
+      if (cmds?.length) {
+        const finalCmds = applyFrameContextToCommands(cmds, element);
+        logGeneratedCommands('keypress', finalCmds, element);
+        emitStep(finalCmds, 'keypress', element || undefined);
       }
     }, 50); // Smaller delay since we have better debouncing
     return;
   }
   
   const element = e.target as HTMLElement | null;
-  const cmd = genKeyPressCommand({ element, key: e.key });
-  if (cmd) {
-    const frames = element ? getFrameContext(element) : [];
-    const finalCmd = frames.length > 0 ? addFrameContextToSelector(cmd, frames) : cmd;
-    emitStep(finalCmd, 'keypress', element || undefined);
+  const cmds = genKeyPressCommand({ element, key: e.key });
+  if (cmds?.length) {
+    const finalCmds = applyFrameContextToCommands(cmds, element);
+    logGeneratedCommands('keypress', finalCmds, element);
+    emitStep(finalCmds, 'keypress', element || undefined);
   }
 }
 
@@ -1018,17 +1053,12 @@ function handleDrop(e: DragEvent) {
   if (!isCapturing) return;
   if (isInExtensionUi(e.target)) return;
   if (dragSourceEl && e.target instanceof HTMLElement) {
-    const cmd = genDragDropCommand({ source: dragSourceEl, target: e.target });
-    if (cmd) {
-      // For drag-drop, we need to check if either element is in an iframe
-      const sourceFrames = getFrameContext(dragSourceEl);
-      const targetFrames = getFrameContext(e.target);
-      
-      // If both elements are in the same frame context, use that
-      // If different contexts, use the target's context (where drop happens)
-      const frames = targetFrames.length > 0 ? targetFrames : sourceFrames;
-      const finalCmd = frames.length > 0 ? addFrameContextToSelector(cmd, frames) : cmd;
-      emitStep(finalCmd, 'dragdrop');
+    const cmds = genDragDropCommand({ source: dragSourceEl, target: e.target });
+    if (cmds?.length) {
+      // Use target element for frame context (where drop happens)
+      const finalCmds = applyFrameContextToCommands(cmds, e.target);
+      logGeneratedCommands('dragdrop', finalCmds, e.target);
+      emitStep(finalCmds, 'dragdrop');
     }
   }
   dragSourceEl = null;
@@ -1094,9 +1124,9 @@ export function startStepCapture() {
   
   // Add initial page.goto() step (only once per session)
   if (!initialGotoStepAdded) {
-    const gotoStep = `await page.goto('${location.href}');`;
-    console.log('[StepCapture] Adding initial page.goto() step:', gotoStep, 'initialGotoStepAdded was:', initialGotoStepAdded);
-    emitStep(gotoStep, 'goto');
+    const gotoSteps = genGotoCommand(location.href);
+    console.log('[StepCapture] Adding initial page.goto() steps:', gotoSteps[0], `(${gotoSteps.length} variants)`, 'initialGotoStepAdded was:', initialGotoStepAdded);
+    emitStep(gotoSteps, 'goto');
     initialGotoStepAdded = true;
     console.log('[StepCapture] Set initialGotoStepAdded to:', initialGotoStepAdded);
   } else {

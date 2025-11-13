@@ -11,11 +11,11 @@ import {
 import { StepItem } from './components/StepItem';
 import { generateSmartTest } from './apiService';
 import { getCapturedStepsWithContext, clearCapturedSteps, updateCapturedSteps } from './stepCaptureHandler';
-import { AssertionMode } from './playwrightCodegen';
+import { AssertionMode, CapturedStep, getSelectedCommand } from './playwrightCodegen';
 
 export const RecordTestTab: React.FC = () => {
   const [isCapturing, setIsCapturing] = useState(false);
-  const [steps, setSteps] = useState<string[]>([]);
+  const [steps, setSteps] = useState<CapturedStep[]>([]);
   const [testName, setTestName] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -35,14 +35,14 @@ export const RecordTestTab: React.FC = () => {
 
       useEffect(() => {
         const handler = (msg: any) => {
-          if (msg?.type === 'captured_step' && typeof msg.cmd === 'string') {
-            setSteps(prev => [...prev, msg.cmd]);
+          if (msg?.type === 'captured_step') {
+            // Handle captured step (though we load from storage now)
+            console.log('[RecordTestTab] Captured step message received');
           } else if (msg?.type === 'tc-step-capture-restored') {
             // Load steps from storage (single source of truth) instead of from message
             chrome.storage.local.get(['capturedStepsWithContext'], (result) => {
               const capturedSteps = result.capturedStepsWithContext || [];
-              const steps = capturedSteps.map((step: any) => step.cmd);
-              setSteps(steps);
+              setSteps(capturedSteps);
             });
             setIsCapturing(true);
             setShowCreateForm(false);
@@ -156,13 +156,15 @@ export const RecordTestTab: React.FC = () => {
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
       if (areaName === 'local' && changes.capturedStepsWithContext) {
         const capturedSteps = changes.capturedStepsWithContext.newValue || [];
-        const newSteps = capturedSteps.map((step: any) => step.cmd);
         
         // Only update if the steps actually changed
         setSteps(prevSteps => {
-          if (prevSteps.length !== newSteps.length || 
-              !prevSteps.every((step, index) => step === newSteps[index])) {
-            return newSteps;
+          if (prevSteps.length !== capturedSteps.length || 
+              !prevSteps.every((step, index) => 
+                step.id === capturedSteps[index]?.id && 
+                step.selectedCommandIndex === capturedSteps[index]?.selectedCommandIndex
+              )) {
+            return capturedSteps;
           } else {
             return prevSteps;
           }
@@ -183,8 +185,7 @@ export const RecordTestTab: React.FC = () => {
     if (isCapturing && steps.length === 0) {
       chrome.storage.local.get(['capturedStepsWithContext'], (result) => {
         const capturedSteps = result.capturedStepsWithContext || [];
-        const newSteps = capturedSteps.map((step: any) => step.cmd);
-        setSteps(newSteps);
+        setSteps(capturedSteps);
       });
     }
   }, [isCapturing, steps.length]); // Only load if capturing AND no steps loaded yet
@@ -224,21 +225,41 @@ export const RecordTestTab: React.FC = () => {
     updateCapturedSteps(updatedSteps);
     
     // Update UI state
-    setSteps(updatedSteps.map(step => step.cmd));
+    setSteps(updatedSteps);
   };
   
-  const editAt = async (idx: number, next: string) => {
+  const editAt = async (idx: number, newSelectedIndex: number) => {
     // Get current steps from single source of truth
     const currentSteps = await getCapturedStepsWithContext();
     const updatedSteps = currentSteps.map((step, i) => 
-      i === idx ? { ...step, cmd: next } : step
+      i === idx ? { ...step, selectedCommandIndex: newSelectedIndex } : step
     );
     
     // Update single source of truth
     updateCapturedSteps(updatedSteps);
     
     // Update UI state
-    setSteps(updatedSteps.map(step => step.cmd));
+    setSteps(updatedSteps);
+  };
+  
+  const editCommandText = async (idx: number, newCommand: string) => {
+    // Get current steps from single source of truth
+    const currentSteps = await getCapturedStepsWithContext();
+    const updatedSteps = currentSteps.map((step, i) => {
+      if (i === idx) {
+        // Update the command at the selected index
+        const newCommands = [...step.commands];
+        newCommands[step.selectedCommandIndex] = newCommand;
+        return { ...step, commands: newCommands };
+      }
+      return step;
+    });
+    
+    // Update single source of truth
+    updateCapturedSteps(updatedSteps);
+    
+    // Update UI state
+    setSteps(updatedSteps);
   };
 
   const onCancel = () => {
@@ -356,7 +377,7 @@ export const RecordTestTab: React.FC = () => {
         testName: testName.trim(),
         capturedSteps: capturedStepsWithContext.map(step => ({
           id: step.id,
-          command: step.cmd,  // Map cmd to command for API
+          command: getSelectedCommand(step),  // Use selected command from array
           kind: step.kind,
           timestampMillis: step.timestamp,  // Map timestamp to timestampMillis
           domContext: step.context?.domContext,
@@ -589,7 +610,15 @@ export const RecordTestTab: React.FC = () => {
               dataSource={steps}
               renderItem={(item, idx) => (
                 <List.Item style={{ backgroundColor: 'transparent', border: 'none', padding: '4px 0' }}>
-                  <StepItem key={idx} index={idx} value={item} onChange={next => editAt(idx, next)} onRemove={() => removeAt(idx)} />
+                  <StepItem 
+                    key={idx} 
+                    index={idx} 
+                    commands={item.commands} 
+                    selectedIndex={item.selectedCommandIndex} 
+                    onChange={nextIndex => editAt(idx, nextIndex)}
+                    onEdit={newCommand => editCommandText(idx, newCommand)}
+                    onRemove={() => removeAt(idx)} 
+                  />
                 </List.Item>
               )}
               style={{ backgroundColor: 'transparent', padding: 0 }}
