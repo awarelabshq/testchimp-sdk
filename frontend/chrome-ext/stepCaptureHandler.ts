@@ -1,7 +1,7 @@
 import { 
   genClickCommand, genInputCommand, genSelectCommand, genCheckCommand, 
   genHoverCommand, genKeyPressCommand, genDragDropCommand, genGotoCommand,
-  CapturedStep, generateStepId, AssertionMode, generateAssertion
+  CapturedStep, generateStepId, AssertionMode, generateAssertion, ElementSnapshot
 } from './playwrightCodegen';
 
 // Helper to apply frame context to commands
@@ -63,8 +63,11 @@ function attachEventListeners() {
   
   console.log('[StepCapture] Attaching event listeners');
   const listenerOptions = { capture: true, passive: true };
+  const pointerListenerOptions = { capture: true, passive: true };
   const clickListenerOptions = { capture: true, passive: false }; // Allow preventDefault for clicks
   
+  document.addEventListener('pointerover', handlePointerOver, pointerListenerOptions);
+  document.addEventListener('pointerdown', handlePointerDown, pointerListenerOptions);
   document.addEventListener('click', handleClicks, clickListenerOptions);
   document.addEventListener('change', handleInputs, listenerOptions);
   document.addEventListener('input', handleInputs, listenerOptions);
@@ -75,6 +78,8 @@ function attachEventListeners() {
   document.addEventListener('mouseover', handleMouseOver, listenerOptions);
   document.addEventListener('mouseout', handleMouseOut, listenerOptions);
   
+  cleanupFns.push(() => document.removeEventListener('pointerover', handlePointerOver, pointerListenerOptions));
+  cleanupFns.push(() => document.removeEventListener('pointerdown', handlePointerDown, pointerListenerOptions));
   cleanupFns.push(() => document.removeEventListener('click', handleClicks, clickListenerOptions));
   cleanupFns.push(() => document.removeEventListener('change', handleInputs, listenerOptions));
   cleanupFns.push(() => document.removeEventListener('input', handleInputs, listenerOptions));
@@ -106,6 +111,39 @@ let isAssertionModeSticky: boolean = true; // Normal is always sticky
 // Visual feedback elements
 let highlightOverlay: HTMLElement | null = null;
 let currentHoveredElement: HTMLElement | null = null;
+
+const elementSnapshots = new WeakMap<HTMLElement, ElementSnapshot>();
+
+function captureElementSnapshot(element: HTMLElement): ElementSnapshot {
+  const attributes: Record<string, string> = {};
+  try {
+    Array.from(element.attributes).forEach(attr => {
+      attributes[attr.name] = attr.value;
+    });
+  } catch (_) {
+    // Ignore attribute access issues
+  }
+
+  const snapshot: ElementSnapshot = {
+    textContent: element.textContent || '',
+    title: element.getAttribute('title'),
+    ariaLabel: element.getAttribute('aria-label'),
+    attributes,
+    tagName: element.tagName.toLowerCase(),
+    timestamp: Date.now(),
+  };
+
+  elementSnapshots.set(element, snapshot);
+  return snapshot;
+}
+
+function getElementSnapshot(element: HTMLElement): ElementSnapshot | undefined {
+  return elementSnapshots.get(element);
+}
+
+function getOrCreateElementSnapshot(element: HTMLElement): ElementSnapshot {
+  return getElementSnapshot(element) || captureElementSnapshot(element);
+}
 
 export function setAssertionMode(mode: AssertionMode, sticky: boolean) {
   currentAssertionMode = mode;
@@ -207,6 +245,7 @@ function handleMouseOver(e: MouseEvent) {
   }
 
   const element = e.target as HTMLElement;
+  const snapshot = getOrCreateElementSnapshot(element);
   if (!element || isInExtensionUi(element)) {
     removeHighlightOverlay();
     return;
@@ -229,6 +268,23 @@ function handleMouseOut(e: MouseEvent) {
   }
 }
 
+function handlePointerDown(e: PointerEvent) {
+  if (!isCapturing) return;
+  if (e.button !== 0) return; // Only primary button
+  if (isInExtensionUi(e.target)) return;
+  const element = e.target as HTMLElement | null;
+  if (!element) return;
+  captureElementSnapshot(element);
+}
+
+function handlePointerOver(e: PointerEvent) {
+  if (!isCapturing) return;
+  if (isInExtensionUi(e.target)) return;
+  const element = e.target as HTMLElement | null;
+  if (!element) return;
+  captureElementSnapshot(element);
+}
+
 // Track recent Tab key presses to avoid duplicate steps with blur events
 let recentTabPresses = new Map<HTMLElement, number>();
 
@@ -238,21 +294,29 @@ const STEP_DEBOUNCE_MS = 500; // Prevent same step within 500ms (reduced from 10
 
 // Helper function to generate a simple selector for an element
 function getElementSelector(element: HTMLElement): string {
-  // Try to get a meaningful selector
+  if (!element) return '';
+
   if (element.id) {
     return `#${element.id}`;
   }
-  
-  if (element.getAttribute('name')) {
-    return `[name="${element.getAttribute('name')}"]`;
+
+  const nameAttr = element.getAttribute('name');
+  if (nameAttr) {
+    return `[name="${nameAttr}"]`;
   }
-  
-  if (element.className) {
-    const classes = element.className.split(' ').filter(c => c.trim()).slice(0, 2).join('.');
-    return `.${classes}`;
+
+  const classNameValue = element.className;
+  if (typeof classNameValue === 'string' && classNameValue.trim()) {
+    const classes = classNameValue
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('.');
+    if (classes) {
+      return `.${classes}`;
+    }
   }
-  
-  // Fallback to tag name
+
   return element.tagName.toLowerCase();
 }
 
@@ -454,7 +518,7 @@ function truncateUrl(url: string, maxLength: number = 200): string {
   }
 }
 
-function captureElementInfo(element: HTMLElement): { tag: string; attributes: Record<string, string>; text?: string } {
+function captureElementInfo(element: HTMLElement, snapshot?: ElementSnapshot): { tag: string; attributes: Record<string, string>; text?: string } {
   try {
     const tag = element.tagName.toLowerCase();
     const attributes: Record<string, string> = {};
@@ -469,15 +533,20 @@ function captureElementInfo(element: HTMLElement): { tag: string; attributes: Re
       }
     });
     
-    // Get visible text content (truncated)
+    // Get visible text content (truncated for display)
     let text: string | undefined;
-    try {
-      const visibleText = element.textContent?.trim();
-      if (visibleText && visibleText.length > 0) {
-        text = visibleText.length > 50 ? visibleText.slice(0, 50) + '...' : visibleText;
+    const snapshotText = snapshot?.textContent?.trim();
+    if (snapshotText && snapshotText.length > 0) {
+      text = snapshotText.length > 50 ? snapshotText.slice(0, 50) + '...' : snapshotText;
+    } else {
+      try {
+        const visibleText = element.textContent?.trim();
+        if (visibleText && visibleText.length > 0) {
+          text = visibleText.length > 50 ? visibleText.slice(0, 50) + '...' : visibleText;
+        }
+      } catch (e) {
+        // Ignore if we can't access text content
       }
-    } catch (e) {
-      // Ignore if we can't access text content
     }
     
     return { tag, attributes, text };
@@ -582,7 +651,7 @@ const MIN_STEP_INTERVAL = 300; // 300ms minimum between any steps
 const RAPID_FIRE_THRESHOLD = 3; // Max 3 identical steps in 1 second
 
 // Emit structured step with context capture and memory management
-function emitStep(commands: string[], kind: string, element?: HTMLElement) {
+function emitStep(commands: string[], kind: string, element?: HTMLElement, snapshot?: ElementSnapshot) {
   if (!isCapturing || !stepCaptureEnabled) {
     console.log('[StepCapture] Ignoring step emission - not capturing or disabled:', commands);
     return;
@@ -691,8 +760,11 @@ function emitStep(commands: string[], kind: string, element?: HTMLElement) {
   // Always capture element info for each step (lightweight)
   if (element) {
     step.context = {
-      element: captureElementInfo(element)
+      element: captureElementInfo(element, snapshot)
     };
+  }
+  if (snapshot) {
+    step.elementSnapshot = snapshot;
   }
   
   // Determine if we should capture additional context for this step
@@ -840,6 +912,7 @@ function handleClicks(e: MouseEvent) {
     return;
   }
   const element = e.target as HTMLElement;
+  const snapshot = getOrCreateElementSnapshot(element);
   
   // Check if we're in assertion mode
   if (currentAssertionMode !== 'normal') {
@@ -854,11 +927,11 @@ function handleClicks(e: MouseEvent) {
     removeHighlightOverlay();
     
     // Generate assertion instead of action
-    const assertions = generateAssertion(element, currentAssertionMode);
+    const assertions = generateAssertion(element, currentAssertionMode, snapshot);
     if (assertions?.length) {
       const finalAssertions = applyFrameContextToCommands(assertions, element);
       logGeneratedCommands(`assertion (${currentAssertionMode})`, finalAssertions, element);
-      emitStep(finalAssertions, `assert_${currentAssertionMode.replace('assert', '').toLowerCase()}`, element);
+      emitStep(finalAssertions, `assert_${currentAssertionMode.replace('assert', '').toLowerCase()}`, element, snapshot);
       
       // Revert to normal if not sticky
       if (!isAssertionModeSticky) {
@@ -881,12 +954,12 @@ function handleClicks(e: MouseEvent) {
   }
   
   // Generate base commands (normal mode)
-  const cmds = genClickCommand({ element, dblclick: e.detail === 2, button: e.button === 1 ? 'middle' : e.button === 2 ? 'right' : 'left', modifiers: [] });
+  const cmds = genClickCommand({ element, dblclick: e.detail === 2, button: e.button === 1 ? 'middle' : e.button === 2 ? 'right' : 'left', modifiers: [], snapshot });
   if (!cmds?.length) return;
   
   const finalCmds = applyFrameContextToCommands(cmds, element);
   logGeneratedCommands(e.detail === 2 ? 'dblclick' : 'click', finalCmds, element);
-  emitStep(finalCmds, e.detail === 2 ? 'dblclick' : 'click');
+  emitStep(finalCmds, e.detail === 2 ? 'dblclick' : 'click', element, snapshot);
 }
 
 // Handle input changes - track values but don't emit until blur (Playwright approach)
@@ -902,11 +975,12 @@ function handleInputs(e: Event) {
   if (el instanceof HTMLInputElement) {
     if (el.type === 'checkbox' || el.type === 'radio') {
       // Immediate capture for checkboxes/radios (on change)
-      const cmds = genCheckCommand({ element: el, checked: !!el.checked });
+      const snapshot = getOrCreateElementSnapshot(el);
+      const cmds = genCheckCommand({ element: el, checked: !!el.checked, snapshot });
       if (cmds?.length) {
         const finalCmds = applyFrameContextToCommands(cmds, el);
         logGeneratedCommands('check', finalCmds, el);
-        emitStep(finalCmds, 'check');
+        emitStep(finalCmds, 'check', el, snapshot);
       }
       return;
     }
@@ -932,11 +1006,12 @@ function handleInputs(e: Event) {
   if (el instanceof HTMLSelectElement) {
     // Immediate capture for select (on change)
     const value = el.multiple ? Array.from(el.selectedOptions).map(o => o.value) : el.value;
-    const cmds = genSelectCommand({ element: el, value });
+    const snapshot = getOrCreateElementSnapshot(el);
+    const cmds = genSelectCommand({ element: el, value, snapshot });
     if (cmds?.length) {
       const finalCmds = applyFrameContextToCommands(cmds, el);
       logGeneratedCommands('select', finalCmds, el);
-      emitStep(finalCmds, 'select');
+      emitStep(finalCmds, 'select', el, snapshot);
     }
   }
 }
@@ -977,11 +1052,12 @@ function handleBlur(e: FocusEvent) {
     
     console.log('[StepCapture] Blur event for', el.type, 'input, value:', value ? '***' : '(empty)');
     if (value !== undefined && value !== '') {
-      const cmds = genInputCommand({ element: el, value, type: 'fill' });
+      const snapshot = getOrCreateElementSnapshot(el);
+      const cmds = genInputCommand({ element: el, value, type: 'fill', snapshot });
       if (cmds?.length) {
         const finalCmds = applyFrameContextToCommands(cmds, el);
         logGeneratedCommands('input', finalCmds, el);
-        emitStep(finalCmds, 'input', el);
+        emitStep(finalCmds, 'input', el, snapshot);
         
         // If this blur was caused by a Tab key press, skip the Tab key step to avoid duplication
         const tabPressTime = recentTabPresses.get(el);
@@ -1025,40 +1101,47 @@ function handleKeydown(e: KeyboardEvent) {
     }
     
     // Small delay to let blur events settle, but still capture Tab key
+    const snapshot = element ? getOrCreateElementSnapshot(element) : undefined;
     setTimeout(() => {
-      const cmds = genKeyPressCommand({ element, key: e.key });
+      const cmds = genKeyPressCommand({ element, key: e.key, snapshot });
       if (cmds?.length) {
         const finalCmds = applyFrameContextToCommands(cmds, element);
         logGeneratedCommands('keypress', finalCmds, element);
-        emitStep(finalCmds, 'keypress', element || undefined);
+        emitStep(finalCmds, 'keypress', element || undefined, snapshot);
       }
     }, 50); // Smaller delay since we have better debouncing
     return;
   }
   
   const element = e.target as HTMLElement | null;
-  const cmds = genKeyPressCommand({ element, key: e.key });
+  const snapshot = element ? getOrCreateElementSnapshot(element) : undefined;
+  const cmds = genKeyPressCommand({ element, key: e.key, snapshot });
   if (cmds?.length) {
     const finalCmds = applyFrameContextToCommands(cmds, element);
     logGeneratedCommands('keypress', finalCmds, element);
-    emitStep(finalCmds, 'keypress', element || undefined);
+    emitStep(finalCmds, 'keypress', element || undefined, snapshot);
   }
 }
 
 let dragSourceEl: HTMLElement | null = null;
 function handleDragStart(e: DragEvent) {
   dragSourceEl = (e.target as HTMLElement) || null;
+  if (dragSourceEl) {
+    captureElementSnapshot(dragSourceEl);
+  }
 }
 function handleDrop(e: DragEvent) {
   if (!isCapturing) return;
   if (isInExtensionUi(e.target)) return;
   if (dragSourceEl && e.target instanceof HTMLElement) {
-    const cmds = genDragDropCommand({ source: dragSourceEl, target: e.target });
+    const sourceSnapshot = getElementSnapshot(dragSourceEl);
+    const targetSnapshot = getOrCreateElementSnapshot(e.target);
+    const cmds = genDragDropCommand({ source: dragSourceEl, target: e.target, sourceSnapshot, targetSnapshot });
     if (cmds?.length) {
       // Use target element for frame context (where drop happens)
       const finalCmds = applyFrameContextToCommands(cmds, e.target);
       logGeneratedCommands('dragdrop', finalCmds, e.target);
-      emitStep(finalCmds, 'dragdrop');
+      emitStep(finalCmds, 'dragdrop', e.target, targetSnapshot);
     }
   }
   dragSourceEl = null;

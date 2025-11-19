@@ -1,4 +1,4 @@
-import { getUniqueSelector, getQuerySelector } from './html_utils';
+import { getUniqueSelector, getQuerySelector, getCSSSelector } from './html_utils';
 import { generateMultipleCommands, generateMultipleAssertions, generateGotoCommands, generateLocators } from './commandGenerator';
 
 export type PlaywrightCommand = string;
@@ -9,6 +9,15 @@ export type AssertionType = 'toBeVisible' | 'toHaveText' | 'toHaveValue' | 'toBe
 export interface ActionOptions {
   button?: 'left' | 'middle' | 'right';
   modifiers?: string[];
+}
+
+export interface ElementSnapshot {
+  textContent?: string;
+  title?: string | null;
+  ariaLabel?: string | null;
+  attributes?: Record<string, string>;
+  tagName?: string;
+  timestamp?: number;
 }
 
 // Structured step data for future DOM snapshot correlation
@@ -30,6 +39,7 @@ export interface CapturedStep {
       text?: string;      // Visible text content (truncated)
     };
   };
+  elementSnapshot?: ElementSnapshot;
 }
 
 // Helper function to get selected command
@@ -113,6 +123,7 @@ export interface ClickEventPayload {
   dblclick?: boolean;
   button?: 'left' | 'middle' | 'right';
   modifiers?: string[]; // 'Shift' | 'Alt' | 'Control' | 'Meta'
+  snapshot?: ElementSnapshot;
 }
 
 export function genClickCommand(payload: ClickEventPayload): string[] {
@@ -132,7 +143,8 @@ export function genClickCommand(payload: ClickEventPayload): string[] {
     payload.element, 
     actionType, 
     undefined, 
-    Object.keys(options).length > 0 ? options : undefined
+    Object.keys(options).length > 0 ? options : undefined,
+    payload.snapshot
   );
 }
 
@@ -140,47 +152,64 @@ export interface InputEventPayload {
   element: HTMLInputElement | HTMLTextAreaElement;
   value: string;
   type?: 'fill' | 'type';
+  snapshot?: ElementSnapshot;
 }
 
 export function genInputCommand(payload: InputEventPayload): string[] {
   const actionType = payload.type === 'type' ? 'type' : 'fill';
-  return generateMultipleCommands(payload.element, actionType, payload.value);
+  return generateMultipleCommands(
+    payload.element,
+    actionType,
+    payload.value,
+    undefined,
+    payload.snapshot
+  );
 }
 
 export interface SelectEventPayload {
   element: HTMLSelectElement;
   value: string | string[];
+  snapshot?: ElementSnapshot;
 }
 
 export function genSelectCommand(payload: SelectEventPayload): string[] {
-  return generateMultipleCommands(payload.element, 'selectOption', payload.value);
+  return generateMultipleCommands(
+    payload.element,
+    'selectOption',
+    payload.value,
+    undefined,
+    payload.snapshot
+  );
 }
 
 export interface CheckEventPayload {
   element: HTMLInputElement; // checkbox or radio
   checked: boolean;
+  snapshot?: ElementSnapshot;
 }
 
 export function genCheckCommand(payload: CheckEventPayload): string[] {
   // Radio buttons always check, checkboxes can check or uncheck
   if (payload.element.type === 'radio') {
-    return generateMultipleCommands(payload.element, 'check');
+    return generateMultipleCommands(payload.element, 'check', undefined, undefined, payload.snapshot);
   }
   const actionType = payload.checked ? 'check' : 'uncheck';
-  return generateMultipleCommands(payload.element, actionType);
+  return generateMultipleCommands(payload.element, actionType, undefined, undefined, payload.snapshot);
 }
 
 export interface HoverEventPayload {
   element: HTMLElement;
+  snapshot?: ElementSnapshot;
 }
 
 export function genHoverCommand(payload: HoverEventPayload): string[] {
-  return generateMultipleCommands(payload.element, 'hover');
+  return generateMultipleCommands(payload.element, 'hover', undefined, undefined, payload.snapshot);
 }
 
 export interface KeyPressPayload {
   element?: HTMLElement | null;
   key: string;
+  snapshot?: ElementSnapshot;
 }
 
 export function genKeyPressCommand(payload: KeyPressPayload): string[] {
@@ -188,7 +217,7 @@ export function genKeyPressCommand(payload: KeyPressPayload): string[] {
   if (!key) return [];
   
   if (payload.element) {
-    return generateMultipleCommands(payload.element, 'press', key);
+    return generateMultipleCommands(payload.element, 'press', key, undefined, payload.snapshot);
   }
   
   // For keyboard-level press (no element), return single command
@@ -198,12 +227,14 @@ export function genKeyPressCommand(payload: KeyPressPayload): string[] {
 export interface DragDropPayload {
   source: HTMLElement;
   target: HTMLElement;
+  sourceSnapshot?: ElementSnapshot;
+  targetSnapshot?: ElementSnapshot;
 }
 
 export function genDragDropCommand(payload: DragDropPayload): string[] {
   // Generate locators for both source and target
-  const sourceLocators = generateLocators(payload.source);
-  const targetLocators = generateLocators(payload.target);
+  const sourceLocators = generateLocators(payload.source, false, payload.sourceSnapshot);
+  const targetLocators = generateLocators(payload.target, false, payload.targetSnapshot);
   
   const commands: string[] = [];
   const seenCommands = new Set<string>();
@@ -237,52 +268,63 @@ export function genGotoCommand(url: string): string[] {
 }
 
 // Assertion generation functions
-export function genAssertVisible(element: HTMLElement): string[] {
-  return generateMultipleAssertions(element, 'toBeVisible');
+export function genAssertVisible(element: HTMLElement, snapshot?: ElementSnapshot): string[] {
+  return generateMultipleAssertions(element, 'toBeVisible', undefined, snapshot);
 }
 
-export function genAssertText(element: HTMLElement): string[] {
+export function genAssertText(element: HTMLElement, snapshot?: ElementSnapshot): string[] {
   const text = element.textContent?.trim() || '';
-  return generateMultipleAssertions(element, 'toHaveText', text);
+  return generateMultipleAssertions(element, 'toHaveText', text, snapshot);
 }
 
-export function genAssertValue(element: HTMLElement): string[] {
+export function genAssertValue(element: HTMLElement, snapshot?: ElementSnapshot): string[] {
   // Only works for input elements
   if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
     return [];
   }
   
   const value = (element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value || '';
-  return generateMultipleAssertions(element, 'toHaveValue', value);
+  return generateMultipleAssertions(element, 'toHaveValue', value, snapshot);
 }
 
-export function genAssertEnabled(element: HTMLElement): string[] {
+export function genAssertEnabled(element: HTMLElement, snapshot?: ElementSnapshot): string[] {
   const isDisabled = element.hasAttribute('disabled');
-  return generateMultipleAssertions(element, isDisabled ? 'toBeDisabled' : 'toBeEnabled');
+  return generateMultipleAssertions(element, isDisabled ? 'toBeDisabled' : 'toBeEnabled', undefined, snapshot);
 }
 
-export function genAssertCount(element: HTMLElement): string[] {
-  const sel = selectorFor(element);
+export function genAssertCount(element: HTMLElement, snapshot?: ElementSnapshot): string[] {
+  // Use getCSSSelector to ensure we get a valid CSS selector for querySelectorAll
+  // getUniqueSelector can return Playwright-style selectors like text="..." which aren't valid CSS
+  let sel = getCSSSelector(element);
   if (!sel) return [];
   
-  // Count elements with same selector
-  const count = document.querySelectorAll(sel).length;
-  return generateMultipleAssertions(element, 'toHaveCount', count);
+  // Remove :nth-of-type() for counting - we want to count all similar elements, not just the specific one
+  sel = sel.replace(/:nth-of-type\(\d+\)/g, '');
+  
+  try {
+    // Count elements with same selector
+    const count = document.querySelectorAll(sel).length;
+    return generateMultipleAssertions(element, 'toHaveCount', count, snapshot);
+  } catch (e) {
+    // If selector is invalid, return empty array
+    console.warn('[genAssertCount] Invalid selector:', sel, e);
+    return [];
+  }
 }
 
 // Helper function to generate assertion based on mode
-export function generateAssertion(element: HTMLElement, mode: AssertionMode): string[] {
+export function generateAssertion(element: HTMLElement, mode: AssertionMode, snapshot?: ElementSnapshot): string[] {
   switch (mode) {
     case 'assertVisible':
-      return genAssertVisible(element);
+      return genAssertVisible(element, snapshot);
     case 'assertText':
-      return genAssertText(element);
+      return genAssertText(element, snapshot);
     case 'assertValue':
-      return genAssertValue(element);
+      return genAssertValue(element, snapshot);
     case 'assertEnabled':
-      return genAssertEnabled(element);
+      return genAssertEnabled(element, snapshot);
     case 'assertCount':
-      return genAssertCount(element);
+      return genAssertCount(element, snapshot);
     default:
       return [];
   }

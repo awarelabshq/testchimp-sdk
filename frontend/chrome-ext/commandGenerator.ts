@@ -1,5 +1,22 @@
-import { getUniqueSelector, getQuerySelector } from './html_utils';
-import type { ActionType, AssertionType, ActionOptions } from './playwrightCodegen';
+import { getUniqueSelector, getQuerySelector, escapeCSSClass, filterMeaningfulClasses, getClassSelector, isSVGElement, ensureUniqueSelector } from './html_utils';
+import type { ActionType, AssertionType, ActionOptions, ElementSnapshot } from './playwrightCodegen';
+
+const MAX_TEXT_LENGTH = 200;
+const TRUNCATION_SUFFIXES = ['...', '…'];
+
+function normalizeTextValue(value?: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > MAX_TEXT_LENGTH) {
+    return null;
+  }
+  return trimmed;
+}
+
+function isTruncatedText(value?: string | null): boolean {
+  if (!value) return false;
+  return TRUNCATION_SUFFIXES.some(suffix => value.endsWith(suffix));
+}
 
 /**
  * Command Generator Utility
@@ -28,30 +45,43 @@ function quote(text: string | null | undefined): string {
 }
 
 // Get effective ARIA role (explicit or implicit)
+// Maps HTML tags to valid Playwright roles per W3C ARIA specifications
 function getEffectiveRole(el: HTMLElement): string | null {
   const explicitRole = el.getAttribute('role');
   if (explicitRole) return explicitRole;
   
   const tagName = el.tagName.toLowerCase();
+  
+  // Special case: input elements need type-based mapping
+  if (tagName === 'input') {
+    return getInputRole(el as HTMLInputElement);
+  }
+  
+  // Map HTML tag names to valid Playwright roles (per W3C ARIA specifications)
   const implicitRoles: Record<string, string> = {
-    'button': 'button',
-    'a': 'link',
-    'input': getInputRole(el as HTMLInputElement),
-    'textarea': 'textbox',
-    'select': 'combobox',
-    'nav': 'navigation',
-    'main': 'main',
-    'header': 'banner',
-    'footer': 'contentinfo',
-    'aside': 'complementary',
-    'form': 'form',
-    'img': 'img',
-    'h1': 'heading',
-    'h2': 'heading',
-    'h3': 'heading',
-    'h4': 'heading',
-    'h5': 'heading',
-    'h6': 'heading',
+    'a': 'link',                    // <a> with href → 'link' role
+    'button': 'button',             // <button> → 'button' role
+    'textarea': 'textbox',          // <textarea> → 'textbox' role
+    'select': 'combobox',           // <select> → 'combobox' role
+    'option': 'option',             // <option> → 'option' role
+    'img': 'img',                   // <img> → 'img' role
+    'h1': 'heading',                // <h1> → 'heading' role
+    'h2': 'heading',                // <h2> → 'heading' role
+    'h3': 'heading',                // <h3> → 'heading' role
+    'h4': 'heading',                // <h4> → 'heading' role
+    'h5': 'heading',                // <h5> → 'heading' role
+    'h6': 'heading',                // <h6> → 'heading' role
+    'article': 'article',           // <article> → 'article' role
+    'aside': 'complementary',       // <aside> → 'complementary' role
+    'main': 'main',                 // <main> → 'main' role
+    'nav': 'navigation',            // <nav> → 'navigation' role
+    'form': 'form',                 // <form> → 'form' role
+    'header': 'banner',            // <header> → 'banner' role
+    'footer': 'contentinfo',       // <footer> → 'contentinfo' role
+    'table': 'table',               // <table> → 'table' role
+    'ul': 'list',                   // <ul> → 'list' role
+    'ol': 'list',                   // <ol> → 'list' role
+    'li': 'listitem',               // <li> → 'listitem' role
   };
   
   return implicitRoles[tagName] || null;
@@ -70,51 +100,93 @@ function getInputRole(el: HTMLInputElement): string {
 }
 
 // Get accessible name for element
-function getAccessibleName(el: HTMLElement): string | null {
-  const ariaLabel = el.getAttribute('aria-label');
-  if (ariaLabel) return ariaLabel.trim();
+// Returns full text (no truncation) for use in getByRole/getByText with exact: true
+// Uses snapshot data when available
+function getAccessibleName(el: HTMLElement, snapshot?: ElementSnapshot): string | null {
+  const ariaLabel = normalizeTextValue(el.getAttribute('aria-label'));
+  if (ariaLabel) return ariaLabel;
   
-  const title = el.getAttribute('title');
-  if (title) return title.trim();
+  const title = normalizeTextValue(el.getAttribute('title'));
+  if (title) return title;
   
-  const alt = el.getAttribute('alt');
-  if (alt) return alt.trim();
+  const alt = normalizeTextValue(el.getAttribute('alt'));
+  if (alt) return alt;
   
   const ariaLabelledBy = el.getAttribute('aria-labelledby');
   if (ariaLabelledBy) {
     const labelEl = document.getElementById(ariaLabelledBy);
-    if (labelEl) return labelEl.textContent?.trim() || null;
+    const labelText = normalizeTextValue(labelEl?.textContent || null);
+    if (labelText) return labelText;
   }
   
-  // For form elements, check associated label
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
     const labels = (el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).labels;
     if (labels && labels.length > 0) {
-      return labels[0].textContent?.trim() || null;
+      const text = normalizeTextValue(labels[0].textContent || null);
+      if (text) return text;
     }
   }
+  
+  const snapshotText = normalizeTextValue(snapshot?.textContent || null);
+  if (snapshotText) return snapshotText;
   
   return null;
 }
 
+function resolveFullText(
+  element: HTMLElement,
+  snapshot?: ElementSnapshot
+): string | null {
+  const snapshotText = normalizeTextValue(snapshot?.textContent || null);
+  if (snapshotText && !isTruncatedText(snapshotText)) {
+    return snapshotText;
+  }
+
+  const candidateAttrs = [
+    snapshot?.title,
+    snapshot?.ariaLabel,
+    element.getAttribute('title'),
+    element.getAttribute('aria-label'),
+  ];
+  for (const attr of candidateAttrs) {
+    const normalized = normalizeTextValue(attr);
+    if (normalized && (!snapshotText || normalized.length > snapshotText.length)) {
+      return normalized;
+    }
+  }
+
+  if (!snapshotText) {
+    // Fallback to live text content if no snapshot available
+    const live = normalizeTextValue(element.textContent);
+    if (live) {
+      return live;
+    }
+  }
+
+  return snapshotText;
+}
+
 // Get visible text from element
-function getVisibleText(el: HTMLElement): string | null {
+// Returns full textContent (no truncation) for use in getByText with exact: true
+// IMPORTANT: Never truncates text ourselves - uses actual textContent as-is
+// If text is too long, returns null (skip this strategy) rather than truncating
+function getVisibleText(el: HTMLElement, snapshot?: ElementSnapshot): string | null {
+  const resolved = resolveFullText(el, snapshot);
+  if (resolved && !isTruncatedText(resolved)) {
+    return resolved;
+  }
+
+  // As a last resort, examine the element text (even if truncated)
   let text = '';
   for (const node of el.childNodes) {
     if (node.nodeType === Node.TEXT_NODE) {
       text += node.textContent;
     }
   }
-  text = text.trim();
-  
   if (!text) {
-    text = el.textContent?.trim() || '';
+    text = el.textContent || '';
   }
-  
-  if (text.length > 100) return null;
-  if (text.length === 0) return null;
-  
-  return text;
+  return normalizeTextValue(text);
 }
 
 // Check if element has meaningful ID (not auto-generated)
@@ -147,6 +219,66 @@ function hasMultipleMatches(selector: string): boolean {
   }
 }
 
+// Check if element has no meaningful classes
+function hasNoClasses(el: HTMLElement): boolean {
+  return getClassSelector(el) === null;
+}
+
+// Extract meaningful class selector from parent element (alias for clarity)
+function getParentClassSelector(parent: HTMLElement): string | null {
+  return getClassSelector(parent);
+}
+
+// Check if element is clickable (button, role="button", or has click handler)
+function isClickableElement(el: HTMLElement): boolean {
+  return el.tagName.toLowerCase() === 'button' || 
+         el.getAttribute('role') === 'button' ||
+         el.hasAttribute('onclick');
+}
+
+// Build SVG path from element to parent (returns array of SVG tag names)
+function buildSVGPath(element: HTMLElement, stopAt: HTMLElement): string[] {
+  const path: string[] = [];
+  let current: HTMLElement | null = element;
+  
+  while (current && current !== stopAt) {
+    if (isSVGElement(current)) {
+      path.unshift(current.tagName.toLowerCase());
+    }
+    current = current.parentElement;
+  }
+  
+  return path;
+}
+
+// Get parent with meaningful classes (traverse up to 3 levels)
+// Returns: { parent: HTMLElement, classSelector: string } or null
+function getParentWithClasses(el: HTMLElement, maxLevels: number = 3): { parent: HTMLElement, classSelector: string } | null {
+  let parent = el.parentElement;
+  let level = 0;
+  
+  while (parent && level < maxLevels) {
+    // Prefer ID, but also check for classes
+    if (parent.id && hasMeaningfulId(parent.id)) {
+      const classSelector = getParentClassSelector(parent);
+      if (classSelector) {
+        return { parent, classSelector: `#${parent.id}` };
+      }
+    }
+    
+    const classSelector = getParentClassSelector(parent);
+    if (classSelector) {
+      return { parent, classSelector };
+    }
+    
+    parent = parent.parentElement;
+    level++;
+  }
+  
+  return null;
+}
+
+
 // Get parent selector for chaining
 function getParentSelector(el: HTMLElement): string | null {
   const parent = el.parentElement;
@@ -160,11 +292,24 @@ function getParentSelector(el: HTMLElement): string | null {
     return `[data-testid="${parent.getAttribute('data-testid')}"]`;
   }
   
+  // Check parent class names (prioritize over role)
+  const classSelector = getParentClassSelector(parent);
+  if (classSelector) {
+    return classSelector;
+  }
+  
   if (parent.hasAttribute('role')) {
     return `[role="${parent.getAttribute('role')}"]`;
   }
   
   return null;
+}
+
+function getAttributeValue(element: HTMLElement, attr: string, snapshot?: ElementSnapshot): string | null {
+  if (snapshot?.attributes && snapshot.attributes[attr] !== undefined) {
+    return snapshot.attributes[attr];
+  }
+  return element.getAttribute(attr);
 }
 
 /**
@@ -173,14 +318,14 @@ function getParentSelector(el: HTMLElement): string | null {
  * @param excludeText - If true, skip getByText strategy (used for assertions with toHaveText)
  * @returns Array of locator strings
  */
-export function generateLocators(element: HTMLElement, excludeText: boolean = false): string[] {
+export function generateLocators(element: HTMLElement, excludeText: boolean = false, snapshot?: ElementSnapshot): string[] {
   const locators: string[] = [];
   const seenLocators = new Set<string>();
   
   // Strategy 1: Data test attributes
   const testAttrs = ['data-testid', 'data-test-id', 'data-test', 'data-id', 'data-cy', 'data-qa'];
   for (const attr of testAttrs) {
-    const val = element.getAttribute(attr);
+    const val = getAttributeValue(element, attr, snapshot);
     if (val && val.trim()) {
       const locator = `page.getByTestId(${quote(val.trim())})`;
       addUnique(locators, seenLocators, locator);
@@ -191,20 +336,39 @@ export function generateLocators(element: HTMLElement, excludeText: boolean = fa
   // Strategy 2: getByRole with name
   const role = getEffectiveRole(element);
   if (role) {
-    const accessibleName = getAccessibleName(element);
-    const visibleText = accessibleName || getVisibleText(element);
+    const accessibleName = getAccessibleName(element, snapshot);
+    const visibleText = accessibleName || getVisibleText(element, snapshot);
     
+    // Use full text as-is (getAccessibleName/getVisibleText never truncate)
     if (visibleText) {
       const locator = `page.getByRole(${quote(role)}, { name: ${quote(visibleText)} })`;
       addUnique(locators, seenLocators, locator);
     }
   }
   
+  // Strategy 2.5: Icon container click strategy (for all SVG elements)
+  if (isSVGElement(element)) {
+    const parent = element.parentElement;
+    if (parent && isClickableElement(parent)) {
+      const classSelector = getParentClassSelector(parent);
+      if (classSelector) {
+        for (const sel of ensureUniqueSelector(classSelector, parent)) {
+          addUnique(locators, seenLocators, `page.locator(${quote(sel)})`);
+        }
+      }
+    }
+  }
+  
   // Strategy 3: getByText (skip if excludeText is true)
+  // Use exact: true to avoid strict mode violations (matches multiple elements)
+  // IMPORTANT: getVisibleText() returns full textContent (never truncates)
+  // If text is too long, getVisibleText() returns null and we skip this strategy
   if (!excludeText) {
-    const text = getVisibleText(element);
+    const text = getVisibleText(element, snapshot);
     if (text) {
-      const locator = `page.getByText(${quote(text)})`;
+      // Use exact: true to prevent matching partial text that could match multiple elements
+      // text is already full textContent (no truncation)
+      const locator = `page.getByText(${quote(text)}, { exact: true })`;
       addUnique(locators, seenLocators, locator);
     }
   }
@@ -216,10 +380,38 @@ export function generateLocators(element: HTMLElement, excludeText: boolean = fa
   }
   
   // Strategy 5: Name selector (for form elements)
-  const name = element.getAttribute('name');
+  const name = getAttributeValue(element, 'name', snapshot);
   if (name && (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
     const locator = `page.locator(${quote('[name="' + name + '"]')})`;
     addUnique(locators, seenLocators, locator);
+  }
+  
+  // Strategy 5.5: Parent class selector strategy (for SVG elements and elements without classes)
+  // This runs BEFORE nth-of-type to prioritize parent class selectors
+  if (isSVGElement(element) || hasNoClasses(element)) {
+    const parentInfo = getParentWithClasses(element, 3);
+    if (parentInfo) {
+      const { parent, classSelector } = parentInfo;
+      const elementTag = element.tagName.toLowerCase();
+      
+      // Build selector variants
+      const variants: string[] = [`${classSelector} > ${elementTag}`];
+      
+      // For SVG elements, add nested path variant (parent.class > svg > path)
+      if (isSVGElement(element)) {
+        const svgPath = buildSVGPath(element, parent);
+        if (svgPath.length > 1) {
+          variants.push(`${classSelector} > ${svgPath.join(' > ')}`);
+        }
+      }
+      
+      // Validate uniqueness and add locators
+      for (const variant of variants) {
+        for (const sel of ensureUniqueSelector(variant, element)) {
+          addUnique(locators, seenLocators, `page.locator(${quote(sel)})`);
+        }
+      }
+    }
   }
   
   // Strategy 6: CSS selector (fallback - always generate)
@@ -230,11 +422,12 @@ export function generateLocators(element: HTMLElement, excludeText: boolean = fa
   }
   
   // Strategy 7: nth selector (if multiple matches)
+  // Only suggest nth selectors if index <= 5 to avoid brittle selectors
   const tagName = element.tagName.toLowerCase();
   if (hasMultipleMatches(tagName)) {
     const siblings = Array.from(document.querySelectorAll(tagName));
     const index = siblings.indexOf(element);
-    if (index >= 0) {
+    if (index >= 0 && index <= 5) {
       const locator = `page.locator(${quote(tagName)}).nth(${index})`;
       addUnique(locators, seenLocators, locator);
     }
@@ -280,9 +473,10 @@ export function generateMultipleCommands(
   element: HTMLElement,
   actionType: ActionType,
   actionValue?: string | string[],
-  options?: ActionOptions
+  options?: ActionOptions,
+  snapshot?: ElementSnapshot
 ): string[] {
-  const locators = generateLocators(element);
+  const locators = generateLocators(element, false, snapshot);
   return locators.map(locator => buildActionCommand(locator, actionType, actionValue, options));
 }
 
@@ -336,11 +530,12 @@ function buildActionCommand(
 export function generateMultipleAssertions(
   element: HTMLElement,
   assertionType: AssertionType,
-  expectedValue?: string | number
+  expectedValue?: string | number,
+  snapshot?: ElementSnapshot
 ): string[] {
   // Exclude getByText strategy for toHaveText assertions to avoid redundancy
   const excludeText = assertionType === 'toHaveText';
-  const locators = generateLocators(element, excludeText);
+  const locators = generateLocators(element, excludeText, snapshot);
   return locators.map(locator => buildAssertionCommand(locator, assertionType, expectedValue));
 }
 

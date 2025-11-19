@@ -3,6 +3,65 @@
 // Selector cache for performance (WeakMap automatically cleans up when elements are removed)
 const selectorCache = new WeakMap<HTMLElement, string>();
 
+// Escape CSS class names with special characters for use in CSS selectors
+// Special characters like /, :, etc. need to be escaped with backslash
+export function escapeCSSClass(className: string): string {
+    if (!className) return '';
+    // Escape any character that's not alphanumeric, underscore, or dash
+    return className.replace(/([^a-zA-Z0-9_-])/g, '\\$1');
+}
+
+// Filter meaningful classes from element (excludes framework-generated and random hex classes)
+export function filterMeaningfulClasses(className: string | null | undefined): string[] {
+    if (!className || typeof className !== 'string') return [];
+    return className.trim().split(/\s+/).filter(cls => {
+        return !cls.match(/^(react-|ember-|vue-|ng-|jquery-)/) && 
+               !cls.match(/^[a-f0-9]{8,}$/) && 
+               cls.length > 1;
+    });
+}
+
+// Extract meaningful class selector from element (returns .class1.class2 format or null)
+export function getClassSelector(element: HTMLElement): string | null {
+    const classes = filterMeaningfulClasses(element.className);
+    if (classes.length === 0) return null;
+    const escapedClasses = classes.map(cls => escapeCSSClass(cls));
+    return `.${escapedClasses.join('.')}`;
+}
+
+// Check if element is an SVG element or nested SVG child
+export function isSVGElement(el: HTMLElement): boolean {
+    const tagName = el.tagName.toLowerCase();
+    const svgTags = ['svg', 'path', 'circle', 'rect', 'line', 'polyline', 'polygon', 'ellipse', 'g', 'text', 'use'];
+    return svgTags.includes(tagName) || el.namespaceURI === 'http://www.w3.org/2000/svg';
+}
+
+// Validate selector uniqueness and add qualifiers if needed
+export function ensureUniqueSelector(selector: string, targetElement: HTMLElement): string[] {
+    try {
+        const matches = document.querySelectorAll(selector);
+        if (matches.length === 0) return [];
+        if (matches.length === 1 && matches[0] === targetElement) {
+            return [selector]; // Unique match
+        }
+        
+        // Multiple matches - generate variants with qualifiers
+        const variants: string[] = [];
+        const index = Array.from(matches).indexOf(targetElement);
+        
+        if (index === 0) {
+            variants.push(`${selector}:first()`);
+        }
+        if (index >= 0 && index <= 5) {
+            variants.push(`${selector}:nth(${index})`);
+        }
+        
+        return variants.length > 0 ? variants : [selector]; // Fallback to original if can't make unique
+    } catch {
+        return [selector]; // Invalid selector, return as-is
+    }
+}
+
 // Enhanced Playwright-style selector generation with better specificity
 export function getUniqueSelector(el: HTMLElement): string {
     if (!el) return '';
@@ -56,10 +115,16 @@ function generateSelector(el: HTMLElement): string {
         
         if (accessibleName) {
             const cleanName = accessibleName.trim();
+            // Don't truncate names - if too long, skip this selector strategy to avoid invalid selectors
+            // Playwright's getByRole handles partial matching, but we don't want to generate selectors
+            // with truncation markers that don't match the actual text
             if (cleanName.length > 50) {
-                return `role=${role}[name="${cleanName.slice(0, 47)}..."]`;
+                // Skip this selector strategy if name is too long (fall through to next strategy)
+                // Truncation would create invalid selectors like role=button[name="viewInvoiceHist..."]
+                // which don't match the actual text that contains the full string
+            } else {
+                return `role=${role}[name="${cleanName}"]`;
             }
-            return `role=${role}[name="${cleanName}"]`;
         }
         
         // Role without accessible name (only use if it's a semantic element like nav, main, etc.)
@@ -257,7 +322,7 @@ function isMeaningfulId(id: string): boolean {
 }
 
 // Generate CSS selector with better specificity
-function getCSSSelector(el: HTMLElement): string {
+export function getCSSSelector(el: HTMLElement): string {
     if (!el) return '';
     
     // Start with tag name
@@ -269,17 +334,41 @@ function getCSSSelector(el: HTMLElement): string {
     }
     
     // Add classes (filter out framework-generated classes)
-    if (el.className && typeof el.className === 'string') {
-        const classes = el.className.trim().split(/\s+/).filter(cls => {
-            // Filter out framework-generated classes
-            return !cls.match(/^(react-|ember-|vue-|ng-|jquery-)/) && 
-                   !cls.match(/^[a-f0-9]{8,}$/) && // Random hex strings
-                   cls.length > 1;
-        });
+    const classSelector = getClassSelector(el);
+    const hasElementClasses = classSelector !== null;
+    if (classSelector) {
+        selector += classSelector;
+    }
+    
+    // If element has no classes, check parent for meaningful classes
+    // This applies to SVG elements and non-SVG elements without classes
+    if (!hasElementClasses && el.parentElement) {
+        let parent: HTMLElement | null = el.parentElement;
+        let level = 0;
+        const maxLevels = 3;
         
-        if (classes.length > 0) {
-            const classPart = classes.join('.');
-            selector += `.${classPart}`;
+        while (parent && level < maxLevels) {
+            // Check parent class selector
+            const parentClassSelector = getClassSelector(parent);
+            if (parentClassSelector) {
+                const parentScopedSelector = `${parentClassSelector} > ${selector}`;
+                const uniqueSelectors = ensureUniqueSelector(parentScopedSelector, el);
+                if (uniqueSelectors.length > 0 && uniqueSelectors[0] === parentScopedSelector) {
+                    return parentScopedSelector; // Unique match, use it
+                }
+            }
+            
+            // Check parent ID (prefer over classes for uniqueness)
+            if (parent.id && isMeaningfulId(parent.id)) {
+                const idScopedSelector = `#${parent.id} > ${selector}`;
+                const uniqueSelectors = ensureUniqueSelector(idScopedSelector, el);
+                if (uniqueSelectors.length > 0 && uniqueSelectors[0] === idScopedSelector) {
+                    return idScopedSelector;
+                }
+            }
+            
+            parent = parent.parentElement;
+            level++;
         }
     }
     
@@ -355,25 +444,15 @@ function addParentContext(el: HTMLElement, selector: string): string {
         else if (parent.hasAttribute('data-testid')) {
             parentSel = `[data-testid="${parent.getAttribute('data-testid')}"]`;
         }
-        // Or parent role
-        else if (parent.hasAttribute('role')) {
-            parentSel = `[role="${parent.getAttribute('role')}"]`;
-        }
-        // Or parent tag + class
+        // Or parent classes (prioritize over role and tag)
         else {
-            const tag = parent.tagName.toLowerCase();
-            const classes = parent.className && typeof parent.className === 'string'
-                ? parent.className.trim().split(/\s+/).filter(cls => 
-                    !cls.match(/^(react-|ember-|vue-|ng-|jquery-)/) && 
-                    !cls.match(/^[a-f0-9]{8,}$/) &&
-                    cls.length > 1
-                  )
-                : [];
-            
-            if (classes.length > 0) {
-                parentSel = `${tag}.${classes[0]}`;
+            const parentClassSelector = getClassSelector(parent);
+            if (parentClassSelector) {
+                parentSel = parentClassSelector;
+            } else if (parent.hasAttribute('role')) {
+                parentSel = `[role="${parent.getAttribute('role')}"]`;
             } else {
-                parentSel = tag;
+                parentSel = parent.tagName.toLowerCase();
             }
         }
         

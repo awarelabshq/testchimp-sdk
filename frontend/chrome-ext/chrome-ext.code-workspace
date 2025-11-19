@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "../../../AwareRepo/ui"
+		},
+		{
+			"path": "../../../AwareRepo/local/runner-core"
 		}
 	],
 	"settings": {}

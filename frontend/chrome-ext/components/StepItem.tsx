@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Input, Popconfirm, Tooltip } from 'antd';
 import { DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -17,6 +17,8 @@ export const StepItem: React.FC<StepItemProps> = ({ index, commands, selectedInd
   const [showControls, setShowControls] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [text, setText] = useState<string>('');
+  const [popoverOpen, setPopoverOpen] = useState<boolean>(false);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get the current command
   const currentCommand = commands[selectedIndex] || commands[0] || '';
@@ -49,11 +51,59 @@ export const StepItem: React.FC<StepItemProps> = ({ index, commands, selectedInd
     }
   };
 
+  const handleMouseEnter = () => {
+    // Clear any pending hide timeout
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    setShowControls(true);
+  };
+
+  const handleMouseLeave = () => {
+    // Only hide if popover is not open
+    // Add a small delay to allow mouse to reach the popover
+    if (!popoverOpen) {
+      hideTimeoutRef.current = setTimeout(() => {
+        if (!popoverOpen) {
+          setShowControls(false);
+        }
+      }, 100);
+    }
+  };
+
+  const handlePopoverOpenChange = (open: boolean) => {
+    setPopoverOpen(open);
+    if (open) {
+      // Clear any pending hide timeout when popover opens
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+        hideTimeoutRef.current = null;
+      }
+      // Ensure controls stay visible when popover is open
+      setShowControls(true);
+    } else {
+      // When popover closes, hide controls after a short delay
+      hideTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+      }, 100);
+    }
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div 
       style={{ display: 'flex', gap: 8, width: '100%', position: 'relative', margin: 0, padding: 0, alignItems: 'flex-start' }}
-      onMouseEnter={() => setShowControls(true)}
-      onMouseLeave={() => setShowControls(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Refresh icon - only show on hover if multiple commands */}
       {hasMultipleCommands && showControls && (
@@ -144,7 +194,14 @@ export const StepItem: React.FC<StepItemProps> = ({ index, commands, selectedInd
           marginTop: 8,
           flexShrink: 0
         }}>
-          <Popconfirm title="Remove this step?" onConfirm={onRemove} okText="Remove" cancelText="Cancel">
+          <Popconfirm 
+            title="Remove this step?" 
+            onConfirm={onRemove} 
+            okText="Remove" 
+            cancelText="Cancel"
+            open={popoverOpen}
+            onOpenChange={handlePopoverOpenChange}
+          >
             <DeleteOutlined style={{ color: '#ff4d4f', cursor: 'pointer', fontSize: 14 }} />
           </Popconfirm>
         </div>
