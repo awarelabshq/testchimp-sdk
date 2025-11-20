@@ -519,6 +519,18 @@ function buildActionCommand(
       return `await ${locator}.hover();`;
     case 'press':
       return `await ${locator}.press(${quote(actionValue as string)});`;
+    case 'setInputFiles': {
+      const files = Array.isArray(actionValue)
+        ? actionValue
+        : typeof actionValue === 'string'
+          ? [actionValue]
+          : [];
+      const sanitizedFiles = (files.length > 0 ? files : ['path/to/your-file.ext'])
+        .filter((file): file is string => typeof file === 'string' && file.trim().length > 0)
+        .map(file => JSON.stringify(file));
+      const filesLiteral = `[${sanitizedFiles.join(', ')}]`;
+      return `await ${locator}.setInputFiles(${filesLiteral});`;
+    }
     default:
       return `await ${locator}.${actionType}();`;
   }

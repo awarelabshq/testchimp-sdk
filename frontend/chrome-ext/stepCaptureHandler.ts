@@ -1,6 +1,7 @@
 import { 
   genClickCommand, genInputCommand, genSelectCommand, genCheckCommand, 
   genHoverCommand, genKeyPressCommand, genDragDropCommand, genGotoCommand,
+  genFileUploadCommand,
   CapturedStep, generateStepId, AssertionMode, generateAssertion, ElementSnapshot
 } from './playwrightCodegen';
 
@@ -913,6 +914,12 @@ function handleClicks(e: MouseEvent) {
   }
   const element = e.target as HTMLElement;
   const snapshot = getOrCreateElementSnapshot(element);
+
+  // Skip click emission for file inputs since Playwright only needs setInputFiles
+  if (element instanceof HTMLInputElement && element.type === 'file') {
+    console.log('[StepCapture] Skipping click step for file input - setInputFiles will handle action');
+    return;
+  }
   
   // Check if we're in assertion mode
   if (currentAssertionMode !== 'normal') {
@@ -962,6 +969,42 @@ function handleClicks(e: MouseEvent) {
   emitStep(finalCmds, e.detail === 2 ? 'dblclick' : 'click', element, snapshot);
 }
 
+function getFileNamesFromInput(element: HTMLInputElement): string[] {
+  const names = new Set<string>();
+  
+  try {
+    if (element.files && element.files.length > 0) {
+      Array.from(element.files).forEach(file => {
+        if (file && file.name) {
+          names.add(file.name);
+        }
+      });
+    }
+  } catch (error) {
+    console.warn('[StepCapture] Unable to access input.files for file upload:', error);
+  }
+
+  if (names.size === 0 && element.value) {
+    const rawValues = element.value
+      .split(',')
+      .map(v => v.trim())
+      .filter(Boolean);
+    
+    rawValues.forEach(path => {
+      const normalized = path.split(/[/\\]/).pop();
+      if (normalized) {
+        names.add(normalized);
+      }
+    });
+  }
+
+  if (names.size === 0) {
+    names.add('uploaded-file');
+  }
+
+  return Array.from(names);
+}
+
 // Handle input changes - track values but don't emit until blur (Playwright approach)
 function handleInputs(e: Event) {
   console.log(`[StepCapture] handleInputs called (instance: ${instanceId}) - event type:`, e.type, 'isCapturing:', isCapturing, 'target:', e.target);
@@ -981,6 +1024,22 @@ function handleInputs(e: Event) {
         const finalCmds = applyFrameContextToCommands(cmds, el);
         logGeneratedCommands('check', finalCmds, el);
         emitStep(finalCmds, 'check', el, snapshot);
+      }
+      return;
+    }
+    
+    if (el.type === 'file') {
+      const fileNames = getFileNamesFromInput(el);
+      if (fileNames.length === 0) {
+        console.log('[StepCapture] File input change detected but no filenames available');
+        return;
+      }
+      const snapshot = getOrCreateElementSnapshot(el);
+      const cmds = genFileUploadCommand({ element: el, files: fileNames, snapshot });
+      if (cmds?.length) {
+        const finalCmds = applyFrameContextToCommands(cmds, el);
+        logGeneratedCommands('fileupload', finalCmds, el);
+        emitStep(finalCmds, 'fileupload', el, snapshot);
       }
       return;
     }

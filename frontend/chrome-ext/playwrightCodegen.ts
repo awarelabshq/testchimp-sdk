@@ -4,7 +4,7 @@ import { generateMultipleCommands, generateMultipleAssertions, generateGotoComma
 export type PlaywrightCommand = string;
 
 // Shared type definitions
-export type ActionType = 'click' | 'fill' | 'type' | 'check' | 'uncheck' | 'selectOption' | 'hover' | 'press' | 'dblclick';
+export type ActionType = 'click' | 'fill' | 'type' | 'check' | 'uncheck' | 'selectOption' | 'hover' | 'press' | 'dblclick' | 'setInputFiles';
 export type AssertionType = 'toBeVisible' | 'toHaveText' | 'toHaveValue' | 'toBeEnabled' | 'toBeDisabled' | 'toHaveCount';
 export interface ActionOptions {
   button?: 'left' | 'middle' | 'right';
@@ -267,6 +267,27 @@ export function genGotoCommand(url: string): string[] {
   return generateGotoCommands(url);
 }
 
+export interface FileUploadEventPayload {
+  element: HTMLInputElement; // file input element
+  files: string[]; // selected file names or placeholder paths
+  snapshot?: ElementSnapshot;
+}
+
+export function genFileUploadCommand(payload: FileUploadEventPayload): string[] {
+  const fileNames = (payload.files || []).filter(Boolean);
+  const files = fileNames.length > 0 ? fileNames : ['uploaded-file'];
+  
+  // Generate commands with file paths
+  // Note: In actual Playwright tests, these should point to fixture paths
+  return generateMultipleCommands(
+    payload.element,
+    'setInputFiles',
+    files,
+    undefined,
+    payload.snapshot
+  );
+}
+
 // Assertion generation functions
 export function genAssertVisible(element: HTMLElement, snapshot?: ElementSnapshot): string[] {
   return generateMultipleAssertions(element, 'toBeVisible', undefined, snapshot);
@@ -342,6 +363,7 @@ export type GeneratedCommand = {
     | 'keypress'
     | 'dragdrop'
     | 'goto'
+    | 'fileupload'
     | 'assert_visible'
     | 'assert_text'
     | 'assert_value'
