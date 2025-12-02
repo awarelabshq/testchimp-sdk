@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Card, Tag, Button, Tooltip, Typography, Popconfirm } from 'antd';
+import { Card, Tag, Button, Tooltip, Typography } from 'antd';
 import { DislikeOutlined, CodeOutlined, CheckCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { getCategoryColorWhiteFont, formatCategoryLabel, getSeverityLabel, truncateText, generateUuid } from './bugUtils';
 import { getFilePathsFromDOM } from '../domUtils';
-import { BugSeverity, BugStatus } from '../datas';
+import { BugSeverity, BugStatus, IgnoreReason } from '../datas';
 import { formatBugTaskForAi } from '../AiMessageUtils';
+import IgnoreBugPopover from '../components/IgnoreBugPopover';
 
 const { Text } = Typography;
 
@@ -141,36 +142,28 @@ export const BugCard: React.FC<BugCardProps> = ({
           className="action-buttons-overlay"
           onClick={e => e.stopPropagation()}
         >
-          <Tooltip title="Ignore">
-            <Popconfirm
-              title="Ignore bug"
-              description="Sure you want to ignore?"
-              okText="Ignore"
-              okType="danger"
-              cancelText="Cancel"
-              onConfirm={async (e) => {
-                e?.stopPropagation();
-                setActionLoading(true);
-                try {
-                  await updateBugs({
-                    updatedBugs: [{ bugHash: bug.bug?.bugHash }],
-                    newStatus: BugStatus.IGNORED,
-                  });
-                  setRemovingBugIds((ids: string[]) => [...ids, bugId]);
-                  setTimeout(() => {
-                    setBugs((prev: any[]) => prev.filter(b => (b.bug?.bugHash || String(index)) !== bugId));
-                    setRemovingBugIds((ids: string[]) => ids.filter(id => id !== bugId));
-                  }, 400);
-                  if (typeof onUpdated === 'function') onUpdated();
-                } catch (e) {
-                  // Optionally show error
-                }
-                setActionLoading(false);
-              }}
-              onCancel={e => e?.stopPropagation()}
-              placement="left"
-              getPopupContainer={trigger => trigger.parentElement || document.body}
-            >
+          <IgnoreBugPopover
+            onIgnore={async (reason) => {
+              setActionLoading(true);
+              try {
+                await updateBugs({
+                  updatedBugs: [{ bugHash: bug.bug?.bugHash }],
+                  newStatus: BugStatus.IGNORED,
+                  ignoreReason: reason,
+                });
+                setRemovingBugIds((ids: string[]) => [...ids, bugId]);
+                setTimeout(() => {
+                  setBugs((prev: any[]) => prev.filter(b => (b.bug?.bugHash || String(index)) !== bugId));
+                  setRemovingBugIds((ids: string[]) => ids.filter(id => id !== bugId));
+                }, 400);
+                if (typeof onUpdated === 'function') onUpdated();
+              } catch (e) {
+                // Optionally show error
+              }
+              setActionLoading(false);
+            }}
+          >
+            <Tooltip title="Ignore">
               <Button
                 type="text"
                 size="small"
@@ -180,8 +173,8 @@ export const BugCard: React.FC<BugCardProps> = ({
                 disabled={actionLoading}
                 onClick={e => e.stopPropagation()}
               />
-            </Popconfirm>
-          </Tooltip>
+            </Tooltip>
+          </IgnoreBugPopover>
           <Tooltip title="Fix in IDE">
             <Tooltip title={!vscodeConnected ? 'VSCode extension must be installed and started.' : ''} placement="top">
               <span style={{ display: 'inline-block' }}>

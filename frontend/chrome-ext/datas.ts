@@ -259,6 +259,7 @@ export interface BugDetail {
   ordinalId?: number;
   reportedReleaseId?: string;
   assignee?: string;
+  ignoreReason?: IgnoreReason;
 }
 
 export enum BugStatus {
@@ -266,6 +267,13 @@ export enum BugStatus {
   ACTIVE = "ACTIVE",
   IGNORED = "IGNORED",
   FIXED = "FIXED",
+}
+
+export enum IgnoreReason {
+  UNKNOWN_IGNORE_REASON = "UNKNOWN_IGNORE_REASON",
+  INTENDED_BEHAVIOUR = "INTENDED_BEHAVIOUR",
+  INACCURATE_ASSESSMENT = "INACCURATE_ASSESSMENT",
+  NOT_IMPORTANT = "NOT_IMPORTANT",
 }
 
 export enum InfoContextItemType {

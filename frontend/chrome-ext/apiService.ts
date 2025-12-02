@@ -24,6 +24,7 @@ export interface UpdateBugsRequest {
   newStatus?: BugStatus;
   appReleaseId?: string;
   assignee?: string;
+  ignoreReason?: IgnoreReason;
 }
 
 export interface UpdateBugsResponse { }
@@ -78,8 +79,50 @@ export async function getScreenStates(): Promise<GetScreenStatesResponse> {
   };
 }
 
+/**
+ * Sanitizes a URL to ensure it's safe for JSON serialization.
+ * Removes or escapes problematic characters that could break JSON parsing.
+ */
+function sanitizeUrlForJson(url: string): string {
+  if (!url || typeof url !== 'string') {
+    return '';
+  }
+  
+  // Remove any control characters (except common whitespace)
+  // Control characters can break JSON parsing
+  let sanitized = url.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '');
+  
+  // Ensure the URL is valid UTF-8 and doesn't contain problematic sequences
+  // Remove any unpaired surrogates that could cause encoding issues
+  try {
+    // Test if the string can be properly encoded/decoded
+    const encoded = encodeURIComponent(sanitized);
+    decodeURIComponent(encoded);
+  } catch (e) {
+    // If encoding fails, try to fix common issues
+    // Remove any invalid UTF-8 sequences
+    sanitized = sanitized.replace(/[\uD800-\uDFFF]/g, '');
+  }
+  
+  // Truncate if extremely long (safety measure)
+  const MAX_URL_LENGTH = 8192; // Reasonable limit
+  if (sanitized.length > MAX_URL_LENGTH) {
+    console.warn(`URL truncated from ${sanitized.length} to ${MAX_URL_LENGTH} characters`);
+    sanitized = sanitized.substring(0, MAX_URL_LENGTH);
+  }
+  
+  return sanitized;
+}
+
 export async function getScreenForPage(req: GetScreenForPageRequest): Promise<GetScreenForPageResponse> {
   console.log('getScreenForPage called with:', req);
+  
+  // Sanitize the URL to prevent JSON parsing issues
+  const sanitizedReq: GetScreenForPageRequest = {
+    ...req,
+    url: req.url ? sanitizeUrlForJson(req.url) : undefined,
+  };
+  
   const headers = await getAuthHeaders();
   console.log('Auth headers:', headers);
   const res = await fetch(`${BASE_URL}/ext/get_screen_for_page`, {
@@ -88,7 +131,7 @@ export async function getScreenForPage(req: GetScreenForPageRequest): Promise<Ge
       'Content-Type': 'application/json',
       ...headers,
     },
-    body: JSON.stringify(req),
+    body: JSON.stringify(sanitizedReq),
   });
   console.log('getScreenForPage response status:', res.status);
   const data = await res.json();
@@ -217,6 +260,7 @@ import {
   BugDetail,
   BugStatus,
   BugSeverity,
+  IgnoreReason,
   JourneyAgnotism,
   BoundingBox,
   ScreenStates,
