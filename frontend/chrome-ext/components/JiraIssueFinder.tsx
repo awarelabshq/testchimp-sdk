@@ -3,6 +3,7 @@ import { Input, Select, Checkbox, Button, Spin, Empty, Alert } from 'antd';
 import { fetchJiraIssuesFreetext } from '../apiService';
 import JiraIssueCard from './JiraIssueCard';
 import { JiraIssue, JiraIssueType } from '../datas';
+import { UI_BASE_URL } from '../config';
 
 const ISSUE_TYPE_OPTIONS = [
   { label: 'Bug', value: JiraIssueType.BUG_JIRA_TYPE },
@@ -87,9 +88,9 @@ const JiraIssueFinder = ({ onSelect, onCancel, style }: JiraIssueFinderProps) =>
         {jiraNotConnected && (
           <div style={{ background: '#232323', border: '1.5px solid #ffb300', borderRadius: 8, padding: 24, textAlign: 'center', color: '#fff', marginBottom: 16 }}>
             <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>
-              Connect your Jira account with TestChimp at <a href="https://prod.testchimp.io/integrations" target="_blank" rel="noopener noreferrer" style={{ color: '#ffb300', textDecoration: 'underline' }}>https://prod.testchimp.io/integrations</a>
+              Connect your Jira account with TestChimp at <a href={`${UI_BASE_URL}/integrations`} target="_blank" rel="noopener noreferrer" style={{ color: '#ffb300', textDecoration: 'underline' }}>{UI_BASE_URL}/integrations</a>
             </div>
-            <Button type="primary" style={{ background: '#ff6b65', border: 'none', fontWeight: 600, marginRight: 8 }} onClick={() => window.open('https://prod.testchimp.io/integration_guide', '_blank')}>Connect Jira</Button>
+            <Button type="primary" style={{ background: '#ff6b65', border: 'none', fontWeight: 600, marginRight: 8 }} onClick={() => window.open(`${UI_BASE_URL}/integration_guide`, '_blank')}>Connect Jira</Button>
             <Button onClick={onCancel} style={{ marginLeft: 8 }}>Cancel</Button>
           </div>
         )}

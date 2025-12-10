@@ -1,4 +1,5 @@
 import { connectMCP } from './background-websockets.js';
+import { UI_BASE_URL } from './config';
 
 chrome.runtime.onInstalled.addListener(() => {
     console.log('TestChimp Chrome Extension installed.');
@@ -811,7 +812,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           return;
         }
 
-        const sessionLink = `https://prod.testchimp.io/replay?session_id=${sessionId}&project_id=${projectId}`;
+        const sessionLink = `${UI_BASE_URL}/replay?session_id=${sessionId}&project_id=${projectId}`;
 
         // Save to recentSessions
         chrome.storage.local.get('recentSessions', (history) => {

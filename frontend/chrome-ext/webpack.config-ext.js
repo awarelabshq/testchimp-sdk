@@ -9,6 +9,7 @@ module.exports = {
     index: './index-ext.mjs',   // Your background script (if this is still correct)
     sidebar: './sidebar.tsx',         // Update to point to the correct .tsx file
     injectSidebar: './injectSidebar.tsx',
+    config: './config.ts',  // Compile config.ts to config.js for static file imports
   },
   output: {
     path: path.resolve(__dirname, 'dist'),

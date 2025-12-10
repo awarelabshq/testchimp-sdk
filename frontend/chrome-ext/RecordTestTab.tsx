@@ -12,6 +12,7 @@ import { StepItem } from './components/StepItem';
 import { generateSmartTest } from './apiService';
 import { getCapturedStepsWithContext, clearCapturedSteps, updateCapturedSteps } from './stepCaptureHandler';
 import { AssertionMode, CapturedStep, getSelectedCommand } from './playwrightCodegen';
+import { UI_BASE_URL } from './config';
 
 export const RecordTestTab: React.FC = () => {
   const [isCapturing, setIsCapturing] = useState(false);
@@ -460,7 +461,7 @@ export const RecordTestTab: React.FC = () => {
                   {testHistory.map((test, index) => (
                     <a
                       key={test.testId}
-                      href={`https://prod.testchimp.io/smarttests?test_id=${test.testId}&project_id=${test.projectId}`}
+                      href={`${UI_BASE_URL}/smarttests?test_id=${test.testId}&project_id=${test.projectId}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
@@ -586,7 +587,7 @@ export const RecordTestTab: React.FC = () => {
             <Typography.Text strong style={{ color: '#52c41a' }}>Smart Test Created!</Typography.Text>
             <br />
             <a 
-              href={`https://prod.testchimp.io/smarttests?test_id=${createdTestId}&project_id=${projectId}`}
+              href={`${UI_BASE_URL}/smarttests?test_id=${createdTestId}&project_id=${projectId}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: '#1890ff' }}

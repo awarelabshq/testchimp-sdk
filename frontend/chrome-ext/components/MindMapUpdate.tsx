@@ -6,6 +6,7 @@ import { ScreenState } from '../datas';
 import { simplifyDOMForLLM } from '../html_utils';
 import { getFilePathsFromDOM } from '../domUtils';
 import { ScreenStateInputPanel } from './ScreenStateInputPanel';
+import { UI_BASE_URL } from '../config';
 
 const { Text } = Typography;
 
@@ -148,7 +149,7 @@ export const MindMapUpdate: React.FC<MindMapUpdateProps> = ({
                             type="primary"
                             className='primary-button'
                             style={{ flex: 1 }}
-                            onClick={() => window.open('https://prod.testchimp.io/signin?flow=mindmap', '_blank')}
+                            onClick={() => window.open(`${UI_BASE_URL}/signin?flow=mindmap`, '_blank')}
                         >
                             View MindMap
                         </Button>

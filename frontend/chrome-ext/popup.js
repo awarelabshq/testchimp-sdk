@@ -1,4 +1,5 @@
 import { formatTimeAgo } from './time_utils';
+import { UI_BASE_URL } from './config.js';
 
 const MAX_RECENT_SESSIONS = 10;
 
@@ -132,7 +133,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         endButton.addEventListener('click', function endCapture() {
             chrome.storage.sync.get(['projectId'], function (items) {
-                const sessionLink = `https://prod.testchimp.io/replay?session_id=${sessionId}&project_id=${items.projectId}`;
+                const sessionLink = `${UI_BASE_URL}/replay?session_id=${sessionId}&project_id=${items.projectId}`;
                 lastSessionElement.innerHTML = `Captured session: <a href="${sessionLink}" target="_blank">link</a>`;
                 addSessionToHistory(sessionLink);
                 chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {

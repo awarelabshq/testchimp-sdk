@@ -4,6 +4,7 @@ import { ArrowLeftOutlined, DeleteOutlined, EditOutlined, ArrowDownOutlined, Plu
 import { upsertMindMapScreenState } from '../apiService';
 import { ScreenStateInputPanel } from './ScreenStateInputPanel';
 import { startMindMapMutationObserver, stopMindMapMutationObserver } from './mindmapMutationObserver';
+import { UI_BASE_URL } from '../config';
 
 interface JourneyItem {
   type: 'screen' | 'action';
@@ -320,7 +321,7 @@ export const MindMapBuilder: React.FC<MindMapBuilderProps> = ({ onDone }) => {
           type="primary"
           block
           style={{ background: '#ff6b65', border: 'none', fontWeight: 600 }}
-          onClick={() => window.open('https://prod.testchimp.io/signin?flow=mindmap', '_blank')}
+          onClick={() => window.open(`${UI_BASE_URL}/signin?flow=mindmap`, '_blank')}
         >
           View Mind Map
         </Button>

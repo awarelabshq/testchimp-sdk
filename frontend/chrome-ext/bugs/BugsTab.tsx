@@ -23,6 +23,7 @@ import { BugSeverity, BugStatus, ScreenStates, BugDetail } from '../datas';
 import { ScreenStateSelector } from '../components/ScreenStateSelector';
 import { MindMapUpdate } from '../components/MindMapUpdate';
 import { MindMapBuilder } from '../components/MindMapBuilder';
+import { UI_BASE_URL } from '../config';
 
 const { Text } = Typography;
 
@@ -794,7 +795,7 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
                     <Button
                       size="small"
                       style={{ background: '#ff6b65', color: '#fff', border: 'none', fontWeight: 600 }}
-                      onClick={() => window.open('https://prod.testchimp.io/signin?flow=upgrade', '_blank')}
+                      onClick={() => window.open(`${UI_BASE_URL}/signin?flow=upgrade`, '_blank')}
                     >
                       Upgrade
                     </Button>

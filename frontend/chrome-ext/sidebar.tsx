@@ -15,7 +15,7 @@ import { BugsTab } from './bugs/BugsTab';
 import { ScenariosTab } from './scenarios/ScenariosTab';
 import { DevTab } from './dev';
 import { simplifyDOMForLLM } from './html_utils';
-import { BASE_URL } from './config';
+import { BASE_URL, UI_BASE_URL } from './config';
 
 export interface ListUserProjectConfigsResponse {
     configs: ExtProjectConfig[];
@@ -312,7 +312,7 @@ export const SidebarApp = () => {
                             type="primary"
                             style={{ width: 200, display: 'flex', justifyContent: 'center' }}
                             onClick={() =>
-                                window.open('https://prod.testchimp.io/signin?flow=ext_auth')
+                                window.open(`${UI_BASE_URL}/signin?flow=ext_auth`)
                             }
                         >
                             <span className="fade-in">Login</span>

@@ -232,6 +232,20 @@ export interface BoundingBox {
   heightPct?: number;
 }
 
+export enum ViewportNickname {
+  UNKNOWN_VIEWPORT_NICKNAME = 0,
+  LAPTOP = 1,
+  WIDESCREEN = 2,
+  MOBILE = 3,
+  TABLET = 4,
+}
+
+export interface Viewport {
+  nickname?: ViewportNickname;
+  width?: number;
+  height?: number;
+}
+
 export interface Bug {
   title?: string;
   description?: string;
@@ -247,6 +261,7 @@ export interface Bug {
   journeyAgnotism?: JourneyAgnotism;
   bugHash?: string;
   scenarioId?: string;
+  viewport?: Viewport;
 }
 
 export interface BugDetail {

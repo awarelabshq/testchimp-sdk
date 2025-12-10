@@ -162,8 +162,8 @@
         </div>
         <div class="form-panel">
             <div class="form-links">
-                <span><a href="https://prod.testchimp.io/signup" target="_blank">Sign Up with TestChimp</a>. Already
-                    have an account? <a href="https://prod.testchimp.io/signin" target="_blank">Sign In</a></span>
+                <span><a href="#" id="signupLink" target="_blank">Sign Up with TestChimp</a>. Already
+                    have an account? <a href="#" id="signinLink" target="_blank">Sign In</a></span>
             </div>
             <div class="tab-buttons">
                 <button type="button" class="tab-button active" data-target="userConfig">User Config</button>
@@ -235,6 +235,21 @@
             </div>
         </div>
     </div>
+    <script type="module">
+        import { UI_BASE_URL } from './config.js';
+        
+        // Update links with UI_BASE_URL
+        document.addEventListener('DOMContentLoaded', function() {
+            const signupLink = document.getElementById('signupLink');
+            const signinLink = document.getElementById('signinLink');
+            if (signupLink) {
+                signupLink.href = `${UI_BASE_URL}/signup`;
+            }
+            if (signinLink) {
+                signinLink.href = `${UI_BASE_URL}/signin`;
+            }
+        });
+    </script>
     <script src="options.js"></script>
 </body>
 

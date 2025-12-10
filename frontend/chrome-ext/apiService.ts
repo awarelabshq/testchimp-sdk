@@ -748,19 +748,7 @@ export async function listPossibleAssignees(req: ListPossibleAssigneesRequest = 
 }
 
 // Screenshot management functions
-export enum ViewportNickname {
-  UNKNOWN_VIEWPORT_NICKNAME = 0,
-  LAPTOP = 1,
-  WIDESCREEN = 2,
-  MOBILE = 3,
-  TABLET = 4,
-}
-
-export interface Viewport {
-  nickname?: ViewportNickname;
-  width?: number;
-  height?: number;
-}
+import { Viewport, ViewportNickname } from './datas';
 
 export interface Screenshot {
   url?: string;

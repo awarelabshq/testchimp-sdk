@@ -10,6 +10,7 @@ import { getScreenStates } from '../apiService';
 import { useConnectionManager } from '../connectionManager';
 import JiraIssueFinder from '../components/JiraIssueFinder';
 import { formatDevTaskForAi } from '../AiMessageUtils';
+import { UI_BASE_URL } from '../config';
 // Remove: import { useScreenInfoSync } from './useScreenInfoSync';
 
 const { Text } = Typography;
@@ -682,7 +683,7 @@ export const DevTab = () => {
                             {showJiraUpgrade && (
                                 <div className="fade-in-slide-up" style={{ position: 'absolute', left: 0, right: 0, bottom: 110, zIndex: 10, background: '#232323', border: '1.5px solid #ffb300', borderRadius: 8, padding: 24, textAlign: 'center', color: '#fff' }}>
                                     <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Upgrade to TestChimp Teams tier for Jira integration and more...</div>
-                                    <Button type="primary" style={{ background: '#ff6b65', border: 'none', fontWeight: 600, marginRight: 8 }} onClick={() => window.open('https://prod.testchimp.io/signin?flow=upgrade', '_blank')}>Upgrade</Button>
+                                    <Button type="primary" style={{ background: '#ff6b65', border: 'none', fontWeight: 600, marginRight: 8 }} onClick={() => window.open(`${UI_BASE_URL}/signin?flow=upgrade`, '_blank')}>Upgrade</Button>
                                     <Button onClick={handleJiraUpgradeCancel} style={{ marginLeft: 8 }}>Cancel</Button>
                                 </div>
                             )}
@@ -789,7 +790,7 @@ export const DevTab = () => {
                         )}
                     </span>
                 </div>
-                <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none', marginLeft: 'auto' }}>v1.0.14</a>
+                <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none', marginLeft: 'auto' }}>v1.0.15</a>
             </div>
         </div>
     );
