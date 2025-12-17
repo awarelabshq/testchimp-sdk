@@ -926,33 +926,62 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
           }}>
             <Row gutter={8} style={{ margin: 0 }}>
               <Col span={12}>
-                <Button
-                  type="default"
-                  size="small"
-                  className="fade-in secondary-button"
-                  style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                  onClick={() => setAddingBug(true)}
-                >
-                  <PlusOutlined style={{ fontSize: 16 }} />
-                  Add Bug
-                </Button>
+                <Tooltip title={(!selectedScreen || !selectedState) ? "Please select both a screen and state before adding a bug so that we can attach the bug in the right place in the Atlas Site Map." : undefined}>
+                  <div style={(!selectedScreen || !selectedState) ? { opacity: 0.6 } : {}}>
+                    <Button
+                      type="default"
+                      size="small"
+                      className="fade-in secondary-button"
+                      style={{ 
+                        width: '100%', 
+                        height: 32, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        gap: 6
+                      }}
+                      onClick={() => setAddingBug(true)}
+                      disabled={!selectedScreen || !selectedState}
+                    >
+                      <PlusOutlined style={{ fontSize: 16 }} />
+                      Add Bug
+                    </Button>
+                  </div>
+                </Tooltip>
               </Col>
               <Col span={12}>
-                <Button
-                  type="primary"
-                  size="small"
-                  className="fade-in primary-button"
-                  style={{ width: '100%', height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                  onClick={handleShowAnalyzePanel}
-                >
-                  <img
-                    src={getTestChimpIcon()}
-                    alt="logo"
-                    style={{ width: 18, height: 18, marginRight: 4, verticalAlign: 'middle', objectFit: 'cover', display: 'inline-block' }}
-                    onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<span style=\'font-size:16px;margin-right:4px;\'>🐞</span>'); }}
-                  />
-                  Find Bugs
-                </Button>
+                <Tooltip title={(!selectedScreen || !selectedState) ? "Please select both a screen and state before finding bugs so that we can attach the bug in the right place in the Atlas Site Map." : undefined}>
+                  <div style={(!selectedScreen || !selectedState) ? { opacity: 0.6 } : {}}>
+                    <Button
+                      type={(!selectedScreen || !selectedState) ? "default" : "primary"}
+                      size="small"
+                      className="fade-in primary-button"
+                      style={{ 
+                        width: '100%', 
+                        height: 32, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        gap: 6,
+                        ...((!selectedScreen || !selectedState) && {
+                          backgroundColor: '#333',
+                          borderColor: '#555',
+                          color: '#666'
+                        })
+                      }}
+                      onClick={handleShowAnalyzePanel}
+                      disabled={!selectedScreen || !selectedState}
+                    >
+                      <img
+                        src={getTestChimpIcon()}
+                        alt="logo"
+                        style={{ width: 18, height: 18, marginRight: 4, verticalAlign: 'middle', objectFit: 'cover', display: 'inline-block' }}
+                        onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<span style=\'font-size:16px;margin-right:4px;\'>🐞</span>'); }}
+                      />
+                      Find Bugs
+                    </Button>
+                  </div>
+                </Tooltip>
               </Col>
             </Row>
           </div>

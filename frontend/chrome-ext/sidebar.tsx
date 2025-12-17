@@ -27,6 +27,9 @@ export interface ExtProjectConfig {
     sessionRecordApiKey?: string;
 }
 
+// Toggle to show/hide the Scenarios tab
+const SHOW_SCENARIOS_TAB = false;
+
 export const SidebarApp = () => {
     const [userAuthKey, setUserAuthKey] = useState<string | undefined>();
     const [projects, setProjects] = useState<ExtProjectConfig[]>([]);
@@ -36,7 +39,7 @@ export const SidebarApp = () => {
     const [interceptInput, setInterceptInput] = useState(selectedProject?.urlRegexToCapture || '');
     const [isUpdatingConfig, setUpdatingConfig] = useState<boolean>(false);
     const [urlRegexToCapture, setUrlRegexToCapture] = useState<string | undefined>(undefined);
-    const [activeTabKey, setActiveTabKey] = useState('dev');
+    const [activeTabKey, setActiveTabKey] = useState('record');
     const [tabRefreshKey, setTabRefreshKey] = useState(0);
     const [isMindMapBuilding, setIsMindMapBuilding] = useState(false);
     const [selectedEnvironment, setSelectedEnvironment] = useState<string>('QA');
@@ -48,6 +51,13 @@ export const SidebarApp = () => {
     useEffect(() => {
         chrome.storage.local.set({ selectedEnvironment, selectedRelease });
     }, [selectedEnvironment, selectedRelease]);
+
+    // If scenarios tab is hidden and it's currently active, switch to dev tab
+    useEffect(() => {
+        if (!SHOW_SCENARIOS_TAB && activeTabKey === 'scenarios') {
+            setActiveTabKey('dev');
+        }
+    }, [activeTabKey]);
     // --- Project selection and settings row ---
     const [showInterceptSettings, setShowInterceptSettings] = useState<boolean>(false);
     useEffect(() => {
@@ -353,10 +363,16 @@ export const SidebarApp = () => {
                                     updateSelectedProject(id);
                                     setEditingIntercept(false);
                                 }}
-                                options={projects.map((p) => ({
-                                    label: p.name ?? 'Unnamed Project',
-                                    value: p.projectId!,
-                                }))}
+                                options={[...projects]
+                                    .sort((a, b) => {
+                                        const nameA = (a.name ?? 'Unnamed Project').toLowerCase();
+                                        const nameB = (b.name ?? 'Unnamed Project').toLowerCase();
+                                        return nameA.localeCompare(nameB);
+                                    })
+                                    .map((p) => ({
+                                        label: p.name ?? 'Unnamed Project',
+                                        value: p.projectId!,
+                                    }))}
                                 dropdownStyle={{ zIndex: 9999 }}
                                 getPopupContainer={(triggerNode) => triggerNode.parentElement!}
                             />
@@ -379,53 +395,55 @@ export const SidebarApp = () => {
                         {/* Interception settings (shown by default if not set, or toggled by settings icon) */}
                         {selectedProjectId && projects.length > 0 && showInterceptSettings && (
                             <div className={"fade-in"} style={{ fontSize: 12, color: '#aaa', marginBottom: 8 }}>
-                                {/* URL Regex Section */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                                    {editingIntercept ? (
-                                        <>
-                                            <Input
-                                                placeholder="Enter URL regex to intercept"
-                                                value={interceptInput}
-                                                onChange={(e) => setInterceptInput(e.target.value)}
-                                                style={{ flex: 1 }}
-                                            />
-                                            <Button
-                                                loading={isUpdatingConfig}
-                                                size="small"
-                                                type="primary"
-                                                onClick={() => configureProjectIntercept(interceptInput)}
-                                            >
-                                                OK
-                                            </Button>
-                                            <Button
-                                                size="small"
-                                                onClick={() => setEditingIntercept(false)}
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </>
-                                    ) : urlRegexToCapture ? (
-                                        <>
-                                            <span style={{ color: '#aaa', minWidth: 70, fontSize: 12, lineHeight: '32px' }}>Intercepts:</span>
-                                            <span style={{ color: '#e6c200', fontWeight: 500 }}>{urlRegexToCapture}</span>
-                                            <Button
-                                                size="small"
-                                                type="text"
-                                                icon={<EditOutlined />}
-                                                onClick={() => {
-                                                    setInterceptInput(selectedProject?.urlRegexToCapture || '');
-                                                    setEditingIntercept(true);
-                                                }}
-                                            />
-                                        </>
-                                    ) : (
-                                        <>
-                                            <WarningOutlined style={{ color: '#faad14' }} />
-                                            <span style={{ color: '#faad14' }}>Interception not set</span>
-                                            <Button size="small" onClick={() => setEditingIntercept(true)} icon={<EditOutlined />} />
-                                        </>
-                                    )}
-                                </div>
+                                {/* URL Regex Section - Hidden */}
+                                {false && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                        {editingIntercept ? (
+                                            <>
+                                                <Input
+                                                    placeholder="Enter URL regex to intercept"
+                                                    value={interceptInput}
+                                                    onChange={(e) => setInterceptInput(e.target.value)}
+                                                    style={{ flex: 1 }}
+                                                />
+                                                <Button
+                                                    loading={isUpdatingConfig}
+                                                    size="small"
+                                                    type="primary"
+                                                    onClick={() => configureProjectIntercept(interceptInput)}
+                                                >
+                                                    OK
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    onClick={() => setEditingIntercept(false)}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </>
+                                        ) : urlRegexToCapture ? (
+                                            <>
+                                                <span style={{ color: '#aaa', minWidth: 70, fontSize: 12, lineHeight: '32px' }}>Intercepts:</span>
+                                                <span style={{ color: '#e6c200', fontWeight: 500 }}>{urlRegexToCapture}</span>
+                                                <Button
+                                                    size="small"
+                                                    type="text"
+                                                    icon={<EditOutlined />}
+                                                    onClick={() => {
+                                                        setInterceptInput(selectedProject?.urlRegexToCapture || '');
+                                                        setEditingIntercept(true);
+                                                    }}
+                                                />
+                                            </>
+                                        ) : (
+                                            <>
+                                                <WarningOutlined style={{ color: '#faad14' }} />
+                                                <span style={{ color: '#faad14' }}>Interception not set</span>
+                                                <Button size="small" onClick={() => setEditingIntercept(true)} icon={<EditOutlined />} />
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                                 {/* Environment Section */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                                     <span style={{ color: '#aaa', minWidth: 70, fontSize: 12, lineHeight: '32px' }}>Environment:</span>
@@ -454,21 +472,50 @@ export const SidebarApp = () => {
                                 activeKey={activeTabKey}
                                 onChange={setActiveTabKey}
                                 style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', height: '100%' }}
-                                tabBarStyle={{ marginBottom: 0 }}
+                                tabBarStyle={{ marginBottom: 0, paddingLeft: 8, paddingRight: 8 }}
                                 tabPosition="top"
                             >
-                                <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><AppstoreOutlined style={{ marginRight: 6 }} />Dev</span>} key="dev" style={{ height: '100%' }}>
-                                    <DevTab key={activeTabKey === 'dev' ? tabRefreshKey : undefined} />
+                                <style>{`
+                                    .ant-tabs-nav-list {
+                                        display: flex !important;
+                                        width: 100% !important;
+                                    }
+                                    .ant-tabs-tab {
+                                        flex: 1 !important;
+                                        text-align: center !important;
+                                        justify-content: center !important;
+                                        border: 1px solid #333 !important;
+                                        border-bottom: none !important;
+                                        background: #1a1a1a !important;
+                                        margin-right: 4px !important;
+                                        border-radius: 6px 6px 0 0 !important;
+                                    }
+                                    .ant-tabs-tab:last-child {
+                                        margin-right: 0 !important;
+                                    }
+                                    .ant-tabs-tab-active {
+                                        background: #181818 !important;
+                                        border-bottom: 1px solid #181818 !important;
+                                    }
+                                    .ant-tabs-content-holder {
+                                        border-top: 1px solid #333 !important;
+                                        margin-top: -1px !important;
+                                    }
+                                `}</style>
+                                <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><VideoCameraOutlined style={{ marginRight: 6 }} />Record</span>} key="record" style={{ height: '100%' }}>
+                                    <RecordTestTab />
                                 </Tabs.TabPane>
                                 <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><BugOutlined style={{ marginRight: 6 }} />Bugs</span>} key="bugs" style={{ height: '100%' }}>
                                     <BugsTab key={activeTabKey === 'bugs' ? tabRefreshKey : undefined} setIsMindMapBuilding={setIsMindMapBuilding} />
                                 </Tabs.TabPane>
-                                <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><ExperimentOutlined style={{ marginRight: 6 }} />Scenarios</span>} key="scenarios" style={{ height: '100%' }}>
-                                    <ScenariosTab key={activeTabKey === 'scenarios' ? tabRefreshKey : undefined} setIsMindMapBuilding={setIsMindMapBuilding} />
+                                <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><AppstoreOutlined style={{ marginRight: 6 }} />Dev</span>} key="dev" style={{ height: '100%' }}>
+                                    <DevTab key={activeTabKey === 'dev' ? tabRefreshKey : undefined} />
                                 </Tabs.TabPane>
-                                <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><VideoCameraOutlined style={{ marginRight: 6 }} />Rec</span>} key="record" style={{ height: '100%' }}>
-                                    <RecordTestTab />
-                                </Tabs.TabPane>
+                                {SHOW_SCENARIOS_TAB && (
+                                    <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><ExperimentOutlined style={{ marginRight: 6 }} />Scenarios</span>} key="scenarios" style={{ height: '100%' }}>
+                                        <ScenariosTab key={activeTabKey === 'scenarios' ? tabRefreshKey : undefined} setIsMindMapBuilding={setIsMindMapBuilding} />
+                                    </Tabs.TabPane>
+                                )}
                             </Tabs>
                         </div>
                     </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Input, Button, Alert, Typography } from 'antd';
 import { InfoCircleOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { upsertMindMapScreenState } from '../apiService';
+import { upsertMindMapScreenState, captureCurrentTabScreenshotBase64 } from '../apiService';
 import { ScreenState } from '../datas';
 import { simplifyDOMForLLM } from '../html_utils';
 import { getFilePathsFromDOM } from '../domUtils';
@@ -41,11 +41,22 @@ export const MindMapUpdate: React.FC<MindMapUpdateProps> = ({
             const domSnapshot = JSON.stringify(simplifyDOMForLLM(document.body, { includeStyles: false }));
             const relatedFilePaths = getFilePathsFromDOM();
             const url = window.location.pathname + window.location.search + window.location.hash;
+            
+            // Capture screenshot (optional - continue without it if it fails)
+            let screenshotBase64: string | undefined;
+            try {
+                screenshotBase64 = await captureCurrentTabScreenshotBase64();
+            } catch (screenshotError) {
+                console.error('Screenshot capture failed:', screenshotError);
+                // Continue without screenshot - it's optional
+            }
+            
             const resp = await upsertMindMapScreenState({
                 screenState: { name: screen, state },
                 domSnapshot,
                 url,
                 relatedFilePaths,
+                screenshotBase64,
             });
             setScreen(resp.screenState?.name || screen);
             setState(resp.screenState?.state || state);
@@ -149,7 +160,19 @@ export const MindMapUpdate: React.FC<MindMapUpdateProps> = ({
                             type="primary"
                             className='primary-button'
                             style={{ flex: 1 }}
-                            onClick={() => window.open(`${UI_BASE_URL}/signin?flow=mindmap`, '_blank')}
+                            onClick={() => {
+                                chrome.storage.sync.get(['projectId'], (items) => {
+                                    const projectId = items.projectId;
+                                    if (projectId) {
+                                        const url = `${UI_BASE_URL}/screen-tree-view?project_id=${encodeURIComponent(projectId)}&screen=${encodeURIComponent(screen)}&state=${encodeURIComponent(state)}`;
+                                        window.open(url, '_blank');
+                                    } else {
+                                        console.error('Project ID not found');
+                                        // Fallback to screen-tree-view without params
+                                        window.open(`${UI_BASE_URL}/screen-tree-view`, '_blank');
+                                    }
+                                });
+                            }}
                         >
                             View MindMap
                         </Button>

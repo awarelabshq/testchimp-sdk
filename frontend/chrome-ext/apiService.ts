@@ -25,6 +25,7 @@ export interface UpdateBugsRequest {
   appReleaseId?: string;
   assignee?: string;
   ignoreReason?: IgnoreReason;
+  screenshotBase64?: string;
 }
 
 export interface UpdateBugsResponse { }

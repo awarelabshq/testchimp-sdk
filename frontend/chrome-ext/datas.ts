@@ -246,6 +246,14 @@ export interface Viewport {
   height?: number;
 }
 
+export interface ScreenshotReference {
+  boundingBoxes?: BoundingBox[];
+}
+
+export interface ArtifactReference {
+  screenshotReference?: ScreenshotReference;
+}
+
 export interface Bug {
   title?: string;
   description?: string;
@@ -262,6 +270,7 @@ export interface Bug {
   bugHash?: string;
   scenarioId?: string;
   viewport?: Viewport;
+  artifactReference?: ArtifactReference;
 }
 
 export interface BugDetail {
@@ -362,6 +371,7 @@ export interface UpsertMindMapScreenStateRequest {
   domSnapshot?: string;
   url?: string;
   relatedFilePaths?: string[];
+  screenshotBase64?: string;
 }
 
 export interface UpsertMindMapScreenStateResponse {

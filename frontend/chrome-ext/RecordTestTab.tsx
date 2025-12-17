@@ -432,13 +432,13 @@ export const RecordTestTab: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', minHeight: 0 }}>
       {/* Control Area - Always at the top */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
         {!isCapturing && !showCreateForm ? (
           <>
-            {/* Start Step Capture Button - Right aligned */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            {/* Start Step Capture Button - Centered */}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
               <Button 
                 type="primary" 
                 size="small" 
@@ -489,7 +489,7 @@ export const RecordTestTab: React.FC = () => {
             )}
           </>
         ) : isCapturing ? (
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
             <Button 
               danger 
               size="small" 
@@ -627,6 +627,10 @@ export const RecordTestTab: React.FC = () => {
           ) : null}
         </div>
       )}
+      {/* Status bar: always at the bottom */}
+      <div className={"fade-in-slide-up"} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12, marginTop: 'auto', flexShrink: 0 }}>
+        <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none' }}>v1.0.16</a>
+      </div>
     </div>
   );
 };

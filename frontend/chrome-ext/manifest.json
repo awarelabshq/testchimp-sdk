@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "TestChimp - AI Co-Pilot for QA teams",
-  "version": "1.0.15",
-  "description": "Visual vibe coding on the browser, Identify and track bugs, fix in one click, brainstorm test scenarios and more...",
+  "version": "1.0.16",
+  "description": "Create SmartTests from manual test steps, Find, report and fix bugs directly from the browser and more...",
   "permissions": [
     "activeTab",
     "storage",
