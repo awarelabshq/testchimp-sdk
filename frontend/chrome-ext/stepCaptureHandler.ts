@@ -1208,18 +1208,21 @@ function handleDrop(e: DragEvent) {
 
 
 
-export function startStepCapture() {
+export async function startStepCapture() {
   console.log(`[StepCapture] startStepCapture called (instance: ${instanceId}), current state:`, { isCapturing, stepCaptureEnabled, initialGotoStepAdded });
   if (isCapturing) {
     console.log(`[StepCapture] Already capturing (instance: ${instanceId}), ignoring start request`);
     return;
   }
-  
-  // Only clear state when starting a completely new capture session
-  // Don't clear if this is called during navigation restoration
-  const isNewCapture = !isCapturing;
-  
-  if (isNewCapture) {
+
+  // Check storage (source of truth that survives navigation) to decide if this is a new capture
+  // or a restoration after full page navigation where in-memory state was reset
+  const state = await loadCaptureState();
+  const isRestorationAfterNavigation = state.active;
+
+  if (isRestorationAfterNavigation) {
+    console.log('[StepCapture] Storage shows capture was active - this is a restoration after navigation, preserving existing steps');
+  } else {
     console.log('[StepCapture] Starting NEW capture session - clearing all previous state');
     // CRITICAL: Clear all previous state and storage before starting new capture
     capturedSteps = [];
@@ -1228,17 +1231,15 @@ export function startStepCapture() {
     lastEmittedSteps.clear();
     recentStepEmissions.clear();
     initialGotoStepAdded = false;
-    
+
     // Clear storage to prevent old steps from persisting
-    chrome.storage.local.set({ 
+    chrome.storage.local.set({
       capturedStepsWithContext: [],
       stepCaptureActive: false,
       currentCaptureUrl: null
     });
-  } else {
-    console.log('[StepCapture] Restoring capture after navigation - preserving existing steps');
   }
-  
+
   // Ensure any previous cleanup is complete
   if (cleanupFns.length > 0) {
     console.log('[StepCapture] Cleaning up previous listeners before starting');
@@ -1247,39 +1248,44 @@ export function startStepCapture() {
     }
     cleanupFns = [];
   }
-  
+
     isCapturing = true;
     stepCaptureEnabled = true;
-    
+
     // Set capture start time for relative timestamps
-    captureStartTime = Date.now();
-    
+    if (!captureStartTime) {
+      captureStartTime = Date.now();
+    }
+
     // Set the global flag for content script
     (window as any)._stepCaptureActive = true;
     console.log('[StepCapture] Set window._stepCaptureActive to true');
-    
+
     // Store the start URL to prevent cross-page step emission
     localStorage.setItem('stepCaptureStartUrl', location.href);
-  
+
   // Start monitoring navigation events
   startNavigationMonitoring();
-  
-  // Add initial page.goto() step (only once per session)
-  if (!initialGotoStepAdded) {
+
+  // Add initial page.goto() step (only once per session, only in top frame)
+  // Iframes (e.g. Stripe payment iframes) should never emit goto steps - only the top frame's URL matters
+  if (!initialGotoStepAdded && window === window.top) {
     const gotoSteps = genGotoCommand(location.href);
     console.log('[StepCapture] Adding initial page.goto() steps:', gotoSteps[0], `(${gotoSteps.length} variants)`, 'initialGotoStepAdded was:', initialGotoStepAdded);
     emitStep(gotoSteps, 'goto');
     initialGotoStepAdded = true;
     console.log('[StepCapture] Set initialGotoStepAdded to:', initialGotoStepAdded);
+  } else if (window !== window.top) {
+    console.log(`[StepCapture] Skipping page.goto() in iframe (instance: ${instanceId}), URL:`, location.href);
   } else {
     console.log('[StepCapture] Skipping page.goto() step - already added, initialGotoStepAdded:', initialGotoStepAdded);
   }
-  
+
   // Save state to storage
   saveCaptureState(true);
-  
+
   console.log('[StepCapture] Starting capture with passive listeners (Playwright approach)');
-  
+
   // Attach event listeners safely (only once)
   attachEventListeners();
 }
@@ -1419,77 +1425,54 @@ export async function restoreCaptureState() {
       const currentDomain = new URL(location.href).hostname;
       const storedDomain = new URL(state.url).hostname;
       console.log('[StepCapture] Domain check - current:', currentDomain, 'stored:', storedDomain);
-      
+
       if (currentDomain === storedDomain) {
         console.log('[StepCapture] Same domain, restoring capture on new page');
-        
-        // Use a timeout to ensure DOM is ready and avoid race conditions
+
+        // Set capture flags IMMEDIATELY so any code that checks isCapturing
+        // (e.g. startStepCapture called by a racing message) sees the correct state
+        isCapturing = true;
+        stepCaptureEnabled = true;
+        (window as any)._stepCaptureActive = true;
+        console.log('[StepCapture] Restore: set isCapturing=true synchronously');
+
+        // Defer DOM-dependent work (event listeners) to ensure DOM is ready
         setTimeout(() => {
-          console.log('[StepCapture] Setting up capture after navigation with timeout');
-          setupCaptureAfterNavigation();
-        }, 100);
-        
-            function setupCaptureAfterNavigation() {
-              console.log('[StepCapture] Setting up capture - DOM ready state:', document.readyState);
-              console.log('[StepCapture] Before setup - isCapturing:', isCapturing, 'stepCaptureEnabled:', stepCaptureEnabled);
-              isCapturing = true;
-              stepCaptureEnabled = true;
-              
-              // CRITICAL: Set the global flag for content script
-              (window as any)._stepCaptureActive = true;
-              console.log('[StepCapture] Set window._stepCaptureActive to true');
-              
-              console.log('[StepCapture] After setup - isCapturing:', isCapturing, 'stepCaptureEnabled:', stepCaptureEnabled);
-          
+          console.log('[StepCapture] Restore: setting up DOM-dependent state after timeout');
+
           // Update the start URL for the new page
           localStorage.setItem('stepCaptureStartUrl', location.href);
-          
+
           // DON'T clear old steps on navigation - preserve them for the full session
-          // The sidebar should show all steps from the entire capture session
           console.log('[StepCapture] Preserving steps across navigation - keeping all session steps');
-          // Only reset the goto flag for the new page
-          initialGotoStepAdded = false;
-          
+          // Only reset the goto flag for the new page (only in top frame - iframes should never emit goto steps)
+          if (window === window.top) {
+            initialGotoStepAdded = false;
+          }
+
           // Attach event listeners safely (only once)
           console.log('[StepCapture] Adding event listeners for restoration');
           attachEventListeners();
           console.log('[StepCapture] Event listeners added for restoration');
-          
-          // Test if event listeners are working
-          console.log('[StepCapture] Testing event listeners - try clicking on the page to see if events are captured');
-          
-          // Verify event listeners are attached
-          console.log('[StepCapture] Event listener count:', cleanupFns.length);
-          console.log('[StepCapture] Current state - isCapturing:', isCapturing, 'stepCaptureEnabled:', stepCaptureEnabled);
-          
-          // Hover disabled - too noisy, not useful for tests
-          // document.addEventListener('mouseover', handleMouseOver, listenerOptions);
-          
-          // Cleanup functions are now handled by attachEventListeners()
-          
-              // Notify sidebar that capture is active and restored
-              console.log('[StepCapture] Sending restoration message to sidebar - capture restored');
-              console.log('[StepCapture] Current URL:', location.href, 'isCapturing:', isCapturing, 'stepCaptureEnabled:', stepCaptureEnabled);
-              window.postMessage({ type: 'tc-step-capture-restored', steps: [] }, '*'); // Sidebar will load steps from storage
-              
-              // Also reset assertion mode to normal when restoring
-              currentAssertionMode = 'normal';
-              isAssertionModeSticky = true;
-              updateVisualFeedback();
-          console.log('[StepCapture] Event listeners attached, isCapturing:', isCapturing, 'stepCaptureEnabled:', stepCaptureEnabled);
-          
-          // Test if event listeners are working by simulating a click
-          console.log('[StepCapture] Testing event listeners - try clicking on the page now');
-          console.log('[StepCapture] If you click and see no logs, the event listeners are not working');
-          
-          // Test if event listeners are working
-          console.log('[StepCapture] Testing event listeners - try clicking on the page to see if events are captured');
-          
+
+          // Notify sidebar that capture is active and restored
+          console.log('[StepCapture] Sending restoration message to sidebar - capture restored');
+          window.postMessage({ type: 'tc-step-capture-restored', steps: [] }, '*'); // Sidebar will load steps from storage
+
+          // Also reset assertion mode to normal when restoring
+          currentAssertionMode = 'normal';
+          isAssertionModeSticky = true;
+          updateVisualFeedback();
+
           console.log('[StepCapture] ===== RESTORATION COMPLETED =====');
-        }
-      } else {
-        console.log('[StepCapture] Different domain, clearing state');
+        }, 100);
+      } else if (window === window.top) {
+        // Only the top frame should clear shared capture state
+        // Iframes (e.g. Stripe) have different domains and must not wipe shared storage
+        console.log('[StepCapture] Different domain (top frame), clearing state');
         clearCaptureState();
+      } else {
+        console.log(`[StepCapture] Different domain in iframe (instance: ${instanceId}), skipping clearCaptureState`);
       }
     } else {
       console.log('[StepCapture] No active state found in storage');
@@ -1503,35 +1486,45 @@ export async function restoreCaptureState() {
 export async function autoRestoreCaptureState() {
   try {
     const state = await loadCaptureState();
-    
+
     if (state.active) {
       // Check if we're on the same domain (allow cross-page navigation within same site)
       const currentDomain = new URL(location.href).hostname;
       const storedDomain = new URL(state.url).hostname;
-      
+
       if (currentDomain === storedDomain) {
-        // Use a timeout to ensure DOM is ready and avoid race conditions
+        // Set capture flags IMMEDIATELY so any code that checks isCapturing
+        // (e.g. startStepCapture called by a racing message) sees the correct state
+        isCapturing = true;
+        stepCaptureEnabled = true;
+        (window as any)._stepCaptureActive = true;
+        console.log('[StepCapture] Auto-restore: set isCapturing=true synchronously');
+
+        // Defer DOM-dependent work (event listeners) to ensure DOM is ready
         setTimeout(() => {
-          console.log('[StepCapture] Setting up capture after navigation with timeout');
-          // Set up capture state
-          isCapturing = true;
-          stepCaptureEnabled = true;
-          (window as any)._stepCaptureActive = true;
-          
+          console.log('[StepCapture] Auto-restore: setting up DOM-dependent state after timeout');
+
           // Update the start URL for the new page
           localStorage.setItem('stepCaptureStartUrl', location.href);
-          
-          // Preserve steps across navigation
-          initialGotoStepAdded = false;
-          
+
+          // Preserve steps across navigation (only reset goto flag in top frame)
+          if (window === window.top) {
+            initialGotoStepAdded = false;
+          }
+
           // Attach event listeners safely
           attachEventListeners();
-          
+
           // Notify sidebar
           window.postMessage({ type: 'tc-step-capture-restored', steps: [] }, '*');
         }, 100);
-      } else {
+      } else if (window === window.top) {
+        // Only the top frame should clear shared capture state
+        // Iframes (e.g. Stripe) have different domains and must not wipe shared storage
+        console.log('[StepCapture] Auto-restore: different domain (top frame), clearing state');
         clearCaptureState();
+      } else {
+        console.log(`[StepCapture] Auto-restore: different domain in iframe (instance: ${instanceId}), skipping clearCaptureState`);
       }
     }
   } catch (error) {

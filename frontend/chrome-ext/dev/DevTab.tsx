@@ -790,7 +790,7 @@ export const DevTab = () => {
                         )}
                     </span>
                 </div>
-                <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none', marginLeft: 'auto' }}>v1.0.16</a>
+                <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none', marginLeft: 'auto' }}>v1.0.17</a>
             </div>
         </div>
     );

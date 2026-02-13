@@ -1,6 +1,6 @@
 {
   "name": "testchimp-chrome-ext",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "TestChimp Chrome Ext",
   "main": "dist/testchimp-sdk.js",
   "types": "dist/testchimp-js.d.ts",

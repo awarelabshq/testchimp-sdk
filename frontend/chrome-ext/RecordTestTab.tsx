@@ -629,7 +629,7 @@ export const RecordTestTab: React.FC = () => {
       )}
       {/* Status bar: always at the bottom */}
       <div className={"fade-in-slide-up"} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12, marginTop: 'auto', flexShrink: 0 }}>
-        <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none' }}>v1.0.16</a>
+        <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none' }}>v1.0.17</a>
       </div>
     </div>
   );
