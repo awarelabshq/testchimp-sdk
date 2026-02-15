@@ -70,26 +70,26 @@ function injectRrwebIntoIframe(iframe) {
     id: iframe.id,
     className: iframe.className
   });
-  
+
   // Check if iframe is from a different origin
   const iframeOrigin = new URL(iframe.src).origin;
   const currentOrigin = window.location.origin;
   const isCrossOrigin = iframeOrigin !== currentOrigin;
-  
+
   console.log(`[INJECTION] Origin check:`, {
     iframeOrigin: iframeOrigin,
     currentOrigin: currentOrigin,
     isCrossOrigin: isCrossOrigin
   });
-  
+
   try {
     if (!isCrossOrigin) {
       // Same-origin iframe, inject directly
       console.log(`[INJECTION] Same-origin iframe detected, injecting directly`);
-      
+
       const script = document.createElement('script');
       script.src = chrome.runtime.getURL('iframe-rrweb-injector.js');
-      script.onload = function() {
+      script.onload = function () {
         this.remove();
         console.log(`[INJECTION] Same-origin iframe script loaded, sending rrweb URL`);
         // Send the rrweb URL to the injector
@@ -98,7 +98,7 @@ function injectRrwebIntoIframe(iframe) {
           rrwebUrl: chrome.runtime.getURL('rrweb.js')
         }, '*');
       };
-      script.onerror = function() {
+      script.onerror = function () {
         console.error('[INJECTION] Failed to inject rrweb into same-origin iframe');
         this.remove();
       };
@@ -107,7 +107,7 @@ function injectRrwebIntoIframe(iframe) {
     } else {
       // Cross-origin iframe, use postMessage approach
       console.log(`[INJECTION] Cross-origin iframe detected, using postMessage injection`);
-      
+
       // For cross-origin iframes, we need to inject via the content script
       // This requires the iframe to have a content script that can receive our message
       console.log(`[INJECTION] Sending injection message to cross-origin iframe`);
@@ -117,7 +117,7 @@ function injectRrwebIntoIframe(iframe) {
         rrwebUrl: chrome.runtime.getURL('rrweb.js')
       }, '*');
     }
-    
+
   } catch (error) {
     console.error('[INJECTION] Error injecting rrweb into iframe:', error);
   }
@@ -193,7 +193,7 @@ function detectNavigation() {
   if (currentUrl !== lastUrl) {
     console.log('[ContentScript] Navigation detected:', lastUrl, '->', currentUrl);
     lastUrl = currentUrl;
-    
+
     // Notify sidebar about navigation
     window.postMessage({ type: 'tc-navigation-detected', url: currentUrl }, '*');
   }
@@ -209,47 +209,47 @@ autoRestoreCaptureState();
 function handleIframeEvent(event) {
   if (event.data && event.data.type === 'rrweb-iframe-event') {
     const { iframeId, payload, timestamp } = event.data;
-    
+
     console.log(`[PARENT] Received iframe event from ${iframeId}:`, {
       eventType: payload.type,
       timestamp: timestamp,
       eventData: payload
     });
-    
+
     // Initialize storage for this iframe
     if (!iframeEvents.has(iframeId)) {
       iframeEvents.set(iframeId, []);
       console.log(`[PARENT] Created new event storage for iframe ${iframeId}`);
     }
-    
+
     // Add iframe context to the event
     const eventWithIframeContext = {
       ...payload,
       iframeId: iframeId,
       iframeTimestamp: timestamp
     };
-    
+
     // Convert document nodes to spans in iframe events to avoid DOM conflicts
     const processedPayload = convertDocumentNodesToSpans(payload);
-    
+
     // Store iframe events separately but prepare them for proper replay
     iframeEvents.get(iframeId).push({
       ...eventWithIframeContext,
       payload: processedPayload
     });
-    
+
     // Integrate actual iframe content into main page replay
     if (processedPayload.type === 2) { // FullSnapshot - iframe is ready
       // Find the actual iframe element in the main page DOM
-      const actualIframe = document.querySelector(`iframe[data-iframe-id="${iframeId}"]`) || 
-                          document.querySelector(`iframe[id*="${iframeId}"]`) ||
-                          document.querySelector(`iframe[src*="${iframeId}"]`);
-      
+      const actualIframe = document.querySelector(`iframe[data-iframe-id="${iframeId}"]`) ||
+        document.querySelector(`iframe[id*="${iframeId}"]`) ||
+        document.querySelector(`iframe[src*="${iframeId}"]`);
+
       if (actualIframe) {
         // Create an actual iframe element that will be embedded in the main page
         // Use the processed payload to get the converted iframe content
         const iframeContent = processedPayload.data.node;
-        
+
         const iframeElement = {
           type: 1, // Element
           id: `iframe_${iframeId}`,
@@ -267,7 +267,7 @@ function handleIframeEvent(event) {
           },
           childNodes: iframeContent ? [iframeContent] : []
         };
-        
+
         // Create iframe attachment event with safe parent context
         const iframeAttachmentEvent = {
           type: 3, // IncrementalSnapshot
@@ -284,15 +284,15 @@ function handleIframeEvent(event) {
             attributes: []
           }
         };
-        
+
         // Add to main event buffer
         eventBuffer.push(iframeAttachmentEvent);
         console.log(`[PARENT] Added iframe attachment event to main buffer for ${iframeId}`);
-        
+
       } else {
         console.warn(`[PARENT] Could not find actual iframe element for ${iframeId}`);
       }
-      
+
     } else if (payload.type === 3 && iframeEvents.get(iframeId).length > 0) { // IncrementalSnapshot
       // For incremental events, we need to be careful not to cause DOM conflicts
       // We'll create simplified events that represent iframe activity without mixing DOM structures
@@ -314,18 +314,18 @@ function handleIframeEvent(event) {
           }]
         }
       };
-      
+
       // Add iframe update events to show activity
       eventBuffer.push(iframeUpdateEvent);
       console.log(`[PARENT] Added iframe activity update to main buffer for ${iframeId}`);
     }
-    
+
     console.log(`[PARENT] Stored iframe event separately for ${iframeId}: ${payload.type}. Total events: ${iframeEvents.get(iframeId).length}`);
-    
+
   } else if (event.data && event.data.type === 'rrweb-iframe-ready') {
     const { iframeId, url, eventCount } = event.data;
     console.log(`[PARENT] Iframe recording ready: ${iframeId} (${url}) with ${eventCount} events recorded locally`);
-    
+
     // Note: Iframe events are stored separately and will be available for analysis
     // but not mixed with main page events to prevent DOM conflicts during replay
   }
@@ -334,12 +334,12 @@ function handleIframeEvent(event) {
 // Helper functions for iframe integration
 function getNodeId(node) {
   if (!node) return 1; // Default to document root
-  
+
   // Try to find existing rrweb node ID
   if (node.__rrwebId) {
     return node.__rrwebId;
   }
-  
+
   // Generate a unique ID if none exists
   const id = Math.random().toString(36).substr(2, 9);
   node.__rrwebId = id;
@@ -411,11 +411,11 @@ function sendEvents(endpoint, config, sessionId, events) {
     };
   });
 
-    // Clear the event buffer. While sendEvents is used in both onError and normal recording, the eventBuffer is utilized only in normal recording.
-    eventBuffer = [];
-    
-    // Also clear iframe events that have been processed
-    iframeEvents.clear();
+  // Clear the event buffer. While sendEvents is used in both onError and normal recording, the eventBuffer is utilized only in normal recording.
+  eventBuffer = [];
+
+  // Also clear iframe events that have been processed
+  iframeEvents.clear();
 
   const body = {
     tracking_id: sessionId,
@@ -441,18 +441,18 @@ function startSendingEvents(endpoint, config, sessionId) {
   // Set up iframe detection and injection
   detectAndInjectIntoIframes();
   setupIframeObserver();
-  
+
   // Set up iframe event listener
   window.addEventListener('message', handleIframeEvent);
 
   const recordOptions = {
-        emit: function (event) {
-          // Process the event before adding it to the buffer
-          const processedEvent = processAndConvertEvent(event, 'MAIN');
-          if (processedEvent) {
-            eventBuffer.push(processedEvent);
-          }
-        },
+    emit: function (event) {
+      // Process the event before adding it to the buffer
+      const processedEvent = processAndConvertEvent(event, 'MAIN');
+      if (processedEvent) {
+        eventBuffer.push(processedEvent);
+      }
+    },
     sampling: samplingConfig,
     blockSelector: '.data-rrweb-ignore, #testchimp-sidebar, #testchimp-sidebar-toggle, #testchimp-sidebar *',
     recordCanvas: false,
@@ -471,15 +471,15 @@ function startSendingEvents(endpoint, config, sessionId) {
     },
   };
 
-function processEvent(event) {
-  // Skip iframe events completely to avoid replay conflicts
-  if (event.iframeId) {
-    return null;
-  }
+  function processEvent(event) {
+    // Skip iframe events completely to avoid replay conflicts
+    if (event.iframeId) {
+      return null;
+    }
 
-  // Use the shared processing function
-  return processAndConvertEvent(event, 'MAIN');
-}
+    // Use the shared processing function
+    return processAndConvertEvent(event, 'MAIN');
+  }
 
 
   stopFn = record(recordOptions);
@@ -541,13 +541,13 @@ function processEvent(event) {
     window.removeEventListener("beforeunload", flushBufferedEventsBeforeExit);
     window.removeEventListener("pagehide", flushBufferedEventsBeforeExit);
     document.removeEventListener("visibilitychange", visibilityHandler);
-    
+
     // Clean up iframe recording
     if (iframeObserver) {
       iframeObserver.disconnect();
       iframeObserver = null;
     }
-    
+
     // Stop all iframe recordings
     iframeStopFunctions.forEach((stopFn, iframeId) => {
       try {
@@ -558,7 +558,7 @@ function processEvent(event) {
     });
     iframeStopFunctions.clear();
     iframeEvents.clear();
-    
+
     // Remove iframe event listener
     window.removeEventListener('message', handleIframeEvent);
   }
@@ -720,18 +720,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // Collapse sidebar
       window.postMessage({ type: 'tc-hide-sidebar' }, '*');
       window._stepCaptureActive = true;
-      startStepCapture();
+      startStepCapture(message.initialSteps);
       if (sendResponse) sendResponse({ success: true });
-        } else if (message.action === 'stop_step_capture') {
-          window._stepCaptureActive = false;
-          stopStepCapture();
-          window.postMessage({ type: 'tc-show-sidebar' }, '*');
-          if (sendResponse) sendResponse({ success: true });
-        } else if (message.action === 'resume_step_capture') {
-          window._stepCaptureActive = true;
-          resumeStepCapture();
-          if (sendResponse) sendResponse({ success: true });
-        } else if (message.action === 'restore_step_capture') {
+    } else if (message.action === 'stop_step_capture') {
+      window._stepCaptureActive = false;
+      stopStepCapture();
+      window.postMessage({ type: 'tc-show-sidebar' }, '*');
+      if (sendResponse) sendResponse({ success: true });
+    } else if (message.action === 'resume_step_capture') {
+      window._stepCaptureActive = true;
+      resumeStepCapture();
+      if (sendResponse) sendResponse({ success: true });
+    } else if (message.action === 'restore_step_capture') {
       // Restore step capture state
       console.log('[ContentScript] ===== RESTORE MESSAGE RECEIVED =====');
       console.log('[ContentScript] Restoring step capture state');
@@ -762,7 +762,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.error('Error handling message:', error);
     if (sendResponse) sendResponse({ success: false, error: error.message });
   }
-  
+
   // Return true to indicate we will send a response asynchronously
   return true;
 });
@@ -779,10 +779,10 @@ window.addEventListener("message", (event) => {
       // Use a simple debounce mechanism to prevent duplicate messages
       const messageKey = `${event.data.cmd}_${event.data.kind}`;
       const now = Date.now();
-      
+
       if (!window._lastStepMessage || window._lastStepMessage.key !== messageKey || now - window._lastStepMessage.time > 500) {
         window._lastStepMessage = { key: messageKey, time: now };
-        
+
         // Check local state first (synchronous)
         if (window._stepCaptureActive) {
           console.log('[ContentScript] Relaying step:', event.data.cmd);
@@ -793,7 +793,7 @@ window.addEventListener("message", (event) => {
       } else {
         console.log('[ContentScript] Ignoring duplicate step:', event.data.cmd);
       }
-    } catch (_) {}
+    } catch (_) { }
     return;
   }
 
@@ -968,7 +968,7 @@ window.addEventListener("message", (event) => {
 
 
 // Relay host page console logs to background
-window.addEventListener('message', function(event) {
+window.addEventListener('message', function (event) {
   if (
     event.source === window &&
     event.data &&

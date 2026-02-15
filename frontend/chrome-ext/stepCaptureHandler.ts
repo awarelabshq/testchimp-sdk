@@ -1208,36 +1208,68 @@ function handleDrop(e: DragEvent) {
 
 
 
-export async function startStepCapture() {
-  console.log(`[StepCapture] startStepCapture called (instance: ${instanceId}), current state:`, { isCapturing, stepCaptureEnabled, initialGotoStepAdded });
+export async function startStepCapture(initialSteps?: CapturedStep[]) {
+  console.log(`[StepCapture] startStepCapture called (instance: ${instanceId}), current state:`, { isCapturing, stepCaptureEnabled, initialGotoStepAdded, hasInitialSteps: !!initialSteps });
   if (isCapturing) {
     console.log(`[StepCapture] Already capturing (instance: ${instanceId}), ignoring start request`);
     return;
   }
 
-  // Check storage (source of truth that survives navigation) to decide if this is a new capture
-  // or a restoration after full page navigation where in-memory state was reset
-  const state = await loadCaptureState();
-  const isRestorationAfterNavigation = state.active;
+  // Handle "Continue from Last Test" scenario
+  if (initialSteps && initialSteps.length > 0) {
+    console.log('[StepCapture] Continuing from existing steps:', initialSteps.length);
+    capturedSteps = [...initialSteps]; // Copy
+    
+    // Restore context index
+    // Find the last step that had a full DOM context
+    let lastIndex = -1;
+    for (let i = capturedSteps.length - 1; i >= 0; i--) {
+      if (capturedSteps[i].context?.domContext) {
+        lastIndex = i;
+        break;
+      }
+    }
+    lastContextStepIndex = lastIndex !== -1 ? lastIndex : null;
 
-  if (isRestorationAfterNavigation) {
-    console.log('[StepCapture] Storage shows capture was active - this is a restoration after navigation, preserving existing steps');
-  } else {
-    console.log('[StepCapture] Starting NEW capture session - clearing all previous state');
-    // CRITICAL: Clear all previous state and storage before starting new capture
-    capturedSteps = [];
-    lastContextStepIndex = null;
-    captureStartTime = null;
+    // Restore timestamp base
+    const lastStep = capturedSteps[capturedSteps.length - 1];
+    captureStartTime = Date.now() - (lastStep.timestamp || 0);
+
+    initialGotoStepAdded = true;
     lastEmittedSteps.clear();
     recentStepEmissions.clear();
-    initialGotoStepAdded = false;
 
-    // Clear storage to prevent old steps from persisting
+    // Reset storage for the new session but with preserved steps
     chrome.storage.local.set({
-      capturedStepsWithContext: [],
-      stepCaptureActive: false,
-      currentCaptureUrl: null
+      capturedStepsWithContext: capturedSteps,
+      stepCaptureActive: false, // Will be set true by saveCaptureState
+      currentCaptureUrl: location.href
     });
+  } else {
+    // Check storage (source of truth that survives navigation) to decide if this is a new capture
+    // or a restoration after full page navigation where in-memory state was reset
+    const state = await loadCaptureState();
+    const isRestorationAfterNavigation = state.active;
+
+    if (isRestorationAfterNavigation) {
+      console.log('[StepCapture] Storage shows capture was active - this is a restoration after navigation, preserving existing steps');
+    } else {
+      console.log('[StepCapture] Starting NEW capture session - clearing all previous state');
+      // CRITICAL: Clear all previous state and storage before starting new capture
+      capturedSteps = [];
+      lastContextStepIndex = null;
+      captureStartTime = null;
+      lastEmittedSteps.clear();
+      recentStepEmissions.clear();
+      initialGotoStepAdded = false;
+
+      // Clear storage to prevent old steps from persisting
+      chrome.storage.local.set({
+        capturedStepsWithContext: [],
+        stepCaptureActive: false,
+        currentCaptureUrl: null
+      });
+    }
   }
 
   // Ensure any previous cleanup is complete

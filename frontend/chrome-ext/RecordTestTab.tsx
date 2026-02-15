@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Input, List, Space, Typography, message, Tooltip } from 'antd';
+import { Button, Input, List, Space, Typography, message, Tooltip, Dropdown, MenuProps } from 'antd';
 import { 
   EyeOutlined, 
   FontSizeOutlined, 
   FormOutlined, 
   CheckCircleOutlined, 
   NumberOutlined,
-  PlayCircleOutlined
+  PlayCircleOutlined,
+  DownOutlined,
+  HistoryOutlined
 } from '@ant-design/icons';
 import { StepItem } from './components/StepItem';
 import { generateSmartTest } from './apiService';
@@ -27,6 +29,7 @@ export const RecordTestTab: React.FC = () => {
     testName: string;
     projectId: string;
     createdAt: string;
+    steps?: CapturedStep[];
   }>>([]);
   
   // Assertion mode state
@@ -191,7 +194,7 @@ export const RecordTestTab: React.FC = () => {
     }
   }, [isCapturing, steps.length]); // Only load if capturing AND no steps loaded yet
 
-  const onStart = () => {
+  const startNewCapture = () => {
     chrome.runtime.sendMessage({ type: 'start_step_capture_from_sidebar' }, (resp) => {
       if (!chrome.runtime.lastError && resp?.success !== false) {
         setIsCapturing(true);
@@ -203,6 +206,51 @@ export const RecordTestTab: React.FC = () => {
       }
     });
   };
+
+  const continueCapture = (initialSteps: CapturedStep[]) => {
+    if (!initialSteps || initialSteps.length === 0) {
+      message.warning('No steps available to continue from.');
+      return;
+    }
+
+    chrome.runtime.sendMessage({ 
+      type: 'start_step_capture_from_sidebar',
+      initialSteps: initialSteps 
+    }, (resp) => {
+      if (!chrome.runtime.lastError && resp?.success !== false) {
+        setIsCapturing(true);
+        setShowCreateForm(false);
+        setCreatedTestId(null);
+        // Steps will be loaded via storage listener/initial load
+      } else {
+        message.error('Failed to continue step capture: ' + (chrome.runtime.lastError?.message || 'Unknown error'));
+      }
+    });
+  };
+
+  const onStart = () => {
+    startNewCapture();
+  };
+
+  const startOptions: MenuProps['items'] = [
+    {
+      key: 'new',
+      label: 'Start New Test',
+      icon: <PlayCircleOutlined />,
+      onClick: startNewCapture
+    },
+    {
+      key: 'continue',
+      label: 'Continue from Last Test',
+      icon: <HistoryOutlined />,
+      disabled: testHistory.length === 0 || !testHistory[0].steps || testHistory[0].steps.length === 0,
+      onClick: () => {
+        if (testHistory.length > 0 && testHistory[0].steps) {
+          continueCapture(testHistory[0].steps);
+        }
+      }
+    }
+  ];
 
 
   const onStop = () => {
@@ -396,7 +444,8 @@ export const RecordTestTab: React.FC = () => {
         testId: response.testId,
         testName: testName.trim(),
         projectId: projectId,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        steps: capturedStepsWithContext // Store captured steps in history
       };
       
       // Get existing history and add new test
@@ -437,16 +486,39 @@ export const RecordTestTab: React.FC = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
         {!isCapturing && !showCreateForm ? (
           <>
-            {/* Start Step Capture Button - Centered */}
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            {/* Start Step Capture Button - Centered Split Button */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
               <Button 
                 type="primary" 
                 size="small" 
-                onClick={onStart}
-                style={{ backgroundColor: '#72BDA3', borderColor: '#72BDA3', color: '#fff', marginTop: '20px' }}
+                onClick={startNewCapture}
+                style={{ 
+                  backgroundColor: '#72BDA3', 
+                  borderColor: '#72BDA3', 
+                  color: '#fff', 
+                  borderTopRightRadius: 0, 
+                  borderBottomRightRadius: 0,
+                  marginRight: '1px'
+                }}
               >
                 Start Step Capture
               </Button>
+              <Dropdown menu={{ items: startOptions }} trigger={['click']}>
+                <Button 
+                  type="primary" 
+                  size="small" 
+                  icon={<DownOutlined />}
+                  style={{ 
+                    backgroundColor: '#72BDA3', 
+                    borderColor: '#72BDA3', 
+                    color: '#fff', 
+                    borderTopLeftRadius: 0, 
+                    borderBottomLeftRadius: 0,
+                    width: '24px',
+                    padding: 0
+                  }}
+                />
+              </Dropdown>
             </div>
             
             {/* Test History - Left aligned in separate row */}
@@ -459,30 +531,53 @@ export const RecordTestTab: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: '200px', overflowY: 'auto' }}>
                   {testHistory.map((test, index) => (
-                    <a
-                      key={test.testId}
-                      href={`${UI_BASE_URL}/smarttests?test_id=${test.testId}&project_id=${test.projectId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        color: '#fff',
-                        fontSize: '12px',
-                        textDecoration: 'underline',
-                        padding: '2px 0',
-                        display: 'block',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.color = '#ccc';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.color = '#fff';
-                      }}
-                    >
-                      {test.testName}
-                    </a>
+                    <div key={test.testId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: 4 }}>
+                      <a
+                        href={`${UI_BASE_URL}/smarttests?test_id=${test.testId}&project_id=${test.projectId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: '#fff',
+                          fontSize: '12px',
+                          textDecoration: 'underline',
+                          padding: '2px 0',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          flex: 1
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = '#ccc';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = '#fff';
+                        }}
+                      >
+                        {test.testName}
+                      </a>
+                      
+                      {/* Continue from this test button */}
+                      {test.steps && test.steps.length > 0 && (
+                        <Tooltip title="Continue from this test">
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<HistoryOutlined style={{ fontSize: '12px' }} />}
+                            onClick={() => continueCapture(test.steps!)}
+                            style={{ 
+                              color: '#aaa', 
+                              width: '24px', 
+                              height: '24px', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center' 
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = '#72BDA3'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = '#aaa'}
+                          />
+                        </Tooltip>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -629,7 +724,7 @@ export const RecordTestTab: React.FC = () => {
       )}
       {/* Status bar: always at the bottom */}
       <div className={"fade-in-slide-up"} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12, marginTop: 'auto', flexShrink: 0 }}>
-        <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none' }}>v1.0.17</a>
+        <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none' }}>v1.0.18</a>
       </div>
     </div>
   );
