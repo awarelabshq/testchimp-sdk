@@ -5,6 +5,28 @@ import sidebarCss from './sidebar.css';
 import { StyleProvider } from '@ant-design/cssinjs';
 import { ConfigProvider, theme } from 'antd';
 
+// Listen for scenario id and project id from TestChimp app (test planning "Record via extension" flow)
+window.addEventListener('message', (event: MessageEvent) => {
+  const data = event.data;
+  if (data?.type === 'TESTCHIMP_SET_SCENARIO_FOR_RECORDING' && data?.scenarioId) {
+    const scenarioId = String(data.scenarioId);
+    const receivedAt = Date.now();
+    const payload: Record<string, unknown> = {
+      pendingScenarioId: scenarioId,
+      pendingScenarioIdReceivedAt: receivedAt,
+    };
+    if (data?.projectId != null && String(data.projectId).trim() !== '') {
+      payload.pendingProjectId = String(data.projectId);
+      payload.pendingProjectIdReceivedAt = receivedAt;
+    }
+    chrome.storage.local.set(payload, () => {
+      console.log('[TestChimp content] Stored scenario for recording: scenarioId=', scenarioId, ', projectId=', payload.pendingProjectId ?? '(none)', ', receivedAt=', receivedAt);
+      // Ack so the web app knows the extension is installed and received the message
+      window.postMessage({ type: 'TESTCHIMP_SET_SCENARIO_ACK' }, '*');
+    });
+  }
+});
+
 // Don't show sidebar in iframes - only in main window
 if (window !== window.top) {
   console.log('[injectSidebar] Skipping sidebar creation in iframe');

@@ -805,6 +805,11 @@ export interface GenerateSmartTestRequest {
   testName: string;
   capturedSteps: CapturedStep[];  // Rich steps with context for LLM processing
   projectId?: string;
+  // When true, backend/LLM will try to match existing code structure
+  // by reusing POM files and ENV_FILE variables where possible.
+  enableReuse?: boolean;
+  /** Optional scenario id to link the generated test to (e.g. from test planning "Record via extension") */
+  scenarioId?: string;
 }
 
 export interface GenerateSmartTestResponse {
@@ -814,7 +819,16 @@ export interface GenerateSmartTestResponse {
 export async function generateSmartTest(req: GenerateSmartTestRequest): Promise<GenerateSmartTestResponse> {
   console.log('[API] GenerateSmartTest request:', req);
   console.log('[API] Captured steps count:', req.capturedSteps?.length || 0);
-  
+  if (req.scenarioId) {
+    console.log('[API] GenerateSmartTest scenarioId (linking to scenario):', req.scenarioId);
+  }
+  const body: Record<string, unknown> = {
+    testName: req.testName,
+    capturedSteps: req.capturedSteps,
+    ...(req.projectId != null && { projectId: req.projectId }),
+    ...(req.enableReuse != null && { enableReuse: req.enableReuse }),
+    ...(req.scenarioId != null && req.scenarioId !== '' && { scenario_id: req.scenarioId }),
+  };
   const headers = await getAuthHeaders();
   const res = await fetch(`${BASE_URL}/ext/generate_smart_test`, {
     method: 'POST',
@@ -822,7 +836,7 @@ export async function generateSmartTest(req: GenerateSmartTestRequest): Promise<
       'Content-Type': 'application/json',
       ...headers,
     },
-    body: JSON.stringify(req),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     throw new Error(`Failed to generate smart test: ${res.status} ${res.statusText}`);

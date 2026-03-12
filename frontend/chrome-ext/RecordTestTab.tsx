@@ -14,7 +14,22 @@ import { StepItem } from './components/StepItem';
 import { generateSmartTest } from './apiService';
 import { getCapturedStepsWithContext, clearCapturedSteps, updateCapturedSteps } from './stepCaptureHandler';
 import { AssertionMode, CapturedStep, getSelectedCommand } from './playwrightCodegen';
+import { ensureStepsHaveAiSynthOption, hasUnfilledAiSteps } from './aiStepUtils';
 import { UI_BASE_URL } from './config';
+
+/** Ensure AI synth option on each step; persist once if storage was missing synth. */
+function syncStepsFromStorage(raw: CapturedStep[]): CapturedStep[] {
+  const ensured = ensureStepsHaveAiSynthOption(raw);
+  const changed = ensured.some((s, i) => {
+    const r = raw[i];
+    if (!r) return true;
+    return (s.commands?.length ?? 0) !== (r.commands?.length ?? 0);
+  });
+  if (changed) {
+    updateCapturedSteps(ensured);
+  }
+  return ensured;
+}
 
 export const RecordTestTab: React.FC = () => {
   const [isCapturing, setIsCapturing] = useState(false);
@@ -31,11 +46,40 @@ export const RecordTestTab: React.FC = () => {
     createdAt: string;
     steps?: CapturedStep[];
   }>>([]);
-  
+  // Whether to ask backend/LLM to match existing code structure (POMs, env)
+  const [enableReuse, setEnableReuse] = useState<boolean>(true);
+  /** When set, pass to generateSmartTest to link the test to this scenario (from test planning "Record via extension") */
+  const [scenarioIdForThisCapture, setScenarioIdForThisCapture] = useState<string | null>(null);
+
   // Assertion mode state
   const [assertionMode, setAssertionMode] = useState<AssertionMode>('normal');
   const [isAssertionSticky, setIsAssertionSticky] = useState<boolean>(true);
   const [lastClickTime, setLastClickTime] = useState<number>(0);
+
+  // Hydrate scenario id from storage on mount: active (current capture) or pending (from web app "Record via extension")
+  // Ensures scenario is used for all capture entry points: Start step capture, Continue from last test, Continue from prior test.
+  useEffect(() => {
+    chrome.storage.local.get(
+      ['activeCaptureScenarioId', 'activeCaptureScenarioIdSetAt', 'pendingScenarioId', 'pendingScenarioIdReceivedAt'],
+      (result) => {
+        const activeId = result.activeCaptureScenarioId as string | undefined;
+        const activeSetAt = result.activeCaptureScenarioIdSetAt as number | undefined;
+        const MAX_AGE_ACTIVE_MS = 60 * 60 * 1000; // 1 hour
+        if (activeId && typeof activeSetAt === 'number' && Date.now() - activeSetAt < MAX_AGE_ACTIVE_MS) {
+          setScenarioIdForThisCapture(activeId);
+          console.log('[RecordTestTab] Restored scenarioIdForThisCapture from activeCaptureScenarioId on mount:', activeId);
+          return;
+        }
+        const pendingId = result.pendingScenarioId as string | undefined;
+        const pendingReceivedAt = result.pendingScenarioIdReceivedAt as number | undefined;
+        const THREE_MINS_MS = 3 * 60 * 1000;
+        if (pendingId && typeof pendingReceivedAt === 'number' && Date.now() - pendingReceivedAt < THREE_MINS_MS) {
+          setScenarioIdForThisCapture(pendingId);
+          console.log('[RecordTestTab] Restored scenarioIdForThisCapture from pendingScenarioId on mount (will apply when capture starts):', pendingId);
+        }
+      }
+    );
+  }, []);
 
       useEffect(() => {
         const handler = (msg: any) => {
@@ -46,7 +90,7 @@ export const RecordTestTab: React.FC = () => {
             // Load steps from storage (single source of truth) instead of from message
             chrome.storage.local.get(['capturedStepsWithContext'], (result) => {
               const capturedSteps = result.capturedStepsWithContext || [];
-              setSteps(capturedSteps);
+              setSteps(syncStepsFromStorage(capturedSteps));
             });
             setIsCapturing(true);
             setShowCreateForm(false);
@@ -168,7 +212,7 @@ export const RecordTestTab: React.FC = () => {
                 step.id === capturedSteps[index]?.id && 
                 step.selectedCommandIndex === capturedSteps[index]?.selectedCommandIndex
               )) {
-            return capturedSteps;
+            return syncStepsFromStorage(capturedSteps);
           } else {
             return prevSteps;
           }
@@ -189,42 +233,81 @@ export const RecordTestTab: React.FC = () => {
     if (isCapturing && steps.length === 0) {
       chrome.storage.local.get(['capturedStepsWithContext'], (result) => {
         const capturedSteps = result.capturedStepsWithContext || [];
-        setSteps(capturedSteps);
+        setSteps(syncStepsFromStorage(capturedSteps));
       });
     }
   }, [isCapturing, steps.length]); // Only load if capturing AND no steps loaded yet
 
+  // Applies pending scenario (from web app "Record via extension") and persists for generateSmartTest; used by "Start step capture" / "Start New Test".
   const startNewCapture = () => {
-    chrome.runtime.sendMessage({ type: 'start_step_capture_from_sidebar' }, (resp) => {
-      if (!chrome.runtime.lastError && resp?.success !== false) {
-        setIsCapturing(true);
-        setShowCreateForm(false);
-        setCreatedTestId(null);
-        setSteps([]);
+    chrome.storage.local.get(['pendingScenarioId', 'pendingScenarioIdReceivedAt'], (result) => {
+      const pendingId = result.pendingScenarioId as string | undefined;
+      const receivedAt = result.pendingScenarioIdReceivedAt as number | undefined;
+      const THREE_MINS_MS = 3 * 60 * 1000;
+      if (pendingId && typeof receivedAt === 'number' && (Date.now() - receivedAt) < THREE_MINS_MS) {
+        setScenarioIdForThisCapture(pendingId);
+        // Persist so we still have it if extension UI remounts (e.g. popup closed during recording)
+        chrome.storage.local.set(
+          { activeCaptureScenarioId: pendingId, activeCaptureScenarioIdSetAt: Date.now() },
+          () => {
+            chrome.storage.local.remove(['pendingScenarioId', 'pendingScenarioIdReceivedAt']);
+          }
+        );
+        console.log('[RecordTestTab] Using scenario for this capture: scenarioId=', pendingId, ', clearing stored pending scenario.');
       } else {
-        message.error('Failed to start step capture. Ensure the extension has permissions.');
+        setScenarioIdForThisCapture(null);
+        console.log('[RecordTestTab] No valid pending scenario for recording (expired or missing).');
       }
+      chrome.runtime.sendMessage({ type: 'start_step_capture_from_sidebar' }, (resp) => {
+        if (!chrome.runtime.lastError && resp?.success !== false) {
+          setIsCapturing(true);
+          setShowCreateForm(false);
+          setCreatedTestId(null);
+          setSteps([]);
+        } else {
+          message.error('Failed to start step capture. Ensure the extension has permissions.');
+        }
+      });
     });
   };
 
+  // Same scenario check as startNewCapture; used by "Continue from Last Test" and continue button on prior test list.
   const continueCapture = (initialSteps: CapturedStep[]) => {
     if (!initialSteps || initialSteps.length === 0) {
       message.warning('No steps available to continue from.');
       return;
     }
 
-    chrome.runtime.sendMessage({ 
-      type: 'start_step_capture_from_sidebar',
-      initialSteps: initialSteps 
-    }, (resp) => {
-      if (!chrome.runtime.lastError && resp?.success !== false) {
-        setIsCapturing(true);
-        setShowCreateForm(false);
-        setCreatedTestId(null);
-        // Steps will be loaded via storage listener/initial load
+    chrome.storage.local.get(['pendingScenarioId', 'pendingScenarioIdReceivedAt'], (result) => {
+      const pendingId = result.pendingScenarioId as string | undefined;
+      const receivedAt = result.pendingScenarioIdReceivedAt as number | undefined;
+      const THREE_MINS_MS = 3 * 60 * 1000;
+      if (pendingId && typeof receivedAt === 'number' && (Date.now() - receivedAt) < THREE_MINS_MS) {
+        setScenarioIdForThisCapture(pendingId);
+        chrome.storage.local.set(
+          { activeCaptureScenarioId: pendingId, activeCaptureScenarioIdSetAt: Date.now() },
+          () => {
+            chrome.storage.local.remove(['pendingScenarioId', 'pendingScenarioIdReceivedAt']);
+          }
+        );
+        console.log('[RecordTestTab] Using scenario for this capture (continue): scenarioId=', pendingId, ', clearing stored pending scenario.');
       } else {
-        message.error('Failed to continue step capture: ' + (chrome.runtime.lastError?.message || 'Unknown error'));
+        setScenarioIdForThisCapture(null);
+        console.log('[RecordTestTab] No valid pending scenario for recording (expired or missing).');
       }
+      chrome.runtime.sendMessage({
+        type: 'start_step_capture_from_sidebar',
+        initialSteps: initialSteps
+      }, (resp) => {
+        if (!chrome.runtime.lastError && resp?.success !== false) {
+          setIsCapturing(true);
+          setShowCreateForm(false);
+          setCreatedTestId(null);
+          // Steps will be loaded via storage listener/initial load
+        } else {
+          message.error('Failed to continue step capture: ' + (chrome.runtime.lastError?.message || 'Unknown error'));
+        }
+      });
     });
   };
 
@@ -267,7 +350,7 @@ export const RecordTestTab: React.FC = () => {
 
   const removeAt = async (idx: number) => {
     // Get current steps from single source of truth
-    const currentSteps = await getCapturedStepsWithContext();
+    const currentSteps = ensureStepsHaveAiSynthOption(await getCapturedStepsWithContext());
     const updatedSteps = currentSteps.filter((_, i) => i !== idx);
     
     // Update single source of truth
@@ -279,7 +362,7 @@ export const RecordTestTab: React.FC = () => {
   
   const editAt = async (idx: number, newSelectedIndex: number) => {
     // Get current steps from single source of truth
-    const currentSteps = await getCapturedStepsWithContext();
+    const currentSteps = ensureStepsHaveAiSynthOption(await getCapturedStepsWithContext());
     const updatedSteps = currentSteps.map((step, i) => 
       i === idx ? { ...step, selectedCommandIndex: newSelectedIndex } : step
     );
@@ -293,7 +376,7 @@ export const RecordTestTab: React.FC = () => {
   
   const editCommandText = async (idx: number, newCommand: string) => {
     // Get current steps from single source of truth
-    const currentSteps = await getCapturedStepsWithContext();
+    const currentSteps = ensureStepsHaveAiSynthOption(await getCapturedStepsWithContext());
     const updatedSteps = currentSteps.map((step, i) => {
       if (i === idx) {
         // Update the command at the selected index
@@ -414,11 +497,35 @@ export const RecordTestTab: React.FC = () => {
 
   const onCreateSmartTest = async () => {
     if (!testName.trim() || !projectId) return;
+    const stepsForCreate = ensureStepsHaveAiSynthOption(await getCapturedStepsWithContext());
+    if (hasUnfilledAiSteps(stepsForCreate)) return;
     
     setIsCreating(true);
     try {
-      // Get captured steps with context for new async path
-      const capturedStepsWithContext = await getCapturedStepsWithContext();
+      // Resolve scenario id from state or storage (storage survives popup close/reopen)
+      let scenarioIdToUse = scenarioIdForThisCapture;
+      if (scenarioIdToUse == null) {
+        scenarioIdToUse = await new Promise<string | null>((resolve) => {
+          chrome.storage.local.get(['activeCaptureScenarioId', 'activeCaptureScenarioIdSetAt'], (r) => {
+            const id = r.activeCaptureScenarioId as string | undefined;
+            const setAt = r.activeCaptureScenarioIdSetAt as number | undefined;
+            const MAX_AGE_MS = 60 * 60 * 1000;
+            if (id && typeof setAt === 'number' && (Date.now() - setAt) < MAX_AGE_MS) {
+              resolve(id);
+            } else {
+              resolve(null);
+            }
+          });
+        });
+        if (scenarioIdToUse) {
+          console.log('[RecordTestTab] Using scenarioId from storage for generateSmartTest:', scenarioIdToUse);
+        }
+      }
+      if (scenarioIdToUse) {
+        console.log('[RecordTestTab] Passing scenarioId to generateSmartTest:', scenarioIdToUse);
+      }
+      // Get captured steps with context for new async path (ensure synth options applied)
+      const capturedStepsWithContext = ensureStepsHaveAiSynthOption(await getCapturedStepsWithContext());
       console.log('[RecordTestTab] Captured steps count:', capturedStepsWithContext.length);
       console.log('[RecordTestTab] Captured steps:', capturedStepsWithContext);
       
@@ -435,8 +542,15 @@ export const RecordTestTab: React.FC = () => {
           element: step.context?.element,
         })),  // Rich context for LLM processing
         projectId: projectId,
+        enableReuse: enableReuse,
+        ...(scenarioIdToUse ? { scenarioId: scenarioIdToUse } : {}),
       });
       setCreatedTestId(response.testId);
+      if (scenarioIdToUse) {
+        console.log('[RecordTestTab] Smart test created and linked to scenario; clearing scenarioIdForThisCapture and storage.');
+        setScenarioIdForThisCapture(null);
+        chrome.storage.local.remove(['activeCaptureScenarioId', 'activeCaptureScenarioIdSetAt']);
+      }
       message.success('Smart test created successfully!');
       
       // Store test in history
@@ -645,21 +759,62 @@ export const RecordTestTab: React.FC = () => {
         {showCreateForm && !isCapturing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <Input placeholder="Name your test" value={testName} onChange={e => setTestName(e.target.value)} size="small" />
-            <Space>
-              <Button 
-                type="primary" 
-                size="small"
-                disabled={!testName.trim() || isCreating} 
-                loading={isCreating}
-                onClick={onCreateSmartTest}
-                style={{ 
-                  backgroundColor: (!testName.trim() || isCreating) ? undefined : '#72BDA3', 
-                  borderColor: (!testName.trim() || isCreating) ? undefined : '#72BDA3',
-                  color: '#fff'
-                }}
+            {/* Match existing code structure toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="checkbox"
+                id="tc-match-structure"
+                checked={enableReuse}
+                onChange={e => setEnableReuse(e.target.checked)}
+                style={{ margin: 0 }}
+              />
+              <label
+                htmlFor="tc-match-structure"
+                style={{ fontSize: 12, color: '#ddd', cursor: 'pointer' }}
               >
-                Create Smart Test
-              </Button>
+                Match existing code structure
+              </label>
+              <Tooltip
+                title="When checked, the generated Smart Test will try to use your existing page objects and environment variables instead of standalone code."
+              >
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    border: '1px solid #555',
+                    fontSize: 10,
+                    color: '#aaa',
+                  }}
+                >
+                  i
+                </span>
+              </Tooltip>
+            </div>
+            <Space>
+              <Tooltip
+                title={hasUnfilledAiSteps(steps) ? 'There are AI steps that need descriptions set.' : undefined}
+              >
+                <span>
+                  <Button 
+                    type="primary" 
+                    size="small"
+                    disabled={!testName.trim() || isCreating || hasUnfilledAiSteps(steps)} 
+                    loading={isCreating}
+                    onClick={onCreateSmartTest}
+                    style={{ 
+                      backgroundColor: (!testName.trim() || isCreating || hasUnfilledAiSteps(steps)) ? undefined : '#72BDA3', 
+                      borderColor: (!testName.trim() || isCreating || hasUnfilledAiSteps(steps)) ? undefined : '#72BDA3',
+                      color: '#fff'
+                    }}
+                  >
+                    Create Smart Test
+                  </Button>
+                </span>
+              </Tooltip>
               <Button 
                 size="small" 
                 onClick={onDiscard}
@@ -724,7 +879,7 @@ export const RecordTestTab: React.FC = () => {
       )}
       {/* Status bar: always at the bottom */}
       <div className={"fade-in-slide-up"} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12, marginTop: 'auto', flexShrink: 0 }}>
-        <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none' }}>v1.0.18</a>
+        <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none' }}>v1.0.19</a>
       </div>
     </div>
   );

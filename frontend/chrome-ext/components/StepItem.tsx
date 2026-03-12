@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Input, Popconfirm, Tooltip } from 'antd';
+import { isAiSynthCommand, AI_ACT_PLACEHOLDER, AI_VERIFY_PLACEHOLDER } from '../aiStepUtils';
 import { DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -19,6 +20,7 @@ export const StepItem: React.FC<StepItemProps> = ({ index, commands, selectedInd
   const [text, setText] = useState<string>('');
   const [popoverOpen, setPopoverOpen] = useState<boolean>(false);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const textAreaRef = useRef<any>(null);
 
   // Get the current command
   const currentCommand = commands[selectedIndex] || commands[0] || '';
@@ -29,8 +31,9 @@ export const StepItem: React.FC<StepItemProps> = ({ index, commands, selectedInd
     setText(currentCommand);
   }, [currentCommand]);
 
-  // Check if this is an assertion step
-  const isAssertion = currentCommand.includes('await expect(');
+  // Check if this is an assertion step (expect or ai.verify)
+  const isAssertion =
+    currentCommand.includes('await expect(') || currentCommand.includes('await ai.verify(');
   const stepColor = isAssertion ? '#52c41a' : '#1890ff';
 
   const handleCycleCommand = () => {
@@ -99,6 +102,28 @@ export const StepItem: React.FC<StepItemProps> = ({ index, commands, selectedInd
     };
   }, []);
 
+  // When editing an AI synth template, select the placeholder so typing replaces it
+  useEffect(() => {
+    if (!isEditing || !text) return;
+    if (!isAiSynthCommand(text)) return;
+    if (!text.includes(AI_ACT_PLACEHOLDER) && !text.includes(AI_VERIFY_PLACEHOLDER)) return;
+    const selectPlaceholder = () => {
+      const el = textAreaRef.current?.resizableTextArea?.textArea ?? textAreaRef.current?.nativeElement ?? textAreaRef.current;
+      if (!el || typeof el.setSelectionRange !== 'function') return;
+      const start = text.indexOf('"');
+      if (start < 0) return;
+      const afterOpen = start + 1;
+      const end = text.indexOf('"', afterOpen);
+      if (end <= afterOpen) return;
+      try {
+        el.focus();
+        el.setSelectionRange(afterOpen, end);
+      } catch (_) {}
+    };
+    const id = requestAnimationFrame(() => setTimeout(selectPlaceholder, 0));
+    return () => cancelAnimationFrame(id);
+  }, [isEditing, text]);
+
   return (
     <div 
       style={{ display: 'flex', gap: 8, width: '100%', position: 'relative', margin: 0, padding: 0, alignItems: 'flex-start' }}
@@ -124,6 +149,7 @@ export const StepItem: React.FC<StepItemProps> = ({ index, commands, selectedInd
       <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
         {isEditing ? (
           <Input.TextArea 
+            ref={textAreaRef}
             autoSize={{ minRows: 1, maxRows: 10 }}
             value={text} 
             onChange={e => handleTextChange(e.target.value)}

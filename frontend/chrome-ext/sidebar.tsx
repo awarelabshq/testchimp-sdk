@@ -131,16 +131,38 @@ export const SidebarApp = () => {
         if (projects && projects.length > 0) {
             chrome.storage.sync.get(
                 ['projectId'],
-                async (syncItems: { projectId?: string }) => {
+                (syncItems: { projectId?: string }) => {
                     const { projectId } = syncItems;
-                    const selectedId = projectId && projects.some(p => p.projectId === projectId)
-                        ? projectId
-                        : projects[0]?.projectId;
-
-                    const selectedProject = projects.find(p => p.projectId === selectedId);
-                    if (selectedProject) {
-                        await updateSelectedProject(selectedProject.projectId!);
-                    }
+                    // Check for pending project from test planning "Record via extension" flow
+                    chrome.storage.local.get(
+                        ['pendingProjectId', 'pendingProjectIdReceivedAt'],
+                        (localItems: { pendingProjectId?: string; pendingProjectIdReceivedAt?: number }) => {
+                            const pendingId = localItems.pendingProjectId;
+                            const pendingReceivedAt = localItems.pendingProjectIdReceivedAt;
+                            const THREE_MINS_MS = 3 * 60 * 1000;
+                            const pendingValid =
+                                pendingId &&
+                                typeof pendingReceivedAt === 'number' &&
+                                (Date.now() - pendingReceivedAt) < THREE_MINS_MS &&
+                                projects.some((p) => p.projectId === pendingId);
+                            let selectedId: string | undefined;
+                            if (pendingValid) {
+                                selectedId = pendingId;
+                                chrome.storage.local.remove(['pendingProjectId', 'pendingProjectIdReceivedAt'], () => {
+                                    console.log('[Sidebar] Applied pending project from test planning:', selectedId);
+                                });
+                            } else {
+                                selectedId =
+                                    projectId && projects.some((p) => p.projectId === projectId)
+                                        ? projectId
+                                        : projects[0]?.projectId;
+                            }
+                            const selectedProject = projects.find((p) => p.projectId === selectedId);
+                            if (selectedProject) {
+                                updateSelectedProject(selectedProject.projectId!);
+                            }
+                        }
+                    );
                 }
             );
         }
