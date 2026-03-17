@@ -202,6 +202,12 @@ export const RecordTestTab: React.FC = () => {
 
     // Listen for storage changes to update sidebar when steps are modified
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+      if (areaName === 'sync' && changes.projectId) {
+        const newProjectId = changes.projectId.newValue;
+        if (newProjectId !== undefined) {
+          setProjectId(newProjectId);
+        }
+      }
       if (areaName === 'local' && changes.capturedStepsWithContext) {
         const capturedSteps = changes.capturedStepsWithContext.newValue || [];
         
@@ -496,7 +502,11 @@ export const RecordTestTab: React.FC = () => {
   ];
 
   const onCreateSmartTest = async () => {
-    if (!testName.trim() || !projectId) return;
+    // Read projectId from storage at create time so we always use current selection (safety net for stale state)
+    const projectIdToUse = await new Promise<string | undefined>((resolve) => {
+      chrome.storage.sync.get(['projectId'], (items) => resolve(items.projectId));
+    });
+    if (!testName.trim() || !projectIdToUse) return;
     const stepsForCreate = ensureStepsHaveAiSynthOption(await getCapturedStepsWithContext());
     if (hasUnfilledAiSteps(stepsForCreate)) return;
     
@@ -541,11 +551,12 @@ export const RecordTestTab: React.FC = () => {
           pageTitle: step.context?.pageTitle,
           element: step.context?.element,
         })),  // Rich context for LLM processing
-        projectId: projectId,
+        projectId: projectIdToUse,
         enableReuse: enableReuse,
         ...(scenarioIdToUse ? { scenarioId: scenarioIdToUse } : {}),
       });
       setCreatedTestId(response.testId);
+      setProjectId(projectIdToUse); // Keep state in sync for success link
       if (scenarioIdToUse) {
         console.log('[RecordTestTab] Smart test created and linked to scenario; clearing scenarioIdForThisCapture and storage.');
         setScenarioIdForThisCapture(null);
@@ -557,7 +568,7 @@ export const RecordTestTab: React.FC = () => {
       const testHistory = {
         testId: response.testId,
         testName: testName.trim(),
-        projectId: projectId,
+        projectId: projectIdToUse,
         createdAt: new Date().toISOString(),
         steps: capturedStepsWithContext // Store captured steps in history
       };
@@ -879,7 +890,7 @@ export const RecordTestTab: React.FC = () => {
       )}
       {/* Status bar: always at the bottom */}
       <div className={"fade-in-slide-up"} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12, marginTop: 'auto', flexShrink: 0 }}>
-        <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none' }}>v1.0.19</a>
+        <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none' }}>v1.0.20</a>
       </div>
     </div>
   );
