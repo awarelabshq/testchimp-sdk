@@ -7,11 +7,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Load saved settings and populate the form
   chrome.storage.sync.get([
     'projectId',
-    'sessionRecordingApiKey',
-    'endpoint',
-    'maxSessionDurationSecs',
     'uriRegexToIntercept',
-    'excludedUriRegexList',
     'currentUserId',
     'enableRunLocallyForTcRuns',
     'userAuthKey',
@@ -19,11 +15,7 @@ document.addEventListener('DOMContentLoaded', function () {
     'mcpWebsocketPort',
   ], function (items) {
     form.projectId.value = items.projectId || '';
-    form.sessionRecordingApiKey.value = items.sessionRecordingApiKey || '';
-    form.endpoint.value = items.endpoint || '';
-    form.maxSessionDurationSecs.value = items.maxSessionDurationSecs || '';
     form.uriRegexToIntercept.value = items.uriRegexToIntercept || '';
-    form.excludedUriRegexList.value = items.excludedUriRegexList || '';
     form.currentUserId.value = items.currentUserId || '';
     form.userAuthKey.value = items.userAuthKey || '';
     form.enableRunLocally.checked = items.enableRunLocallyForTcRuns;
@@ -44,14 +36,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     chrome.storage.sync.set({
       projectId: form.projectId.value.trim(),
-      sessionRecordingApiKey: form.sessionRecordingApiKey.value.trim(),
-      endpoint: form.endpoint.value.trim(),
       samplingProbabilityOnError: 0.0,
       samplingProbability: 1.0,
-      maxSessionDurationSecs: form.maxSessionDurationSecs.value.trim(),
       eventWindowToSaveOnError: 200,
       uriRegexToIntercept: form.uriRegexToIntercept.value.trim(),
-      excludedUriRegexList: form.excludedUriRegexList.value.trim(),
       currentUserId: currentUserId,
       userAuthKey: userAuthKey,
       enableRunLocallyForTcRuns: form.enableRunLocally.checked,
