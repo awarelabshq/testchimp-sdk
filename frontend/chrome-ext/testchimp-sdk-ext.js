@@ -10459,7 +10459,8 @@ window.addEventListener("message", function (event) {
           if (event.data.type === "check_extension") {
             window.postMessage({
               type: "check_extension_response",
-              success: false
+              success: false,
+              installed: false
             }, "*");
           } else if (event.data.type === "run_tests_request") {
             window.postMessage({
@@ -10467,12 +10468,13 @@ window.addEventListener("message", function (event) {
               error: "Extension error: " + chrome.runtime.lastError.message
             }, "*");
           }
-        } else if (response.error) {
+        } else if (response && response.error) {
           // Background script returned an error
           if (event.data.type === "check_extension") {
             window.postMessage({
               type: "check_extension_response",
-              success: false
+              success: false,
+              installed: false
             }, "*");
           } else if (event.data.type === "run_tests_request") {
             window.postMessage({
@@ -10483,14 +10485,25 @@ window.addEventListener("message", function (event) {
         } else {
           // Successful responses
           if (event.data.type === "check_extension") {
-            window.postMessage({
-              type: "check_extension_response",
-              success: response.success
-            }, "*");
+            if (response == null) {
+              window.postMessage({
+                type: "check_extension_response",
+                success: false,
+                installed: false
+              }, "*");
+            } else {
+              var pageInstalled = response.installed !== false;
+              var runLocalSuccess = response.success === true;
+              window.postMessage({
+                type: "check_extension_response",
+                success: runLocalSuccess,
+                installed: pageInstalled
+              }, "*");
+            }
           } else if (event.data.type === "run_tests_request") {
             window.postMessage({
               type: "run_tests_response",
-              response: response.data
+              response: response && response.data
             }, "*");
           }
         }

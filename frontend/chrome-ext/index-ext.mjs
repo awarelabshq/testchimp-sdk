@@ -940,25 +940,47 @@ window.addEventListener("message", (event) => {
       }
 
       if (chrome.runtime.lastError) {
-        // Error communicating with the background script
         if (event.data.type === "check_extension") {
-          window.postMessage({ type: "check_extension_response", success: false }, "*");
+          window.postMessage(
+            { type: "check_extension_response", success: false, installed: false },
+            "*"
+          );
         } else if (event.data.type === "run_tests_request") {
-          window.postMessage({ type: "run_tests_response", error: "Extension error: " + chrome.runtime.lastError.message }, "*");
+          window.postMessage(
+            { type: "run_tests_response", error: "Extension error: " + chrome.runtime.lastError.message },
+            "*"
+          );
         }
-      } else if (response.error) {
-        // Background script returned an error
+      } else if (response?.error) {
         if (event.data.type === "check_extension") {
-          window.postMessage({ type: "check_extension_response", success: false }, "*");
+          window.postMessage(
+            { type: "check_extension_response", success: false, installed: false },
+            "*"
+          );
         } else if (event.data.type === "run_tests_request") {
           window.postMessage({ type: "run_tests_response", error: response.error }, "*");
         }
       } else {
-        // Successful responses
         if (event.data.type === "check_extension") {
-          window.postMessage({ type: "check_extension_response", success: response.success }, "*");
+          if (response == null) {
+            window.postMessage(
+              { type: "check_extension_response", success: false, installed: false },
+              "*"
+            );
+          } else {
+            const pageInstalled = response.installed !== false;
+            const runLocalSuccess = response.success === true;
+            window.postMessage(
+              {
+                type: "check_extension_response",
+                success: runLocalSuccess,
+                installed: pageInstalled,
+              },
+              "*"
+            );
+          }
         } else if (event.data.type === "run_tests_request") {
-          window.postMessage({ type: "run_tests_response", response: response.data }, "*");
+          window.postMessage({ type: "run_tests_response", response: response?.data }, "*");
         }
       }
     });

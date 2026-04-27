@@ -241,7 +241,7 @@ const getConfig = async () => {
         endpoint: result.endpoint || 'https://ingress.testchimp.io',
         environment: result.environment || 'QA',
         currentUserId: result.currentUserId || "DEFAULT_TESTER",
-        enableRunLocallyForTcRuns: result.enableRunLocallyForTcRuns,
+        enableRunLocallyForTcRuns: result.enableRunLocallyForTcRuns ?? true,
       });
     });
   });
@@ -534,17 +534,19 @@ async function handleTestChimpRequest(details) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "check_extension") {
-    // Use an async function to handle the await
     (async () => {
-      const config = await getConfig();
-      const enableRunLocallyForTcRuns = config.enableRunLocallyForTcRuns;
-      if (enableRunLocallyForTcRuns) {
-        sendResponse({ success: true });
-      } else {
-        sendResponse({ success: false });
+      try {
+        const config = await getConfig();
+        const enableRun = config.enableRunLocallyForTcRuns;
+        sendResponse({
+          installed: true,
+          success: enableRun,
+        });
+      } catch (e) {
+        sendResponse({ installed: false, success: false });
       }
-    })(); // Immediately invoke the async function
-    return true; // Indicate that the response will be sent asynchronously
+    })();
+    return true;
   }
 
   if (message.type === "trigger_popup") {
