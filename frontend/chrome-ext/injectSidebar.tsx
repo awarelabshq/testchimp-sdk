@@ -245,7 +245,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 // Use the windowId passed from the background script
                 const windowId = message.windowId;
                 if (windowId) {
-                    chrome.tabs.captureVisibleTab(windowId, { format: 'png' }, (dataUrl) => {
+                    chrome.tabs.captureVisibleTab(windowId, { format: 'jpeg', quality: 60 }, (dataUrl) => {
                         if (chrome.runtime.lastError) {
                             console.error('Screenshot capture error:', chrome.runtime.lastError.message);
                             resolve(undefined);

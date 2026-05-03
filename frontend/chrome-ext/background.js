@@ -880,7 +880,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         // Now safe to call captureVisibleTab
-        chrome.tabs.captureVisibleTab(tab.windowId, { format: 'jpeg', quality: 85 }, (dataUrl) => {
+        chrome.tabs.captureVisibleTab(tab.windowId, { format: 'jpeg', quality: 60 }, (dataUrl) => {
           if (chrome.runtime.lastError) {
             console.error('captureVisibleTab error:', chrome.runtime.lastError.message);
             sendResponse({ error: chrome.runtime.lastError.message });
