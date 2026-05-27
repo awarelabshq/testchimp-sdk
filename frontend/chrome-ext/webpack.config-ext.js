@@ -5,7 +5,7 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 module.exports = {
   mode: 'production',
   entry: {
-    background: ['./background.js', './background-websockets.js'],
+    background: './background.js',
     index: './index-ext.mjs',   // Your background script (if this is still correct)
     sidebar: './sidebar.tsx',         // Update to point to the correct .tsx file
     injectSidebar: './injectSidebar.tsx',
@@ -61,7 +61,6 @@ module.exports = {
         { from: 'iframe-rrweb-injector.js', to: 'iframe-rrweb-injector.js' },
         { from: 'iframe-content-script.js', to: 'iframe-content-script.js' },
         { from: 'localRun.js', to: 'localRun.js' },
-        { from: 'background-websockets.js', to: 'background-websockets.js' },
         { from: 'images/', to: 'images/' },
       ],
     }),

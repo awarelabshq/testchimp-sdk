@@ -18,7 +18,6 @@ import { AddBugPanel } from './AddBugPanel';
 import { BugCard } from './BugCard';
 import { SEVERITY_OPTIONS } from './bugUtils';
 import { getTestChimpIcon } from '../components/getTestChimpIcon';
-import { useConnectionManager } from '../connectionManager';
 import { BugSeverity, BugStatus, ScreenStates, BugDetail } from '../datas';
 import { ScreenStateSelector } from '../components/ScreenStateSelector';
 import { MindMapUpdate } from '../components/MindMapUpdate';
@@ -74,8 +73,6 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
   const { selecting, startSelecting } = useElementSelector((element, querySelector) => {
     setAddBugElement({ element, querySelector });
   });
-
-  const { vscodeConnected } = useConnectionManager();
 
   // Get current user email from chrome storage
   useEffect(() => {
@@ -905,9 +902,6 @@ export const BugsTab: React.FC<BugsTabProps> = ({ setIsMindMapBuilding }) => {
                     setRemovingBugIds={setRemovingBugIds}
                     setActionLoading={al => setActionLoading(al)}
                     filteredBugs={filteredBugs}
-                    vscodeConnected={vscodeConnected}
-                    currentScreenName={selectedScreen}
-                    currentRelativeUrl={window.location.pathname + window.location.search + window.location.hash}
                     onUpdated={handleBugUpdated}
                     newlyAdded={bug.bug?.bugHash ? newlyAddedBugs.has(bug.bug.bugHash) : false}
                   />

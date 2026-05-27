@@ -1,10 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React from 'react';
 import { Card, Tag, Button, Tooltip, Typography } from 'antd';
-import { DislikeOutlined, CodeOutlined, CheckCircleOutlined, CloseOutlined } from '@ant-design/icons';
-import { getCategoryColorWhiteFont, formatCategoryLabel, getSeverityLabel, truncateText, generateUuid } from './bugUtils';
-import { getFilePathsFromDOM } from '../domUtils';
-import { BugSeverity, BugStatus, IgnoreReason } from '../datas';
-import { formatBugTaskForAi } from '../AiMessageUtils';
+import { DislikeOutlined, CheckCircleOutlined, CloseOutlined } from '@ant-design/icons';
+import { getCategoryColorWhiteFont, formatCategoryLabel, getSeverityLabel, truncateText } from './bugUtils';
+import { BugSeverity, BugStatus } from '../datas';
 import IgnoreBugPopover from '../components/IgnoreBugPopover';
 
 const { Text } = Typography;
@@ -23,9 +21,6 @@ export interface BugCardProps {
   setRemovingBugIds: any;
   setActionLoading: any;
   filteredBugs: any[];
-  vscodeConnected: boolean;
-  currentScreenName?: string;
-  currentRelativeUrl?: string;
   onUpdated?: () => void;
   newlyAdded?: boolean;
 }
@@ -44,33 +39,10 @@ export const BugCard: React.FC<BugCardProps> = ({
   setRemovingBugIds,
   setActionLoading,
   filteredBugs,
-  vscodeConnected,
-  currentScreenName,
-  currentRelativeUrl,
   onUpdated,
   newlyAdded,
 }) => {
   const bugId = bug.bug?.bugHash || String(index);
-
-  // Local notification state for prompt copied
-  const [showCopiedNotification, setShowCopiedNotification] = useState(false);
-  const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [lastSentMessageId, setLastSentMessageId] = useState<string | null>(null);
-
-  useEffect(() => {
-    function handleAck(event: MessageEvent) {
-      if (event.data && event.data.type === 'ack_message' && event.data.messageId && event.data.messageId === lastSentMessageId) {
-        setShowCopiedNotification(true);
-        if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
-        notificationTimeoutRef.current = setTimeout(() => setShowCopiedNotification(false), 3000);
-      }
-    }
-    window.addEventListener('message', handleAck);
-    return () => {
-      window.removeEventListener('message', handleAck);
-      if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
-    };
-  }, [lastSentMessageId]);
 
   // Debug logging
   if (newlyAdded) {
@@ -102,26 +74,22 @@ export const BugCard: React.FC<BugCardProps> = ({
     >
       {/* Title with action buttons overlay on hover */}
       <div style={{ position: 'relative', marginBottom: 8 }}>
-        {showCopiedNotification ? (
-          <div className="scenario-notification" style={{ marginBottom: 4 }}>Prompt copied to IDE</div>
-        ) : (
-          <Text
-            strong
-            style={{
-              color: '#fff',
-              fontSize: 13,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              lineHeight: '16px',
-              width: '100%',
-            }}
-          >
-            {bug.bug?.title || '(Untitled bug)'}
-          </Text>
-        )}
+        <Text
+          strong
+          style={{
+            color: '#fff',
+            fontSize: 13,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            lineHeight: '16px',
+            width: '100%',
+          }}
+        >
+          {bug.bug?.title || '(Untitled bug)'}
+        </Text>
         {/* Action buttons overlay - visible on hover or always in expanded */}
         <div
           style={{
@@ -175,34 +143,6 @@ export const BugCard: React.FC<BugCardProps> = ({
               />
             </Tooltip>
           </IgnoreBugPopover>
-          <Tooltip title="Fix in IDE">
-            <Tooltip title={!vscodeConnected ? 'VSCode extension must be installed and started.' : ''} placement="top">
-              <span style={{ display: 'inline-block' }}>
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<CodeOutlined />}
-                  style={{ color: '#ff6b65', padding: '2px 4px', fontSize: 12 }}
-                  disabled={!vscodeConnected}
-                  onClick={() => {
-                    if (!vscodeConnected) return;
-                    const filePaths: string[] = getFilePathsFromDOM();
-                    const message = formatBugTaskForAi(bug.bug, currentScreenName, filePaths, currentRelativeUrl);
-                    const messageId = generateUuid();
-                    setLastSentMessageId(messageId);
-                    chrome.runtime.sendMessage({
-                      type: 'send_to_vscode',
-                      payload: {
-                        type: 'user_instruction',
-                        prompt: message,
-                        messageId
-                      }
-                    });
-                  }}
-                />
-              </span>
-            </Tooltip>
-          </Tooltip>
           <Tooltip title="Mark as fixed">
             <Button
               type="text"

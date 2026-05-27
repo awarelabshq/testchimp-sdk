@@ -1,5 +1,11 @@
-import { connectMCP } from './background-websockets.js';
 import { UI_BASE_URL } from './config';
+
+/** In-memory JPEG data URLs keyed by manual capture stepId (never persisted to chrome.storage). */
+const manualScreenshotCache = new Map();
+
+function clearManualScreenshotCache() {
+  manualScreenshotCache.clear();
+}
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('TestChimp Chrome Extension installed.');
@@ -10,7 +16,7 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 
   // Check if currentUserId is empty, and set a default value if so
-  chrome.storage.sync.get(["currentUserId", "uriRegexToIntercept", "vscodeWebsocketPort", "mcpWebsocketPort"], (result) => {
+  chrome.storage.sync.get(["currentUserId", "uriRegexToIntercept"], (result) => {
     if (!result.currentUserId) {
       chrome.storage.sync.set({ "currentUserId": "default_tester@example.com" }, () => {
         console.log("Set default currentUserId to 'default_tester@example.com'.");
@@ -19,16 +25,6 @@ chrome.runtime.onInstalled.addListener(() => {
     if (!result.uriRegexToIntercept) {
       chrome.storage.sync.set({ "uriRegexToIntercept": ".*" }, () => {
         console.log("Set default uriRegexToIntercept to '.*'.");
-      });
-    }
-    if (!result.vscodeWebsocketPort) {
-      chrome.storage.sync.set({ vscodeWebsocketPort: 53333 }, () => {
-        console.log("Set default vscodeWebsocketPort to 53333.");
-      });
-    }
-    if (!result.mcpWebsocketPort) {
-      chrome.storage.sync.set({ mcpWebsocketPort: 43449 }, () => {
-        console.log("Set default mcpWebsocketPort to 43449.");
       });
     }
   });
@@ -532,6 +528,76 @@ async function handleTestChimpRequest(details) {
   return rawResponse;
 }
 
+/** Serializes viewport captures so concurrent sendMessage callers do not clobber sendResponse. */
+let viewportCaptureQueue = Promise.resolve();
+
+function captureViewportForTab(tabId, windowId) {
+  return new Promise((resolve, reject) => {
+    chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        console.log('[scripting] activating tab before screenshot');
+      }
+    }, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      chrome.tabs.captureVisibleTab(windowId, { format: 'jpeg', quality: 60 }, (dataUrl) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        if (!dataUrl) {
+          reject(new Error('captureVisibleTab returned empty data'));
+          return;
+        }
+        console.log('[background] captureVisibleTab result:', !!dataUrl, dataUrl.length);
+        resolve(dataUrl);
+      });
+    });
+  });
+}
+
+function enqueueViewportCapture(tabId, windowId) {
+  const job = viewportCaptureQueue.then(() => captureViewportForTab(tabId, windowId));
+  viewportCaptureQueue = job.catch(() => {});
+  return job;
+}
+
+// More reliable than sendResponse for screenshots (service worker can drop one-off replies).
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'tc_capture') {
+    return;
+  }
+  port.onMessage.addListener((message) => {
+    if (message?.type !== 'capture_viewport_screenshot') {
+      return;
+    }
+    const resolveTab = (tab) => {
+      if (!tab?.id || !tab.windowId) {
+        port.postMessage({ error: 'No active tab found' });
+        port.disconnect();
+        return;
+      }
+      enqueueViewportCapture(tab.id, tab.windowId)
+        .then((dataUrl) => {
+          port.postMessage({ dataUrl });
+          port.disconnect();
+        })
+        .catch((err) => {
+          port.postMessage({ error: err?.message || String(err) });
+          port.disconnect();
+        });
+    };
+    if (port.sender?.tab?.id && port.sender.tab.windowId) {
+      resolveTab(port.sender.tab);
+    } else {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => resolveTab(tabs[0]));
+    }
+  });
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "check_extension") {
     (async () => {
@@ -702,10 +768,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse && sendResponse({ success: false, error: 'No active tab' });
         return;
       }
-      chrome.storage.local.set({ stepCaptureInProgress: true });
+      const isManual = !!message.manual;
+      if (isManual) {
+        clearManualScreenshotCache();
+      }
+      // Do not clear manualCapturedSteps here — ManualTestTab seeds initial goto before this message.
+      chrome.storage.local.set({
+        stepCaptureInProgress: true,
+        manualCaptureMode: isManual,
+        manualCaptureInProgress: isManual,
+      });
       chrome.tabs.sendMessage(tabId, {
         action: 'start_step_capture',
-        initialSteps: message.initialSteps
+        initialSteps: message.initialSteps,
+        manual: isManual,
       }, (resp) => {
         sendResponse && sendResponse({ success: !chrome.runtime.lastError, error: chrome.runtime.lastError?.message });
       });
@@ -720,7 +796,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse && sendResponse({ success: false, error: 'No active tab' });
         return;
       }
-      chrome.storage.local.set({ stepCaptureInProgress: false });
+      chrome.storage.local.set({
+        stepCaptureInProgress: false,
+        manualCaptureMode: false,
+      });
       chrome.tabs.sendMessage(tabId, { action: 'stop_step_capture' }, (resp) => {
         sendResponse && sendResponse({ success: !chrome.runtime.lastError, error: chrome.runtime.lastError?.message });
       });
@@ -802,6 +881,51 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'set_manual_screenshot') {
+    if (message.stepId && message.dataUrl) {
+      manualScreenshotCache.set(message.stepId, message.dataUrl);
+    }
+    sendResponse && sendResponse({ ok: true });
+    return true;
+  }
+
+  if (message.type === 'get_manual_screenshots') {
+    const cache = {};
+    manualScreenshotCache.forEach((dataUrl, stepId) => {
+      cache[stepId] = dataUrl;
+    });
+    sendResponse && sendResponse({ cache });
+    return true;
+  }
+
+  if (message.type === 'delete_manual_screenshot') {
+    if (message.stepId) {
+      manualScreenshotCache.delete(message.stepId);
+    }
+    sendResponse && sendResponse({ ok: true });
+    return true;
+  }
+
+  if (message.type === 'clear_manual_screenshot_cache') {
+    clearManualScreenshotCache();
+    sendResponse && sendResponse({ ok: true });
+    return true;
+  }
+
+  if (message.type === 'wait_manual_screenshot_queue') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (!tabId) {
+        sendResponse && sendResponse({ ok: false, error: 'No active tab' });
+        return;
+      }
+      chrome.tabs.sendMessage(tabId, { type: 'wait_manual_screenshot_queue' }, (resp) => {
+        sendResponse && sendResponse(resp || { ok: true });
+      });
+    });
+    return true;
+  }
+
   if (message.type === 'stop_recording_from_sidebar') {
     chrome.storage.sync.get(['projectId'], (syncData) => {
       const projectId = syncData.projectId;
@@ -853,44 +977,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep async channel open
   }
 
-  if (message.type === 'send_to_vscode' && self.vscodeSocket && self.vscodeSocket.readyState === 1) {
-    self.vscodeSocket.send(JSON.stringify(message.payload));
-  }
-
+  // Capture screenshot in the service worker (content scripts do not have chrome.tabs).
   if (message.type === 'capture_viewport_screenshot') {
     console.log('[background] capture_viewport_screenshot received');
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tab = tabs[0];
-      if (!tab || !tab.id || !tab.windowId) {
+    const resolveTab = (tab) => {
+      if (!tab?.id || !tab.windowId) {
         sendResponse({ error: 'No active tab found' });
         return;
       }
-
-      // Inject a no-op script to "touch" the tab and activate capture permission
-      chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
-          console.log('[scripting] activating tab before screenshot');
-        }
-      }, () => {
-        if (chrome.runtime.lastError) {
-          console.error('executeScript error:', chrome.runtime.lastError.message);
-          sendResponse({ error: chrome.runtime.lastError.message });
-          return;
-        }
-
-        // Now safe to call captureVisibleTab
-        chrome.tabs.captureVisibleTab(tab.windowId, { format: 'jpeg', quality: 60 }, (dataUrl) => {
-          if (chrome.runtime.lastError) {
-            console.error('captureVisibleTab error:', chrome.runtime.lastError.message);
-            sendResponse({ error: chrome.runtime.lastError.message });
-            return;
-          }
-          console.log('[background] captureVisibleTab result:', !!dataUrl, dataUrl ? dataUrl.length : 0);
+      enqueueViewportCapture(tab.id, tab.windowId)
+        .then((dataUrl) => {
           sendResponse({ dataUrl });
+        })
+        .catch((err) => {
+          console.error('[background] viewport capture failed:', err?.message || err);
+          sendResponse({ error: err?.message || String(err) });
         });
+    };
+
+    if (sender?.tab?.id && sender.tab.windowId) {
+      resolveTab(sender.tab);
+    } else {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        resolveTab(tabs[0]);
       });
-    });
+    }
 
     return true; // Keep the message channel open for async response
   }
@@ -928,10 +1039,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep the message channel open for async response
   }
 
-  // Default case for unknown message types
-  console.log('Unknown message type:', message.type);
-  sendResponse({ success: false, error: 'Unknown message type' });
-  return true;
+  // Not handled by this listener — do not call sendResponse (would steal async responses).
+  return false;
 });
 
 const cleanKey = (key) => {
@@ -1253,100 +1362,3 @@ importScripts('localRun.js');
 
 // Call the function to load the context menu
 loadContextMenu();
-
-// --- Global connection status ---
-var vscodeConnected = false;
-var mcpConnected = false;
-
-// Unified status notification
-function notifyStatus() {
-  console.log("[notifyStatus] vscodeConnected:", self.vscodeConnected, "mcpConnected:", self.mcpConnected);
-  chrome.runtime.sendMessage({
-    type: 'connection_status',
-    vscodeConnected: self.vscodeConnected,
-    mcpConnected: self.mcpConnected
-  }, (response) => {
-    if (chrome.runtime.lastError) {
-      console.error('Error sending connection status:', chrome.runtime.lastError.message);
-    }
-  });
-  chrome.tabs.query({}, function (tabs) {
-    for (let tab of tabs) {
-      chrome.tabs.sendMessage(tab.id, {
-        type: 'connection_status',
-        vscodeConnected: self.vscodeConnected,
-        mcpConnected: self.mcpConnected
-      });
-    }
-  });
-}
-self.notifyStatus = notifyStatus;
-
-// VSCode WebSocket connection logic
-let vscodeSocket = null;
-
-function connectVSCode() {
-  chrome.storage.sync.get(['vscodeWebsocketPort'], function (items) {
-    const port = items.vscodeWebsocketPort || 53333;
-    vscodeSocket = new WebSocket('ws://localhost:' + port);
-    self.vscodeSocket = vscodeSocket; // Always update reference on (re)connect
-    vscodeSocket.onopen = () => {
-      self.vscodeConnected = true;
-      console.log('WebSocket connected to VSCode extension on port', port);
-      self.notifyStatus();
-    };
-    vscodeSocket.onclose = () => {
-      self.vscodeConnected = false;
-      console.log('WebSocket disconnected from VSCode extension');
-      self.notifyStatus();
-      setTimeout(connectVSCode, 3000);
-    };
-    vscodeSocket.onerror = (e) => {
-      self.vscodeConnected = false;
-      console.error('VSCode WebSocket error', e);
-      self.notifyStatus();
-    };
-    vscodeSocket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data && data.type === 'ack_message') {
-          console.log('[background] Received ack_message from VS Code:', data);
-          chrome.runtime.sendMessage(data, (response) => {
-            if (chrome.runtime.lastError) {
-              console.error('Error sending ack message:', chrome.runtime.lastError.message);
-            }
-          });
-          // Relay to all tabs (so sidebar receives it)
-          chrome.tabs.query({}, function (tabs) {
-            for (let tab of tabs) {
-              chrome.tabs.sendMessage(tab.id, data);
-            }
-          });
-        }
-        // handle other message types if needed
-      } catch (e) {
-        // handle parse error
-      }
-    };
-  });
-}
-
-// ... after connectMCP() ...
-connectVSCode();
-
-// ... after vscodeSocket is created ...
-self.vscodeSocket = vscodeSocket;
-
-// Unified message handler for sidebar status requests
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === 'get_connection_status') {
-    sendResponse({
-      vscodeConnected: self.vscodeConnected,
-      mcpConnected: self.mcpConnected
-    });
-    return true;
-  }
-});
-
-// At the end of the main setup logic, after listeners and initialization:
-connectMCP();

@@ -82,44 +82,11 @@ export function getFullInfoForBoxElements(box: BoundingBoxValue): UIElementConte
 export async function addOrUpdateContextElements(elements: ContextElement[]) {
     for (const elem of elements) {
         contextElementStore[elem.contextId] = elem;
-        let extraInfo: Record<string, any> = {};
-        // UIElement: use getFullInfo
-        if (elem.type === ContextElementType.UIElement) {
-            const uiElem = elem as UIElementContext;
-            if (uiElem.querySelector) {
-                const element = document.querySelector(uiElem.querySelector) as HTMLElement | null;
-                if (element) {
-                    extraInfo = getFullInfo(element);
-                    console.log(`[contextStore] Added extra info for id=${elem.contextId}:`, extraInfo);
-                }
-            }
-        }
-        // BoundingBox: use full info for the bounding box, no screenshot
-        if (elem.type === ContextElementType.BoundingBox) {
-            const boxElem = elem as BoundingBoxContext;
-            // getFullInfoForBoxElements returns an array of UI elements in the box
-            const uiElements = getFullInfoForBoxElements(boxElem.value);
-            extraInfo = {
-                ...boxElem.value,
-                uiElementsInBox: uiElements
-            };
-        }
-        // Log all extra info for this id and send to background for global access
-        setTimeout(() => {
-            console.log(`[contextStore] Current extra info for id=${elem.contextId}:`, extraInfo);
-            chrome.runtime.sendMessage({
-                type: 'add_extra_info',
-                id: elem.contextId,
-                extraInfo
-            });
-        }, 500);
     }
 }
 
 export function removeContextElementById(id: string) {
     delete contextElementStore[id];
-    // Remove from background extra info store as well
-    chrome.runtime.sendMessage({ type: 'remove_extra_info', id });
 }
 
 export function getContextElementById(id: string): ContextElement | undefined {
@@ -129,11 +96,3 @@ export function getContextElementById(id: string): ContextElement | undefined {
 export function getAllContextElements(): ContextElement[] {
     return Object.values(contextElementStore);
 }
-
-export function getExtraInfo(id: string): Promise<Record<string, string> | undefined> {
-    return new Promise((resolve) => {
-        chrome.runtime.sendMessage({ type: 'get_extra_info', id }, (resp) => {
-            resolve(resp?.extraInfo);
-        });
-    });
-} 

@@ -369,6 +369,174 @@ export interface InsertTestScenarioResultRequest {
 
 export interface InsertTestScenarioResultResponse { }
 
+export interface GithubBranchItem {
+  name?: string;
+  branchId?: number;
+  id?: number;
+  isDefault?: boolean;
+  creationTimestampMillis?: number;
+}
+
+export interface ListGithubBranchesResponse {
+  repository?: string;
+  defaultBranch?: string;
+  branches?: GithubBranchItem[];
+  selectedBranchId?: number;
+}
+
+export async function listGithubBranches(): Promise<ListGithubBranchesResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/ext/list_github_branches`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify({}),
+  });
+  return await res.json();
+}
+
+export interface UploadScreenshotResponse {
+  gcpPath?: string;
+}
+
+export async function uploadScreenshot(imageBase64: string, stepId: string): Promise<UploadScreenshotResponse> {
+  const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+  // GCP can rate-limit uploads; retry 429s with backoff to avoid failing the whole manual record.
+  const maxAttempts = 5;
+  const baseBackoffMs = 750;
+
+  const headers = await getAuthHeaders();
+  const image = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+
+  let lastError: unknown;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const res = await fetch(`${BASE_URL}/localagent/upload_screenshot`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      body: JSON.stringify({
+        explorationId: 'manual-test',
+        journeyExecutionId: 'manual-test',
+        stepId,
+        image,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        gcpPath: data.gcpPath ?? data.gcp_path,
+      };
+    }
+
+    const status = res.status;
+    let text = '';
+    try {
+      text = await res.text();
+    } catch {
+      // ignore
+    }
+
+    const shouldRetry = (status === 429 || status === 503) && attempt < maxAttempts - 1;
+    if (shouldRetry) {
+      const retryAfter = res.headers.get('Retry-After');
+      let waitMs: number | undefined;
+
+      if (retryAfter) {
+        // Usually `Retry-After` is seconds; sometimes it's already ms.
+        const parsed = Number.parseInt(retryAfter, 10);
+        if (!Number.isNaN(parsed)) {
+          waitMs = retryAfter.includes('ms') ? parsed : parsed * 1000;
+        }
+      }
+
+      if (!waitMs) {
+        waitMs = baseBackoffMs * Math.pow(2, attempt);
+      }
+
+      // Add a small jitter so multiple tabs don't synchronize retries.
+      const jitterMs = Math.floor(Math.random() * 250);
+      await sleep(Math.min(waitMs + jitterMs, 10_000));
+      continue;
+    }
+
+    lastError = text || `Screenshot upload failed (status ${status})`;
+    break;
+  }
+
+  throw new Error(
+    typeof lastError === 'string' && lastError
+      ? lastError
+      : 'Screenshot upload failed (max retries reached)'
+  );
+}
+
+export interface ManualTestStepNotePayload {
+  text?: string;
+  boundingBox?: { xPct?: number; yPct?: number; widthPct?: number; heightPct?: number };
+}
+
+export interface ManualTestStepPayload {
+  screenshotUrl?: string;
+  stepCode?: string;
+  notes?: ManualTestStepNotePayload[];
+}
+
+export interface InsertManualTestRecordRequest {
+  testScenarioId: string;
+  branchId?: number;
+  environment?: string;
+  release?: string;
+  platform?: string;
+  result?: string;
+  steps?: ManualTestStepPayload[];
+}
+
+export interface InsertManualTestRecordResponse {
+  id?: string;
+}
+
+export async function insertManualTestRecord(req: InsertManualTestRecordRequest): Promise<InsertManualTestRecordResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/ext/insert_manual_test_record`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify({
+      testScenarioId: req.testScenarioId,
+      branchId: req.branchId,
+      environment: req.environment,
+      release: req.release,
+      platform: req.platform ?? 'WEB_EXECUTION_PLATFORM',
+      result: req.result,
+      steps: (req.steps || []).map((s) => ({
+        stepCode: s.stepCode,
+        ...(s.screenshotUrl ? { screenshotUrl: s.screenshotUrl } : {}),
+        ...(s.notes && s.notes.length > 0
+          ? {
+              notes: s.notes.map((n) => ({
+                text: n.text,
+                ...(n.boundingBox ? { boundingBox: n.boundingBox } : {}),
+              })),
+            }
+          : {}),
+      })),
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to create manual test record');
+  }
+  return await res.json();
+}
+
 export async function insertTestScenarioResult(req: InsertTestScenarioResultRequest): Promise<InsertTestScenarioResultResponse> {
   const headers = await getAuthHeaders();
   const { environment, releaseId } = await getCurrentEnvironmentAndRelease();
@@ -415,23 +583,12 @@ export async function suggestTestScenarioDescription(req: SuggestTestScenarioDes
 }
 
 /**
- * Captures a screenshot of the current tab's visible viewport and returns the base64 string (no data URL prefix).
- * Uses the background script's 'capture_viewport_screenshot' message handler.
- * Hides the sidebar and toggle button before taking the screenshot to avoid including them in the capture.
+ * Captures a screenshot of the current tab's visible viewport (JPEG data URL).
+ * Uses background service worker port capture; hides sidebar and toggle before capture.
  */
 export async function captureCurrentTabScreenshotBase64(): Promise<string | undefined> {
-  const captureFunction = () => new Promise<string | undefined>((resolve) => {
-    chrome.runtime.sendMessage({ type: 'capture_viewport_screenshot' }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error('Screenshot capture error:', chrome.runtime.lastError.message);
-        resolve(undefined);
-      } else if (response && response.dataUrl) {
-        resolve(response.dataUrl);
-      } else {
-        resolve(undefined);
-      }
-    });
-  });
+  const { captureScreenshotWithSidebarHiding, captureViewportViaPort } = await import('./screenshotUtils');
+  const captureFunction = () => captureViewportViaPort();
 
   return captureScreenshotWithSidebarHiding(
     captureFunction,

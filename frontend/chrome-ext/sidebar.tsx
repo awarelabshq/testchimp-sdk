@@ -6,15 +6,14 @@ import {
     Tooltip,
     Tabs,
 } from 'antd';
-import { LogoutOutlined, BugOutlined, WarningOutlined, EditOutlined, ReloadOutlined, SettingOutlined, AppstoreOutlined, VideoCameraOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { LogoutOutlined, WarningOutlined, EditOutlined, ReloadOutlined, SettingOutlined, AppstoreOutlined, CodeOutlined, AuditOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { ReleaseSelect } from './components/ReleaseSelect';
 import { EnvironmentSelect } from './components/EnvironmentSelect';
 // import { RecordTab } from './RecordTab';
 import { RecordTestTab } from './RecordTestTab';
+import { ManualTestTab } from './ManualTestTab';
 import { BugsTab } from './bugs/BugsTab';
 import { ScenariosTab } from './scenarios/ScenariosTab';
-import { DevTab } from './dev';
-import { simplifyDOMForLLM } from './html_utils';
 import { BASE_URL, UI_BASE_URL } from './config';
 
 export interface ListUserProjectConfigsResponse {
@@ -29,6 +28,8 @@ export interface ExtProjectConfig {
 
 // Toggle to show/hide the Scenarios tab
 const SHOW_SCENARIOS_TAB = false;
+// Toggle to show/hide the Bugs tab
+const SHOW_BUGS_TAB = false;
 
 export const SidebarApp = () => {
     const [userAuthKey, setUserAuthKey] = useState<string | undefined>();
@@ -39,7 +40,7 @@ export const SidebarApp = () => {
     const [interceptInput, setInterceptInput] = useState(selectedProject?.urlRegexToCapture || '');
     const [isUpdatingConfig, setUpdatingConfig] = useState<boolean>(false);
     const [urlRegexToCapture, setUrlRegexToCapture] = useState<string | undefined>(undefined);
-    const [activeTabKey, setActiveTabKey] = useState('record');
+    const [activeTabKey, setActiveTabKey] = useState('manual');
     const [tabRefreshKey, setTabRefreshKey] = useState(0);
     const [isMindMapBuilding, setIsMindMapBuilding] = useState(false);
     const [selectedEnvironment, setSelectedEnvironment] = useState<string>('QA');
@@ -52,10 +53,12 @@ export const SidebarApp = () => {
         chrome.storage.local.set({ selectedEnvironment, selectedRelease });
     }, [selectedEnvironment, selectedRelease]);
 
-    // If scenarios tab is hidden and it's currently active, switch to dev tab
+    // If a hidden tab is active, switch to a visible tab
     useEffect(() => {
         if (!SHOW_SCENARIOS_TAB && activeTabKey === 'scenarios') {
-            setActiveTabKey('dev');
+            setActiveTabKey('manual');
+        } else if (!SHOW_BUGS_TAB && activeTabKey === 'bugs') {
+            setActiveTabKey('manual');
         }
     }, [activeTabKey]);
     // --- Project selection and settings row ---
@@ -89,8 +92,10 @@ export const SidebarApp = () => {
     }, []);
 
     useEffect(() => {
-        chrome.storage.local.get(['recordingInProgress'], (localItems) => {
-            if (localItems.recordingInProgress) {
+        chrome.storage.local.get(['recordingInProgress', 'manualCaptureInProgress'], (localItems) => {
+            if (localItems.manualCaptureInProgress) {
+                setActiveTabKey('manual');
+            } else if (localItems.recordingInProgress) {
                 setActiveTabKey('record');
             }
         });
@@ -243,7 +248,7 @@ export const SidebarApp = () => {
             if (currentUrl !== lastUrl) {
                 console.log('[Sidebar] URL changed! lastUrl:', lastUrl, '-> currentUrl:', currentUrl);
                 lastUrl = currentUrl;
-                if (activeTabKey === 'bugs' || activeTabKey === 'scenarios' || activeTabKey === 'dev') {
+                if (activeTabKey === 'bugs' || activeTabKey === 'scenarios') {
                     if (isMindMapBuilding) {
                         console.log('[Sidebar] URL changed but MindMap building is in progress. Skipping tab refresh. activeTabKey:', activeTabKey);
                     } else {
@@ -302,19 +307,6 @@ export const SidebarApp = () => {
             window.history.replaceState = origReplaceState;
         };
     }, [activeTabKey]);
-
-    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-        if (msg.type === 'get_dom_snapshot') {
-            try {
-                // @ts-ignore: simplifyDOMForLLM may be imported or defined elsewhere
-                const dom = simplifyDOMForLLM(document.body, { includeStyles: true });
-                sendResponse({ dom });
-            } catch (e) {
-                sendResponse({ error: e?.message || 'Failed to simplify DOM' });
-            }
-            return true; // Keep the message channel open for async response
-        }
-    });
 
     return (
         <div className="tc-sidebar" data-testid="tc-ext-sidebar" style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: 8 }}>
@@ -524,15 +516,20 @@ export const SidebarApp = () => {
                                         margin-top: -1px !important;
                                     }
                                 `}</style>
-                                <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><VideoCameraOutlined style={{ marginRight: 6 }} />Record</span>} key="record" style={{ height: '100%' }}>
+                                <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><AuditOutlined style={{ marginRight: 6 }} />Manual</span>} key="manual" style={{ height: '100%' }}>
+                                    <ManualTestTab
+                                        selectedEnvironment={selectedEnvironment}
+                                        selectedRelease={selectedRelease}
+                                    />
+                                </Tabs.TabPane>
+                                <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><CodeOutlined style={{ marginRight: 6 }} />Script Gen</span>} key="record" style={{ height: '100%' }}>
                                     <RecordTestTab />
                                 </Tabs.TabPane>
-                                <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><BugOutlined style={{ marginRight: 6 }} />Bugs</span>} key="bugs" style={{ height: '100%' }}>
-                                    <BugsTab key={activeTabKey === 'bugs' ? tabRefreshKey : undefined} setIsMindMapBuilding={setIsMindMapBuilding} />
-                                </Tabs.TabPane>
-                                <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><AppstoreOutlined style={{ marginRight: 6 }} />Dev</span>} key="dev" style={{ height: '100%' }}>
-                                    <DevTab key={activeTabKey === 'dev' ? tabRefreshKey : undefined} />
-                                </Tabs.TabPane>
+                                {SHOW_BUGS_TAB && (
+                                    <Tabs.TabPane tab={<span style={{ fontSize: 14 }}>Bugs</span>} key="bugs" style={{ height: '100%' }}>
+                                        <BugsTab key={activeTabKey === 'bugs' ? tabRefreshKey : undefined} setIsMindMapBuilding={setIsMindMapBuilding} />
+                                    </Tabs.TabPane>
+                                )}
                                 {SHOW_SCENARIOS_TAB && (
                                     <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><ExperimentOutlined style={{ marginRight: 6 }} />Scenarios</span>} key="scenarios" style={{ height: '100%' }}>
                                         <ScenariosTab key={activeTabKey === 'scenarios' ? tabRefreshKey : undefined} setIsMindMapBuilding={setIsMindMapBuilding} />

@@ -29,58 +29,16 @@ export interface BoundingBoxContext {
 
 export type ContextElement = UIElementContext | BoundingBoxContext;
 
-export interface ScreenInfoContext {
-  screenInfo: ScreenInfo;
-  contextElements: ContextElement[];
-}
-
 export interface ScreenInfo {
   relativeUrl?: string;
   filePaths?: string[];
 }
-
-export interface UserInstructionMessage {
-  type: 'user_instruction';
-  userInstruction: string;
-  infoContext?: ScreenInfoContext;
-  messageId?: string;
-}
-
-export interface AckMessage {
-  type: 'ack_message';
-  messageId: string;
-}
-
-// MCP <-> Extension request/response types
 
 // Console log item structure
 export interface ConsoleLogItem {
   level: string; // e.g., 'log', 'warn', 'error', 'info'
   timestamp: number; // ms since epoch
   message: string;
-}
-
-// Get recent console logs
-export interface GetRecentConsoleLogsRequest {
-  /**
-   * Log level to filter by (e.g., 'log', 'warn', 'error', 'info').
-   * Returns logs at or above the given level (e.g., 'warn' returns 'warn' and 'error').
-   * If omitted, all levels are included.
-   */
-  level?: string;
-  /**
-   * Maximum number of logs to return (most recent first).
-   * If omitted, returns up to the buffer size.
-   */
-  count?: number;
-  /**
-   * Only include logs with a timestamp >= sinceTimestamp (ms since epoch).
-   * If omitted, no time filter is applied.
-   */
-  sinceTimestamp?: number;
-}
-export interface GetRecentConsoleLogsResponse {
-  logs: ConsoleLogItem[];
 }
 
 export enum BugCategory {

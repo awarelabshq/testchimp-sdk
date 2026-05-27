@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
 import { Button, Tooltip, Popover, Popconfirm } from 'antd';
-import { DeleteOutlined, CodeOutlined, CheckCircleOutlined, CloseOutlined, ExclamationCircleOutlined, StopOutlined, BugOutlined } from '@ant-design/icons';
+import { DeleteOutlined, CheckCircleOutlined, CloseOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { AgentTestScenarioWithStatus, TestScenarioStatus, ScenarioTestResult } from '../datas';
-import { getTestChimpIcon } from '../components/getTestChimpIcon';
 import { upsertAgentTestScenario, insertTestScenarioResult } from '../apiService';
-import { useConnectionManager } from '../connectionManager';
-import { formatScenarioTaskForAi } from '../AiMessageUtils';
 
 type ScenarioActionPanelAction =
   | { type: 'delete'; id: string }
-  | { type: 'markTested'; id: string; result?: ScenarioTestResult; resultHistory?: any[] }
-  | { type: 'promptCopiedToIde'; id: string; messageId?: string };
+  | { type: 'markTested'; id: string; result?: ScenarioTestResult; resultHistory?: any[] };
 
 interface ScenarioActionPanelProps {
   scenario: AgentTestScenarioWithStatus;
@@ -48,7 +44,6 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
   }
 
   const [markTestedPopoverOpen, setMarkTestedPopoverOpen] = useState(false);
-  const { vscodeConnected } = useConnectionManager();
 
   // Helper to get the closest card container for popups
   function getCardContainer(trigger: HTMLElement) {
@@ -124,15 +119,6 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
     }
   }
 
-  // Handler for generate script in IDE
-  function handleGenerateScript() {
-    if (!scenario.scenario?.steps?.length) return;
-    const prompt = formatScenarioTaskForAi(scenario);
-    const messageId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).slice(2);
-    chrome.runtime.sendMessage({ type: 'send_to_vscode', payload: { prompt, messageId } });
-    if (onAction) onAction({ type: 'promptCopiedToIde', id: scenario.id || '', messageId });
-  }
-
   return (
     <div
       style={{
@@ -178,18 +164,6 @@ export const ScenarioActionPanel: React.FC<ScenarioActionPanelProps> = ({
                 loading={deleteLoading}
               />
             </Popconfirm>
-          </Tooltip>
-          <Tooltip title={!vscodeConnected ? 'VSCode extension must be installed and started.' : (scenario.scenario?.steps?.length ? 'Generate Script in IDE' : 'Add steps to enable')} placement="top">
-            <span style={{ display: 'inline-block' }}>
-              <Button
-                type="text"
-                size="small"
-                icon={<CodeOutlined />}
-                style={{ color: '#72BDA3', padding: '2px 4px', fontSize: 12 }}
-                onClick={e => { e.stopPropagation(); handleGenerateScript(); }}
-                disabled={!vscodeConnected || !scenario.scenario?.steps?.length}
-              />
-            </span>
           </Tooltip>
           {/* Only show mark as tested if not a suggestion */}
           {!isSuggestion && (

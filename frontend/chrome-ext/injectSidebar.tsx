@@ -4,7 +4,6 @@ import { SidebarApp } from './sidebar';
 import sidebarCss from './sidebar.css';
 import { StyleProvider } from '@ant-design/cssinjs';
 import { ConfigProvider, theme } from 'antd';
-
 // Listen for scenario id and project id from TestChimp app (test planning "Record via extension" flow)
 window.addEventListener('message', (event: MessageEvent) => {
   const data = event.data;
@@ -216,47 +215,12 @@ chrome.storage.local.get(['recordingInProgress', 'forceExpandSidebar'], (result)
   }
 });
 
-// Relay connection_status and similar messages from background to page/sidebar
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  
-    if (msg.type === 'connection_status') {
-        window.postMessage({ type: 'connection_status', ...msg }, '*');
-    }
-});
-
-// Listen for get_connection_status from the page/sidebar and relay to background
-window.addEventListener('message', (event) => {
-    if (event.source !== window) return;
-    if (event.data && event.data.type === 'get_connection_status') {
-        chrome.runtime.sendMessage({ type: 'get_connection_status' }, (resp) => {
-            if (resp && typeof resp.vscodeConnected !== 'undefined' && typeof resp.mcpConnected !== 'undefined') {
-                window.postMessage({ type: 'connection_status', ...resp }, '*');
-            }
-        });
-    }
-});
-
 // Listen for screenshot capture requests from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'capture_screenshot_with_sidebar_hiding') {
         // Import the shared function dynamically
-        import('./screenshotUtils').then(({ captureScreenshotWithSidebarHiding }) => {
-            const captureFunction = () => new Promise<string | undefined>((resolve) => {
-                // Use the windowId passed from the background script
-                const windowId = message.windowId;
-                if (windowId) {
-                    chrome.tabs.captureVisibleTab(windowId, { format: 'jpeg', quality: 60 }, (dataUrl) => {
-                        if (chrome.runtime.lastError) {
-                            console.error('Screenshot capture error:', chrome.runtime.lastError.message);
-                            resolve(undefined);
-                        } else {
-                            resolve(dataUrl ? dataUrl : undefined);
-                        }
-                    });
-                } else {
-                    resolve(undefined);
-                }
-            });
+        import('./screenshotUtils').then(({ captureScreenshotWithSidebarHiding, captureViewportViaPort }) => {
+            const captureFunction = () => captureViewportViaPort();
 
             captureScreenshotWithSidebarHiding(
                 captureFunction,

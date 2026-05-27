@@ -4,6 +4,9 @@ import {
   genFileUploadCommand,
   CapturedStep, generateStepId, AssertionMode, generateAssertion, ElementSnapshot
 } from './playwrightCodegen';
+import { MANUAL_STORAGE_KEYS } from './manualTestStorage';
+import { enqueueManualStepScreenshot } from './manualTestScreenshotHandler';
+import { shouldCaptureScreenshot } from './manualTestStepActions';
 
 // Helper to apply frame context to commands
 function applyFrameContextToCommands(
@@ -356,6 +359,8 @@ const STORAGE_KEYS = {
   CAPTURED_STEPS_WITH_CONTEXT: 'capturedStepsWithContext', // Single source of truth
   CURRENT_URL: 'currentCaptureUrl'
 };
+
+let manualCaptureModeActive = false;
 
 // Memory management constants
 const MAX_CAPTURED_STEPS = 100;
@@ -773,26 +778,50 @@ function emitStep(commands: string[], kind: string, element?: HTMLElement, snaps
     ? capturedSteps[lastContextStepIndex] 
     : undefined;
   
-  if (shouldCaptureContext(step, lastContextStep)) {
+  const shouldCapture = shouldCaptureContext(step, lastContextStep);
+
+  if (shouldCapture) {
     step.context = {
       ...step.context,
-      domContext: capturePageContext(),
       pageUrl: truncateUrl(window.location.href, 200),
       pageTitle: document.title
     };
+    if (!manualCaptureModeActive) {
+      step.context.domContext = capturePageContext();
+    }
     lastContextStepIndex = capturedSteps.length;
   }
   
   // Add to captured steps array
   capturedSteps.push(step);
+  const stepIndex = capturedSteps.length - 1;
   
   // Clean up old contexts to save memory
   cleanupOldContexts();
   
   console.log(`[StepCapture] Emitting step (instance: ${instanceId}):`, step.commands[0], 'ID:', step.id, 'commands:', step.commands.length, 'URL:', location.href, 'relative_timestamp_ms:', step.timestamp, 'capturedSteps.length:', capturedSteps.length);
   
-  // Save step to storage (single source of truth - no need for window.postMessage relay)
+  if (manualCaptureModeActive) {
+    appendManualStep(step, stepIndex);
+    return;
+  }
+
   saveStepToStorage(step);
+}
+
+/** Append manual step to storage; capture one screenshot per Playwright step (top frame only). */
+function appendManualStep(step: CapturedStep, stepIndex: number) {
+  const stepCode = step.commands?.[0] || `step_${stepIndex}`;
+  const stepId = step.id || generateStepId();
+  chrome.storage.local.get([MANUAL_STORAGE_KEYS.CAPTURED_STEPS], (result) => {
+    const existing = result[MANUAL_STORAGE_KEYS.CAPTURED_STEPS] || [];
+    const updated = [...existing, { stepId, stepCode }];
+    chrome.storage.local.set({ [MANUAL_STORAGE_KEYS.CAPTURED_STEPS]: updated }, () => {
+      if (window === window.top && shouldCaptureScreenshot(stepCode)) {
+        enqueueManualStepScreenshot(stepId, stepCode);
+      }
+    });
+  });
 }
 
 function saveStepToStorage(step: CapturedStep) {
@@ -1209,7 +1238,13 @@ function handleDrop(e: DragEvent) {
 
 
 export async function startStepCapture(initialSteps?: CapturedStep[]) {
-  console.log(`[StepCapture] startStepCapture called (instance: ${instanceId}), current state:`, { isCapturing, stepCaptureEnabled, initialGotoStepAdded, hasInitialSteps: !!initialSteps });
+  manualCaptureModeActive = await new Promise<boolean>((resolve) => {
+    chrome.storage.local.get([MANUAL_STORAGE_KEYS.CAPTURE_MODE], (result) => {
+      resolve(!!result[MANUAL_STORAGE_KEYS.CAPTURE_MODE]);
+    });
+  });
+
+  console.log(`[StepCapture] startStepCapture called (instance: ${instanceId}), current state:`, { isCapturing, stepCaptureEnabled, initialGotoStepAdded, hasInitialSteps: !!initialSteps, manualCaptureModeActive });
   if (isCapturing) {
     console.log(`[StepCapture] Already capturing (instance: ${instanceId}), ignoring start request`);
     return;
@@ -1238,6 +1273,15 @@ export async function startStepCapture(initialSteps?: CapturedStep[]) {
     initialGotoStepAdded = true;
     lastEmittedSteps.clear();
     recentStepEmissions.clear();
+
+    if (manualCaptureModeActive && window === window.top) {
+      const first = initialSteps[0];
+      const stepId = first.id || generateStepId();
+      const stepCode = first.commands?.[0] || '';
+      if (stepCode && shouldCaptureScreenshot(stepCode)) {
+        enqueueManualStepScreenshot(stepId, stepCode);
+      }
+    }
 
     // Reset storage for the new session but with preserved steps
     chrome.storage.local.set({

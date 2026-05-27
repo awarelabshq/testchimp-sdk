@@ -1,6 +1,5 @@
 import { BugSeverity } from '../datas';
 import { BugCategory, Bug } from '../datas';
-import { formatBugTaskForAi } from '../AiMessageUtils';
 
 export const CATEGORY_COLORS: Record<string, string> = {
   "UNKNOWN_BUG_CATEGORY": "#d45c57", // muted brand base

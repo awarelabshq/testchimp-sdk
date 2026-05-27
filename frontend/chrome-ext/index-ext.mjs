@@ -725,7 +725,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === 'stop_step_capture') {
       window._stepCaptureActive = false;
       stopStepCapture();
-      window.postMessage({ type: 'tc-show-sidebar' }, '*');
+      // Manual capture keeps sidebar collapsed until finish flow explicitly restores it.
+      chrome.storage.local.get(['manualCaptureInProgress'], (result) => {
+        if (!result.manualCaptureInProgress) {
+          window.postMessage({ type: 'tc-show-sidebar' }, '*');
+        }
+      });
       if (sendResponse) sendResponse({ success: true });
     } else if (message.action === 'resume_step_capture') {
       window._stepCaptureActive = true;
@@ -743,6 +748,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (sendResponse) sendResponse({ success: false, error: error.message });
       });
       return true; // Keep message channel open for async response
+    } else if (message.type === 'wait_manual_screenshot_queue') {
+      import('./manualTestScreenshotHandler.ts').then((module) => {
+        module.waitForManualCaptureQueue().then(() => {
+          if (sendResponse) sendResponse({ ok: true });
+        });
+      }).catch((err) => {
+        console.error('[ContentScript] wait_manual_screenshot_queue failed:', err);
+        if (sendResponse) sendResponse({ ok: false, error: err?.message });
+      });
+      return true;
     } else if (message.action === 'set_assertion_mode') {
       // Import and call the assertion mode setter
       import('./stepCaptureHandler.ts').then(module => {
@@ -988,27 +1003,6 @@ window.addEventListener("message", (event) => {
 
 });
 
-
-// Relay host page console logs to background
-window.addEventListener('message', function (event) {
-  if (
-    event.source === window &&
-    event.data &&
-    event.data.type === 'testchimp-host-console-log'
-  ) {
-    chrome.runtime.sendMessage({
-      type: 'host_console_log',
-      logType: event.data.logType,
-      log: event.data.log,
-      timestamp: event.data.timestamp
-    }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error('Error sending console log to background:', chrome.runtime.lastError.message);
-      }
-    });
-    return true;
-  }
-});
 
 async function checkAndStartRecording() {
 
