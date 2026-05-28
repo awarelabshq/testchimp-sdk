@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Select, Typography, Popover, message, Collapse, Spin } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import { Button, Select, Typography, Popover, message, Collapse, Spin, Tooltip } from 'antd';
+import {
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  StopOutlined,
+} from '@ant-design/icons';
 import {
   listAgentTestScenarios,
   listGithubBranches,
@@ -61,11 +67,11 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [scenarios, setScenarios] = useState<AgentTestScenarioWithStatus[]>([]);
-  const [scenarioSearch, setScenarioSearch] = useState('');
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | undefined>();
   const [branches, setBranches] = useState<GithubBranchItem[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<number | undefined>();
   const [branchesLoading, setBranchesLoading] = useState(false);
+  const [scenariosLoading, setScenariosLoading] = useState(false);
   const [captureActive, setCaptureActive] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -87,30 +93,54 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   const noteTextTrimmed = noteText.trim();
   const canAddNote = noteTextTrimmed.length > 0 && !addingNote && !submitting;
 
-  const loadScenarios = useCallback(async (title?: string) => {
-    const res = await listAgentTestScenarios({ priorities: [], screenStates: [], title });
-    setScenarios(res.scenarios || []);
+  const loadScenarios = useCallback(async () => {
+    setScenariosLoading(true);
+    try {
+      const res = await listAgentTestScenarios({ priorities: [], screenStates: [], title: undefined });
+      const sorted = (res.scenarios || [])
+        .slice()
+        .sort((a, b) =>
+          scenarioLabel(a).localeCompare(scenarioLabel(b), undefined, { sensitivity: 'base' })
+        );
+      setScenarios(sorted);
+    } catch {
+      setScenarios([]);
+    } finally {
+      setScenariosLoading(false);
+    }
   }, []);
 
-  const loadBranches = useCallback(async () => {
+  const loadBranches = useCallback(async (options?: { preserveSelection?: boolean }) => {
     setBranchesLoading(true);
     try {
       const res = await listGithubBranches();
-      setBranches(res.branches || []);
-      const defaultBranch = (res.branches || []).find(
-        (b) => b.isDefault || b.name === res.defaultBranch
-      );
-      if (defaultBranch?.branchId ?? defaultBranch?.id) {
-        setSelectedBranchId(defaultBranch.branchId ?? defaultBranch.id);
-      } else if (res.selectedBranchId) {
-        setSelectedBranchId(res.selectedBranchId);
-      }
+      const list = res.branches || [];
+      setBranches(list);
+      setSelectedBranchId((current) => {
+        if (options?.preserveSelection && current != null) {
+          const stillValid = list.some((b) => (b.branchId ?? b.id) === current);
+          if (stillValid) return current;
+        }
+        const defaultBranch = list.find((b) => b.isDefault || b.name === res.defaultBranch);
+        if (defaultBranch?.branchId ?? defaultBranch?.id) {
+          return defaultBranch.branchId ?? defaultBranch.id;
+        }
+        if (res.selectedBranchId) {
+          return res.selectedBranchId;
+        }
+        return undefined;
+      });
     } catch {
       setBranches([]);
     } finally {
       setBranchesLoading(false);
     }
   }, []);
+
+  const openCreateForm = () => {
+    setShowForm(true);
+    loadScenarios();
+  };
 
   const refreshCapturedSteps = useCallback(() => {
     getManualCapturedSteps().then(setCapturedSteps);
@@ -121,7 +151,6 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   }, []);
 
   useEffect(() => {
-    loadScenarios();
     loadBranches();
     getPastRecordings().then(setPastRecordings);
     chrome.storage.local.get(
@@ -139,7 +168,7 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
         }
       }
     );
-  }, [loadScenarios, loadBranches, refreshCapturedSteps, collapseSidebar]);
+  }, [loadBranches, refreshCapturedSteps, collapseSidebar]);
 
   useEffect(() => {
     if (!captureActive) return;
@@ -156,13 +185,6 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
     refreshCapturedSteps();
     return () => chrome.storage.onChanged.removeListener(onChanged);
   }, [captureActive, refreshCapturedSteps]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadScenarios(scenarioSearch || undefined);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [scenarioSearch, loadScenarios]);
 
   useEffect(() => {
     if (!successLink) return;
@@ -302,6 +324,25 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
     }
   };
 
+  const cancelCapture = async () => {
+    setEndPopoverOpen(false);
+    setShowForm(false);
+    try {
+      await stopCapture({ restoreSidebar: true });
+      await teardownManualCaptureSession();
+      setCapturedSteps([]);
+      setStatusMessage(null);
+      setSuccessLink(null);
+      message.info('Capture cancelled');
+    } catch (e: unknown) {
+      const err = e instanceof Error ? e.message : 'Failed to cancel capture';
+      message.error(err);
+    } finally {
+      setCaptureActive(false);
+      setShowForm(false);
+    }
+  };
+
   const finishWithResult = async (passed: boolean) => {
     setEndPopoverOpen(false);
     setSubmitting(true);
@@ -374,6 +415,7 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
       setCapturedSteps([]);
       setStatusMessage(null);
       setSubmitting(false);
+      setShowForm(false);
     }
   };
 
@@ -395,13 +437,21 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
       >
         Mark as failed
       </Button>
+      <Button
+        type="text"
+        icon={<StopOutlined style={{ color: '#888' }} />}
+        onClick={cancelCapture}
+        style={{ textAlign: 'left' }}
+      >
+        Cancel capture
+      </Button>
     </div>
   );
 
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12, height: '100%' }}>
       {!showForm && !captureActive && (
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowForm(true)} block>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateForm} block>
           Create Manual Test Record
         </Button>
       )}
@@ -483,29 +533,62 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
           <>
             <div>
               <Text style={{ color: '#aaa', fontSize: 12 }}>Test scenario</Text>
-              <Select
-                showSearch
-                filterOption={false}
-                onSearch={setScenarioSearch}
-                placeholder="Search scenarios"
-                options={scenarioOptions}
-                value={selectedScenarioId}
-                onChange={setSelectedScenarioId}
-                style={{ width: '100%', marginTop: 4 }}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, minWidth: 0 }}>
+                <Tooltip
+                  title={
+                    scenarioOptions.find((o) => o.value === selectedScenarioId)?.label ??
+                    undefined
+                  }
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Select
+                      showSearch
+                      optionFilterProp="label"
+                      placeholder="Search scenarios"
+                      options={scenarioOptions}
+                      value={selectedScenarioId}
+                      onChange={setSelectedScenarioId}
+                      loading={scenariosLoading}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </Tooltip>
+                <Tooltip title="Refresh scenarios">
+                  <Button
+                    type="text"
+                    icon={<ReloadOutlined />}
+                    loading={scenariosLoading}
+                    onClick={() => loadScenarios()}
+                    aria-label="Refresh scenarios"
+                  />
+                </Tooltip>
+              </div>
             </div>
             <div>
               <Text style={{ color: '#aaa', fontSize: 12 }}>Git branch</Text>
-              <Select
-                showSearch
-                placeholder={hasRepo ? 'Select branch' : 'No repo connected'}
-                options={branchOptions}
-                value={selectedBranchId}
-                onChange={(v) => setSelectedBranchId(v)}
-                disabled={!hasRepo || branchesLoading}
-                loading={branchesLoading}
-                style={{ width: '100%', marginTop: 4 }}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, minWidth: 0 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Select
+                    showSearch
+                    placeholder={hasRepo ? 'Select branch' : 'No repo connected'}
+                    options={branchOptions}
+                    value={selectedBranchId}
+                    onChange={(v) => setSelectedBranchId(v)}
+                    disabled={!hasRepo || branchesLoading}
+                    loading={branchesLoading}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <Tooltip title="Refresh branches">
+                  <Button
+                    type="text"
+                    icon={<ReloadOutlined />}
+                    loading={branchesLoading}
+                    onClick={() => loadBranches({ preserveSelection: true })}
+                    aria-label="Refresh branches"
+                  />
+                </Tooltip>
+              </div>
             </div>
             <Button
               type="primary"

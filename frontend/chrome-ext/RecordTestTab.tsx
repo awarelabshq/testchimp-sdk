@@ -605,42 +605,44 @@ export const RecordTestTab: React.FC = () => {
     }
   };
 
+  const primaryCaptureButtonStyle = {
+    backgroundColor: '#72BDA3',
+    borderColor: '#72BDA3',
+    color: '#fff',
+  } as const;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', minHeight: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', minHeight: 0, padding: 12 }}>
       {/* Control Area - Always at the top */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
         {!isCapturing && !showCreateForm ? (
           <>
-            {/* Start Step Capture Button - Centered Split Button */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
-              <Button 
-                type="primary" 
-                size="small" 
+            {/* Start Step Capture — full-width split button (aligned with Manual tab CTA) */}
+            <div style={{ display: 'flex', width: '100%' }}>
+              <Button
+                type="primary"
+                icon={<PlayCircleOutlined />}
                 onClick={startNewCapture}
-                style={{ 
-                  backgroundColor: '#72BDA3', 
-                  borderColor: '#72BDA3', 
-                  color: '#fff', 
-                  borderTopRightRadius: 0, 
+                style={{
+                  ...primaryCaptureButtonStyle,
+                  flex: 1,
+                  borderTopRightRadius: 0,
                   borderBottomRightRadius: 0,
-                  marginRight: '1px'
                 }}
               >
                 Start Step Capture
               </Button>
               <Dropdown menu={{ items: startOptions }} trigger={['click']}>
-                <Button 
-                  type="primary" 
-                  size="small" 
+                <Button
+                  type="primary"
                   icon={<DownOutlined />}
-                  style={{ 
-                    backgroundColor: '#72BDA3', 
-                    borderColor: '#72BDA3', 
-                    color: '#fff', 
-                    borderTopLeftRadius: 0, 
+                  style={{
+                    ...primaryCaptureButtonStyle,
+                    borderTopLeftRadius: 0,
                     borderBottomLeftRadius: 0,
-                    width: '24px',
-                    padding: 0
+                    flexShrink: 0,
+                    width: 32,
+                    padding: 0,
                   }}
                 />
               </Dropdown>
@@ -709,16 +711,14 @@ export const RecordTestTab: React.FC = () => {
             )}
           </>
         ) : isCapturing ? (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <Button 
-              danger 
-              size="small" 
-              onClick={onStop}
-              style={{ backgroundColor: '#ff6b65', borderColor: '#ff6b65', color: '#fff', marginTop: '20px' }}
-            >
-              End Step Capture
-            </Button>
-          </div>
+          <Button
+            danger
+            onClick={onStop}
+            block
+            style={{ backgroundColor: '#ff6b65', borderColor: '#ff6b65', color: '#fff' }}
+          >
+            End Step Capture
+          </Button>
         ) : null}
 
         {/* Assertion Mode Control Panel - Only show when capturing */}
@@ -890,7 +890,7 @@ export const RecordTestTab: React.FC = () => {
       )}
       {/* Status bar: always at the bottom */}
       <div className={"fade-in-slide-up"} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', background: '#181818', padding: '8px 4px 4px 4px', borderRadius: 0, borderTop: '1px solid #222', minHeight: 22, fontSize: 12, marginTop: 'auto', flexShrink: 0 }}>
-        <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none' }}>v1.0.23</a>
+        <a href="https://testchimp.io/documentation-chrome-extension/" target="_blank" rel="noopener noreferrer" style={{ color: '#aaa', fontSize: 12, textDecoration: 'none' }}>v1.0.24</a>
       </div>
     </div>
   );
