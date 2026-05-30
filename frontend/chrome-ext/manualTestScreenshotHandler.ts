@@ -19,12 +19,18 @@ function enqueueCapture(task: () => Promise<void>): void {
   });
 }
 
-async function captureAndCache(stepId: string, stepCode: string, skipDomStability: boolean): Promise<boolean> {
+async function captureAndCache(
+  stepId: string,
+  stepCode: string,
+  skipDomStability: boolean,
+  keepSidebarHidden = true,
+  showCaptureBanner = false
+): Promise<boolean> {
   if (!skipDomStability && shouldWaitForDomStability(stepCode)) {
     await waitForDomStability();
   }
-  // Keep sidebar collapsed after capture; user expands manually to add notes.
-  const dataUrl = await captureManualTestStepScreenshot({ keepSidebarHidden: true });
+  // Auto step captures keep the sidebar hidden; user-initiated note/bug captures restore it.
+  const dataUrl = await captureManualTestStepScreenshot({ keepSidebarHidden, showCaptureBanner });
   if (!dataUrl) {
     console.warn('[ManualTest] capture empty for step', stepCode || stepId);
     return false;
@@ -42,13 +48,23 @@ export function enqueueManualStepScreenshot(stepId: string, stepCode: string): v
 /** Immediate capture for note add / finish; serialized through the same queue. */
 export function captureManualScreenshotNow(
   stepId: string,
-  options?: { skipDomStability?: boolean; stepCode?: string }
+  options?: {
+    skipDomStability?: boolean;
+    stepCode?: string;
+    /** Re-expand sidebar after capture (e.g. user clicked Add bug/note from the panel). */
+    restoreSidebarAfterCapture?: boolean;
+  }
 ): Promise<boolean> {
   const skipDomStability = options?.skipDomStability ?? true;
   const stepCode = options?.stepCode ?? '';
+  const userInitiated = !!options?.restoreSidebarAfterCapture;
+  const keepSidebarHidden = !userInitiated;
+  const showCaptureBanner = userInitiated;
   return new Promise((resolve) => {
     enqueueCapture(async () => {
-      resolve(await captureAndCache(stepId, stepCode, skipDomStability));
+      resolve(
+        await captureAndCache(stepId, stepCode, skipDomStability, keepSidebarHidden, showCaptureBanner)
+      );
     });
   });
 }

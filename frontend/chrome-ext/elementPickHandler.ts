@@ -234,6 +234,8 @@ function onBoxUp(e: MouseEvent): void {
         },
         '*'
       );
+    } else {
+      window.postMessage({ type: 'tc-show-sidebar' }, '*');
     }
     if (boxOverlay.parentNode) {
       boxOverlay.parentNode.removeChild(boxOverlay);

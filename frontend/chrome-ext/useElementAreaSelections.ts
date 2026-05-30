@@ -43,6 +43,7 @@ export function useElementAreaSelections(options?: { maxSelections?: number }) {
   useEffect(() => {
     if (currentMode === 'select') {
       window.postMessage({ type: 'startElementSelect' }, '*');
+      window.postMessage({ type: 'tc-hide-sidebar' }, '*');
     } else if (currentMode === 'box') {
       window.postMessage({ type: 'startBoxDraw' }, '*');
       window.postMessage({ type: 'tc-hide-sidebar' }, '*');

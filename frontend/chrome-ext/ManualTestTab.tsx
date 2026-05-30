@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Select, Typography, Popover, message, Collapse, Spin, Tooltip, Tabs, Segmented, Input } from 'antd';
+import { Button, Select, Typography, Popover, message, Collapse, Spin, Tooltip, Tabs, Segmented, Input, Alert } from 'antd';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -91,6 +91,10 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   const [addingNote, setAddingNote] = useState(false);
   const [addingBug, setAddingBug] = useState(false);
   const [annotationTab, setAnnotationTab] = useState<'note' | 'bug'>('note');
+  const [annotationFeedback, setAnnotationFeedback] = useState<{
+    type: 'success' | 'warning' | 'error';
+    text: string;
+  } | null>(null);
   const [screenStates, setScreenStates] = useState<ScreenStates[]>([]);
   const [selectedScreen, setSelectedScreen] = useState<string | undefined>();
   const [selectedState, setSelectedState] = useState<string | undefined>();
@@ -252,6 +256,12 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
     return () => clearTimeout(timer);
   }, [successLink]);
 
+  useEffect(() => {
+    if (!annotationFeedback) return;
+    const timer = setTimeout(() => setAnnotationFeedback(null), 6000);
+    return () => clearTimeout(timer);
+  }, [annotationFeedback]);
+
   const scenarioOptions = useMemo(
     () =>
       scenarios.map((s) => ({
@@ -357,19 +367,19 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   const captureScreenshotForLatestStepIfNeeded = async (
     latest: ManualCapturedStep,
     hasBoundingBox: boolean
-  ) => {
+  ): Promise<'captured' | 'failed' | 'skipped'> => {
     const cache = await getManualScreenshots();
     const needsCapture = !cache[latest.stepId];
     const needsReshoot = hasBoundingBox;
-    if (needsCapture || needsReshoot) {
-      const ok = await captureManualScreenshotNow(latest.stepId, {
-        skipDomStability: true,
-        stepCode: latest.stepCode,
-      });
-      if (!ok) {
-        message.warning('Screenshot capture failed; saved without image.');
-      }
+    if (!needsCapture && !needsReshoot) {
+      return 'skipped';
     }
+    const ok = await captureManualScreenshotNow(latest.stepId, {
+      skipDomStability: true,
+      stepCode: latest.stepCode,
+      restoreSidebarAfterCapture: true,
+    });
+    return ok ? 'captured' : 'failed';
   };
 
   const handleAddNote = async () => {
@@ -387,13 +397,24 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
     const note = { text: noteTextTrimmed, boundingBox };
 
     setAddingNote(true);
+    setAnnotationFeedback(null);
     try {
-      await captureScreenshotForLatestStepIfNeeded(latest, !!boundingBox);
+      const captureResult = await captureScreenshotForLatestStepIfNeeded(latest, !!boundingBox);
       await appendNoteToLatestStep(note);
-      message.success('Note added to latest step');
       setNoteText('');
       clearSelections();
       refreshCapturedSteps();
+      if (captureResult === 'failed') {
+        setAnnotationFeedback({
+          type: 'warning',
+          text: 'Note added to latest step. Screenshot capture failed.',
+        });
+      } else {
+        setAnnotationFeedback({
+          type: 'success',
+          text: 'Note added to latest step.',
+        });
+      }
     } finally {
       setAddingNote(false);
     }
@@ -412,13 +433,27 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
     const hasBoundingBox = boundingBoxes.length > 0;
 
     setAddingBug(true);
+    setAnnotationFeedback(null);
     try {
-      await captureScreenshotForLatestStepIfNeeded(latest, hasBoundingBox);
+      const captureResult = await captureScreenshotForLatestStepIfNeeded(latest, hasBoundingBox);
       await appendBugToLatestStep({ bug: values.bug, assignee: values.assignee });
-      message.success('Bug added to latest step');
       refreshCapturedSteps();
+      if (captureResult === 'failed') {
+        setAnnotationFeedback({
+          type: 'warning',
+          text: 'Bug added to latest step. Screenshot capture failed.',
+        });
+      } else {
+        setAnnotationFeedback({
+          type: 'success',
+          text: 'Bug added to latest step.',
+        });
+      }
     } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Failed to add bug');
+      setAnnotationFeedback({
+        type: 'error',
+        text: e instanceof Error ? e.message : 'Failed to add bug',
+      });
       throw e;
     } finally {
       setAddingBug(false);
@@ -666,6 +701,16 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
           </section>
 
           <section style={{ ...sectionStyle, flexShrink: 0 }}>
+            {annotationFeedback && (
+              <Alert
+                type={annotationFeedback.type}
+                message={annotationFeedback.text}
+                showIcon
+                closable
+                onClose={() => setAnnotationFeedback(null)}
+                style={{ marginBottom: 8 }}
+              />
+            )}
             <Tabs
               activeKey={annotationTab}
               onChange={(key) => setAnnotationTab(key as 'note' | 'bug')}

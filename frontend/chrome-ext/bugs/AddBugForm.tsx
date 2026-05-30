@@ -100,6 +100,7 @@ export const AddBugForm: React.FC<AddBugFormProps> = ({
       ]);
     }
     setCurrentMode('normal');
+    window.postMessage({ type: 'tc-show-sidebar' }, '*');
   });
 
   useEffect(() => {
@@ -123,7 +124,10 @@ export const AddBugForm: React.FC<AddBugFormProps> = ({
     window.addEventListener('message', onPageMessage);
 
     function onAnyClick() {
-      if (currentMode === 'box') setCurrentMode('normal');
+      if (currentMode === 'box') {
+        setCurrentMode('normal');
+        window.postMessage({ type: 'tc-show-sidebar' }, '*');
+      }
     }
     if (currentMode === 'box') {
       window.addEventListener('mousedown', onAnyClick, true);
@@ -138,6 +142,7 @@ export const AddBugForm: React.FC<AddBugFormProps> = ({
   useEffect(() => {
     if (currentMode === 'select') {
       window.postMessage({ type: 'startElementSelect' }, '*');
+      window.postMessage({ type: 'tc-hide-sidebar' }, '*');
     } else if (currentMode === 'box') {
       window.postMessage({ type: 'startBoxDraw' }, '*');
       window.postMessage({ type: 'tc-hide-sidebar' }, '*');
