@@ -43,7 +43,6 @@ function createSidebar(initiallyExpanded: boolean) {
   let host = document.getElementById(containerId);
 
   if (host) {
-    host.setAttribute('data-rrweb-ignore', 'true');
     host.style.transform = initiallyExpanded ? 'translateX(0)' : `translateX(${sidebarWidth}px)`;
     isVisible = initiallyExpanded;
     return;
@@ -51,7 +50,6 @@ function createSidebar(initiallyExpanded: boolean) {
 
   host = document.createElement('div');
   host.id = containerId;
-  host.setAttribute('data-rrweb-ignore', 'true');
 
   Object.assign(host.style, {
     position: 'fixed',
@@ -75,8 +73,6 @@ function createSidebar(initiallyExpanded: boolean) {
 
   const styleTag = document.createElement('style');
   styleTag.textContent = sidebarCss;
-  shadowRoot.host.setAttribute('data-rrweb-ignore', 'true');
-  shadowContainer.setAttribute('data-rrweb-ignore', 'true');
   shadowRoot.appendChild(styleTag);
 
   const antdReset = document.createElement('link');
@@ -123,7 +119,6 @@ function createToggleButton(initialVisible: boolean) {
 
   const btn = document.createElement('button');
   btn.id = toggleButtonId;
-  btn.setAttribute('data-rrweb-ignore', 'true');
   btn.dataset.visible = String(initialVisible);
 
   Object.assign(btn.style, {
@@ -197,20 +192,19 @@ window.addEventListener('message', (event) => {
   }
 });
 
-chrome.storage.local.get(['recordingInProgress', 'forceExpandSidebar'], (result) => {
-  // Expand if forceExpandSidebar is set or recordingInProgress is true, otherwise default to hidden
-  const initiallyExpanded = !!result.forceExpandSidebar || !!result.recordingInProgress;
+chrome.storage.local.get(['forceExpandSidebar', 'stepCaptureInProgress', 'manualCaptureInProgress'], (result) => {
+  const initiallyExpanded =
+    !!result.forceExpandSidebar ||
+    !!result.stepCaptureInProgress ||
+    !!result.manualCaptureInProgress;
 
-  // Clear the flag so it only affects the first open
   if (result.forceExpandSidebar) {
     chrome.storage.local.remove('forceExpandSidebar');
   }
 
   createSidebar(initiallyExpanded);
-  
-  // Only create toggle button if recording is in progress or sidebar is forced to expand
-  // This prevents the arrow from showing when extension action hasn't been clicked
-  if (result.recordingInProgress || result.forceExpandSidebar) {
+
+  if (initiallyExpanded) {
     createToggleButton(initiallyExpanded);
   }
 });

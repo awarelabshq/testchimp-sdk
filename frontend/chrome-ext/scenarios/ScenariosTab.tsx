@@ -83,6 +83,11 @@ export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding
       .catch(() => setInitLoading(false));
   }, [fetchScreenForCurrentPage]);
 
+  const refreshScreenStates = useCallback(async () => {
+    const data = await getScreenStates();
+    setScreenStates(data.screenStates || []);
+  }, []);
+
   // Fetch screen states on mount
   useEffect(() => {
     fetchScreenStates();
@@ -356,8 +361,7 @@ export const ScenariosTab: React.FC<ScenariosTabProps> = ({ setIsMindMapBuilding
             setSelectedScreen={setSelectedScreen}
             selectedState={selectedState}
             setSelectedState={setSelectedState}
-            onAddScreen={() => setShowMindMapUpdate({ show: true })}
-            onAddState={() => setShowMindMapUpdate({ show: true, initialScreen: selectedScreen })}
+            onScreenStatesRefresh={refreshScreenStates}
           />
           {/* Row 2: Search and Priority on same row */}
           <Row gutter={8} style={{ marginBottom: 12 }} className="fade-in">

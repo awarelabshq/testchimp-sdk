@@ -1,4 +1,4 @@
-import type { BoundingBox } from './datas';
+import type { BoundingBox, Bug } from './datas';
 import { clearManualScreenshotCache } from './manualScreenshotCache';
 import { resetManualCaptureQueue } from './manualTestScreenshotHandler';
 
@@ -10,9 +10,13 @@ export const MANUAL_STORAGE_KEYS = {
   PAST_RECORDINGS: 'manualTestPastRecordings',
 } as const;
 
+export type ManualCaptureMode = 'scenario' | 'open_ended';
+
 export interface ManualCaptureSessionMeta {
-  scenarioId: string;
+  mode: ManualCaptureMode;
+  scenarioId?: string;
   scenarioTitle?: string;
+  objective?: string;
   branchId?: number;
   environment?: string;
   release?: string;
@@ -23,10 +27,16 @@ export interface ManualTestNote {
   boundingBox?: BoundingBox;
 }
 
+export interface ManualTestStepBug {
+  bug: Bug;
+  assignee?: string;
+}
+
 export interface ManualCapturedStep {
   stepId: string;
   stepCode: string;
   notes?: ManualTestNote[];
+  bugs?: ManualTestStepBug[];
   screenshotUrl?: string;
 }
 
@@ -55,6 +65,14 @@ export async function appendNoteToLatestStep(note: ManualTestNote): Promise<void
   if (steps.length === 0) return;
   const last = steps[steps.length - 1];
   steps[steps.length - 1] = { ...last, notes: [...(last.notes || []), note] };
+  await setManualCapturedSteps(steps);
+}
+
+export async function appendBugToLatestStep(stepBug: ManualTestStepBug): Promise<void> {
+  const steps = await getManualCapturedSteps();
+  if (steps.length === 0) return;
+  const last = steps[steps.length - 1];
+  steps[steps.length - 1] = { ...last, bugs: [...(last.bugs || []), stepBug] };
   await setManualCapturedSteps(steps);
 }
 

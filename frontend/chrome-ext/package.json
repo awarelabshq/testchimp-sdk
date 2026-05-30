@@ -1,6 +1,6 @@
 {
   "name": "testchimp-chrome-ext",
-  "version": "1.0.24",
+  "version": "1.0.25",
   "description": "TestChimp Chrome Ext",
   "main": "dist/testchimp-sdk.js",
   "types": "dist/testchimp-js.d.ts",
@@ -9,9 +9,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "webpack --config webpack.config-ext.js && webpack --config webpack.rrweb.config.js",
+    "build": "webpack --config webpack.config-ext.js",
     "build:main": "webpack --config webpack.config-ext.js",
-    "build:rrweb": "webpack --config webpack.rrweb.config.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -25,18 +24,11 @@
   "license": "LGPL-3.0-or-later",
   "dependencies": {
     "@ant-design/cssinjs": "^1.23.0",
-    "@mswjs/interceptors": "^0.29.0",
-    "@types/react": "^19.1.2",
     "@types/react-syntax-highlighter": "^15.5.13",
     "antd": "^5.24.9",
-    "css-loader": "^7.1.2",
-    "msw": "^2.3.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-syntax-highlighter": "^15.6.6",
-    "refractor": "^5.0.0",
-    "rrweb": "^2.0.0-alpha.15",
-    "style-loader": "^4.0.0"
+    "react-syntax-highlighter": "^15.6.6"
   },
   "devDependencies": {
     "@babel/core": "^7.24.5",
@@ -44,6 +36,7 @@
     "@babel/preset-react": "^7.27.1",
     "@babel/preset-typescript": "^7.27.1",
     "@types/chrome": "^0.0.317",
+    "@types/react": "^19.1.2",
     "babel-loader": "^9.1.3",
     "copy-webpack-plugin": "^12.0.2",
     "raw-loader": "^4.0.2",

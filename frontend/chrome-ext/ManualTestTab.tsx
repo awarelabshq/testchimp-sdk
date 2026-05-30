@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Select, Typography, Popover, message, Collapse, Spin, Tooltip } from 'antd';
+import { Button, Select, Typography, Popover, message, Collapse, Spin, Tooltip, Tabs, Segmented, Input } from 'antd';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -11,13 +11,16 @@ import {
   listAgentTestScenarios,
   listGithubBranches,
   insertManualTestRecord,
+  getScreenStates,
+  getScreenForPage,
   GithubBranchItem,
 } from './apiService';
-import { AgentTestScenarioWithStatus } from './datas';
+import { AgentTestScenarioWithStatus, ScreenStates } from './datas';
 import { UI_BASE_URL } from './config';
 import {
   MANUAL_STORAGE_KEYS,
   ManualCaptureSessionMeta,
+  ManualCaptureMode,
   ManualCapturedStep,
   appendPastRecording,
   teardownManualCaptureSession,
@@ -25,6 +28,7 @@ import {
   getPastRecordings,
   ManualTestPastRecording,
   appendNoteToLatestStep,
+  appendBugToLatestStep,
 } from './manualTestStorage';
 import { buildManualInsertSteps } from './manualTestFinish';
 import { uploadManualTestScreenshots } from './manualTestUpload';
@@ -35,6 +39,8 @@ import {
 } from './manualTestScreenshotHandler';
 import { generateStepId, genGotoCommand } from './playwrightCodegen';
 import { AnnotationInputSection } from './components/AnnotationInputSection';
+import { ScreenStateSelector } from './components/ScreenStateSelector';
+import { AddBugForm } from './bugs/AddBugForm';
 import { useElementAreaSelections } from './useElementAreaSelections';
 import type { CapturedStep } from './playwrightCodegen';
 
@@ -66,6 +72,8 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   selectedRelease,
 }) => {
   const [showForm, setShowForm] = useState(false);
+  const [captureMode, setCaptureMode] = useState<ManualCaptureMode>('scenario');
+  const [objective, setObjective] = useState('');
   const [scenarios, setScenarios] = useState<AgentTestScenarioWithStatus[]>([]);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | undefined>();
   const [branches, setBranches] = useState<GithubBranchItem[]>([]);
@@ -81,6 +89,12 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   const [capturedSteps, setCapturedSteps] = useState<ManualCapturedStep[]>([]);
   const [noteText, setNoteText] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [addingBug, setAddingBug] = useState(false);
+  const [annotationTab, setAnnotationTab] = useState<'note' | 'bug'>('note');
+  const [screenStates, setScreenStates] = useState<ScreenStates[]>([]);
+  const [selectedScreen, setSelectedScreen] = useState<string | undefined>();
+  const [selectedState, setSelectedState] = useState<string | undefined>();
+  const [screenStatesLoading, setScreenStatesLoading] = useState(false);
 
   const {
     selections: noteSelections,
@@ -91,7 +105,35 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   } = useElementAreaSelections({ maxSelections: 1 });
 
   const noteTextTrimmed = noteText.trim();
-  const canAddNote = noteTextTrimmed.length > 0 && !addingNote && !submitting;
+  const objectiveTrimmed = objective.trim();
+  const canAddNote = noteTextTrimmed.length > 0 && !addingNote && !submitting && !addingBug;
+  const canStartCapture =
+    captureMode === 'scenario'
+      ? !!selectedScenarioId && !submitting
+      : objectiveTrimmed.length > 0 && !submitting;
+
+  const loadScreenStates = useCallback(async () => {
+    setScreenStatesLoading(true);
+    try {
+      const data = await getScreenStates();
+      setScreenStates(data.screenStates || []);
+    } catch {
+      setScreenStates([]);
+    } finally {
+      setScreenStatesLoading(false);
+    }
+  }, []);
+
+  const fetchScreenForCurrentPage = useCallback(async () => {
+    try {
+      const res = await getScreenForPage({ url: window.location.href });
+      if (res.screenName) {
+        setSelectedScreen(res.screenName);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const loadScenarios = useCallback(async () => {
     setScenariosLoading(true);
@@ -161,14 +203,32 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
           setShowForm(true);
           collapseSidebar();
           const meta = items[MANUAL_STORAGE_KEYS.SESSION_META] as ManualCaptureSessionMeta | undefined;
-          if (meta?.scenarioId) {
-            setSelectedScenarioId(meta.scenarioId);
+          if (meta?.mode === 'open_ended') {
+            setCaptureMode('open_ended');
+            setObjective(meta.objective || '');
+          } else {
+            setCaptureMode('scenario');
+            if (meta?.scenarioId) {
+              setSelectedScenarioId(meta.scenarioId);
+            }
           }
           refreshCapturedSteps();
+          loadScreenStates().then(() => fetchScreenForCurrentPage());
         }
       }
     );
-  }, [loadBranches, refreshCapturedSteps, collapseSidebar]);
+  }, [loadBranches, refreshCapturedSteps, collapseSidebar, loadScreenStates, fetchScreenForCurrentPage]);
+
+  useEffect(() => {
+    if (!captureActive) return;
+    loadScreenStates().then(() => fetchScreenForCurrentPage());
+  }, [captureActive, loadScreenStates, fetchScreenForCurrentPage]);
+
+  useEffect(() => {
+    if (!selectedScreen) {
+      setSelectedState(undefined);
+    }
+  }, [selectedScreen]);
 
   useEffect(() => {
     if (!captureActive) return;
@@ -213,17 +273,27 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   const hasRepo = branches.length > 0;
 
   const startCapture = async () => {
-    if (!selectedScenarioId) {
+    if (captureMode === 'scenario' && !selectedScenarioId) {
       message.error('Select a test scenario');
       return;
     }
+    if (captureMode === 'open_ended' && !objectiveTrimmed) {
+      message.error('Enter an objective');
+      return;
+    }
+
     const scenario = scenarios.find((s) => s.id === selectedScenarioId);
     const meta: ManualCaptureSessionMeta = {
-      scenarioId: selectedScenarioId,
-      scenarioTitle: scenario ? scenarioLabel(scenario) : undefined,
+      mode: captureMode,
       branchId: selectedBranchId,
       environment: selectedEnvironment,
       release: selectedRelease,
+      ...(captureMode === 'scenario'
+        ? {
+            scenarioId: selectedScenarioId,
+            scenarioTitle: scenario ? scenarioLabel(scenario) : undefined,
+          }
+        : { objective: objectiveTrimmed }),
     };
 
     const url = window.location.href || 'about:blank';
@@ -284,6 +354,24 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
     }
   };
 
+  const captureScreenshotForLatestStepIfNeeded = async (
+    latest: ManualCapturedStep,
+    hasBoundingBox: boolean
+  ) => {
+    const cache = await getManualScreenshots();
+    const needsCapture = !cache[latest.stepId];
+    const needsReshoot = hasBoundingBox;
+    if (needsCapture || needsReshoot) {
+      const ok = await captureManualScreenshotNow(latest.stepId, {
+        skipDomStability: true,
+        stepCode: latest.stepCode,
+      });
+      if (!ok) {
+        message.warning('Screenshot capture failed; saved without image.');
+      }
+    }
+  };
+
   const handleAddNote = async () => {
     if (!noteTextTrimmed) return;
 
@@ -300,20 +388,7 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
 
     setAddingNote(true);
     try {
-      const cache = await getManualScreenshots();
-      const needsCapture = !cache[latest.stepId];
-      const needsReshoot = !!boundingBox;
-
-      if (needsCapture || needsReshoot) {
-        const ok = await captureManualScreenshotNow(latest.stepId, {
-          skipDomStability: true,
-          stepCode: latest.stepCode,
-        });
-        if (!ok) {
-          message.warning('Screenshot capture failed; note saved without image.');
-        }
-      }
-
+      await captureScreenshotForLatestStepIfNeeded(latest, !!boundingBox);
       await appendNoteToLatestStep(note);
       message.success('Note added to latest step');
       setNoteText('');
@@ -321,6 +396,32 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
       refreshCapturedSteps();
     } finally {
       setAddingNote(false);
+    }
+  };
+
+  const handleAddBug = async (values: { bug: import('./datas').Bug; assignee?: string }) => {
+    const steps = await getManualCapturedSteps();
+    if (steps.length === 0) {
+      message.error('No captured steps to attach bug to');
+      throw new Error('No captured steps');
+    }
+
+    const latest = steps[steps.length - 1];
+    const boundingBoxes =
+      values.bug.artifactReference?.screenshotReference?.boundingBoxes || [];
+    const hasBoundingBox = boundingBoxes.length > 0;
+
+    setAddingBug(true);
+    try {
+      await captureScreenshotForLatestStepIfNeeded(latest, hasBoundingBox);
+      await appendBugToLatestStep({ bug: values.bug, assignee: values.assignee });
+      message.success('Bug added to latest step');
+      refreshCapturedSteps();
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Failed to add bug');
+      throw e;
+    } finally {
+      setAddingBug(false);
     }
   };
 
@@ -354,7 +455,6 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
       await new Promise<void>((resolve) => {
         chrome.runtime.sendMessage({ type: 'wait_manual_screenshot_queue' }, () => resolve());
       });
-      // Restore sidebar for upload / save progress (stays collapsed during active capture).
       window.postMessage({ type: 'tc-show-sidebar' }, '*');
 
       const steps = await getManualCapturedSteps();
@@ -384,8 +484,16 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
         });
       });
 
+      const isOpenEnded = meta?.mode === 'open_ended' || captureMode === 'open_ended';
+      const recordingTitle =
+        meta?.scenarioTitle ||
+        meta?.objective ||
+        (isOpenEnded ? objectiveTrimmed : undefined);
+
       const insertResp = await insertManualTestRecord({
-        testScenarioId: meta?.scenarioId || selectedScenarioId!,
+        ...(isOpenEnded
+          ? { executionTitle: meta?.objective || objectiveTrimmed }
+          : { testScenarioId: meta?.scenarioId || selectedScenarioId! }),
         branchId: meta?.branchId ?? selectedBranchId,
         environment: meta?.environment || selectedEnvironment,
         release: meta?.release || selectedRelease,
@@ -399,7 +507,7 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
         setSuccessLink(link);
         await appendPastRecording({
           id: insertResp.id,
-          scenarioTitle: meta?.scenarioTitle,
+          scenarioTitle: recordingTitle,
           createdAt: Date.now(),
         });
         const past = await getPastRecordings();
@@ -448,8 +556,66 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
     </div>
   );
 
+  const annotationTabItems = [
+    {
+      key: 'note',
+      label: 'Add note',
+      children: (
+        <>
+          <AnnotationInputSection
+            text={noteText}
+            onTextChange={setNoteText}
+            selections={noteSelections}
+            onAddElement={startElementSelect}
+            onAddArea={startAreaSelect}
+            onRemoveSelection={removeSelection}
+            disabled={addingNote || addingBug || submitting}
+            textPlaceholder="Note for latest step…"
+            elementButtonLabel="Attach Element"
+            areaButtonLabel="Attach Area"
+          />
+          <Button
+            type="default"
+            onClick={handleAddNote}
+            loading={addingNote}
+            disabled={!canAddNote}
+            block
+            style={{ marginTop: 10 }}
+          >
+            Add Note
+          </Button>
+        </>
+      ),
+    },
+    {
+      key: 'bug',
+      label: 'Add bug',
+      children: (
+        <>
+          <ScreenStateSelector
+            screenStates={screenStates}
+            selectedScreen={selectedScreen}
+            setSelectedScreen={setSelectedScreen}
+            selectedState={selectedState}
+            setSelectedState={setSelectedState}
+            onScreenStatesRefresh={loadScreenStates}
+            disableScreenSelect={screenStatesLoading}
+            disableStateSelect={screenStatesLoading}
+          />
+          <AddBugForm
+            screen={selectedScreen}
+            state={selectedState}
+            loading={addingBug}
+            disabled={submitting}
+            onSubmit={handleAddBug}
+          />
+        </>
+      ),
+    },
+  ];
+
   return (
-    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12, height: '100%' }}>
+    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12, height: '100%', minHeight: 0, overflow: 'hidden' }}>
       {!showForm && !captureActive && (
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreateForm} block>
           Create Manual Test Record
@@ -457,12 +623,21 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
       )}
 
       {captureActive || submitting ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <section style={sectionStyle}>
-            <Title level={5} style={{ color: '#ccc', margin: '0 0 8px', fontSize: 13 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <section
+            style={{
+              ...sectionStyle,
+              flex: 1,
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            <Title level={5} style={{ color: '#ccc', margin: '0 0 8px', fontSize: 13, flexShrink: 0 }}>
               Captured steps
             </Title>
-            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
               {capturedSteps.map((step, i) => (
                 <div
                   key={step.stepId}
@@ -480,41 +655,27 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
                       ({step.notes!.length} note{step.notes!.length > 1 ? 's' : ''})
                     </span>
                   )}
+                  {(step.bugs?.length ?? 0) > 0 && (
+                    <span style={{ marginLeft: 6, color: '#ff7875', fontSize: 10 }}>
+                      ({step.bugs!.length} bug{step.bugs!.length > 1 ? 's' : ''})
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
           </section>
 
-          <section style={sectionStyle}>
-            <Title level={5} style={{ color: '#ccc', margin: '0 0 8px', fontSize: 13 }}>
-              Add note
-            </Title>
-            <AnnotationInputSection
-              text={noteText}
-              onTextChange={setNoteText}
-              selections={noteSelections}
-              onAddElement={startElementSelect}
-              onAddArea={startAreaSelect}
-              onRemoveSelection={removeSelection}
-              disabled={addingNote || submitting}
-              textPlaceholder="Note for latest step…"
-              elementButtonLabel="Attach Element"
-              areaButtonLabel="Attach Area"
+          <section style={{ ...sectionStyle, flexShrink: 0 }}>
+            <Tabs
+              activeKey={annotationTab}
+              onChange={(key) => setAnnotationTab(key as 'note' | 'bug')}
+              size="small"
+              items={annotationTabItems}
             />
-            <Button
-              type="default"
-              onClick={handleAddNote}
-              loading={addingNote}
-              disabled={!canAddNote}
-              block
-              style={{ marginTop: 10 }}
-            >
-              Add Note
-            </Button>
           </section>
 
           {!submitting && (
-            <section style={sectionStyle}>
+            <section style={{ ...sectionStyle, flexShrink: 0 }}>
               <Popover
                 content={endCaptureContent}
                 trigger="click"
@@ -532,38 +693,63 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
         showForm && (
           <>
             <div>
-              <Text style={{ color: '#aaa', fontSize: 12 }}>Test scenario</Text>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, minWidth: 0 }}>
-                <Tooltip
-                  title={
-                    scenarioOptions.find((o) => o.value === selectedScenarioId)?.label ??
-                    undefined
-                  }
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <Select
-                      showSearch
-                      optionFilterProp="label"
-                      placeholder="Search scenarios"
-                      options={scenarioOptions}
-                      value={selectedScenarioId}
-                      onChange={setSelectedScenarioId}
-                      loading={scenariosLoading}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </Tooltip>
-                <Tooltip title="Refresh scenarios">
-                  <Button
-                    type="text"
-                    icon={<ReloadOutlined />}
-                    loading={scenariosLoading}
-                    onClick={() => loadScenarios()}
-                    aria-label="Refresh scenarios"
-                  />
-                </Tooltip>
-              </div>
+              <Text style={{ color: '#aaa', fontSize: 12 }}>Capture type</Text>
+              <Segmented
+                block
+                style={{ marginTop: 4 }}
+                value={captureMode}
+                onChange={(v) => setCaptureMode(v as ManualCaptureMode)}
+                options={[
+                  { label: 'Test a scenario', value: 'scenario' },
+                  { label: 'Open-ended', value: 'open_ended' },
+                ]}
+              />
             </div>
+            {captureMode === 'scenario' ? (
+              <div>
+                <Text style={{ color: '#aaa', fontSize: 12 }}>Test scenario</Text>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, minWidth: 0 }}>
+                  <Tooltip
+                    title={
+                      scenarioOptions.find((o) => o.value === selectedScenarioId)?.label ??
+                      undefined
+                    }
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Select
+                        showSearch
+                        optionFilterProp="label"
+                        placeholder="Search scenarios"
+                        options={scenarioOptions}
+                        value={selectedScenarioId}
+                        onChange={setSelectedScenarioId}
+                        loading={scenariosLoading}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  </Tooltip>
+                  <Tooltip title="Refresh scenarios">
+                    <Button
+                      type="text"
+                      icon={<ReloadOutlined />}
+                      loading={scenariosLoading}
+                      onClick={() => loadScenarios()}
+                      aria-label="Refresh scenarios"
+                    />
+                  </Tooltip>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <Text style={{ color: '#aaa', fontSize: 12 }}>Objective</Text>
+                <Input
+                  placeholder="What are you exploring?"
+                  value={objective}
+                  onChange={(e) => setObjective(e.target.value)}
+                  style={{ marginTop: 4 }}
+                />
+              </div>
+            )}
             <div>
               <Text style={{ color: '#aaa', fontSize: 12 }}>Git branch</Text>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, minWidth: 0 }}>
@@ -593,7 +779,7 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
             <Button
               type="primary"
               onClick={startCapture}
-              disabled={!selectedScenarioId || submitting}
+              disabled={!canStartCapture}
               block
             >
               Start Capture

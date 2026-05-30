@@ -1,50 +1,48 @@
 document.addEventListener('DOMContentLoaded', function () {
   const form = document.getElementById('configForm');
   const saveButton = document.getElementById('saveButton');
+  const saveToast = document.getElementById('saveToast');
   const tabButtons = document.querySelectorAll('.tab-button');
   const tabContents = document.querySelectorAll('.tab-content');
 
-  // Load saved settings and populate the form
+  let toastTimer;
+
+  function showToast(message, isError) {
+    clearTimeout(toastTimer);
+    saveToast.textContent = message;
+    saveToast.style.borderColor = isError ? 'rgba(255, 77, 79, 0.5)' : '';
+    saveToast.classList.add('visible');
+    toastTimer = setTimeout(() => saveToast.classList.remove('visible'), 2500);
+  }
+
   chrome.storage.sync.get([
     'projectId',
-    'uriRegexToIntercept',
     'currentUserId',
-    'enableRunLocallyForTcRuns',
     'userAuthKey',
   ], function (items) {
     form.projectId.value = items.projectId || '';
-    form.uriRegexToIntercept.value = items.uriRegexToIntercept || '';
     form.currentUserId.value = items.currentUserId || '';
     form.userAuthKey.value = items.userAuthKey || '';
-    form.enableRunLocally.checked = items.enableRunLocallyForTcRuns;
   });
 
-  // Save settings with validation
   saveButton.addEventListener('click', function () {
     const userAuthKey = form.userAuthKey.value.trim();
     const currentUserId = form.currentUserId.value.trim();
 
-    // Validate required fields
     if (!userAuthKey || !currentUserId) {
-      alert('Error: Please fill in all required fields: User auth key and current user id.');
+      showToast('Please fill in your email and authentication key.', true);
       return;
     }
 
     chrome.storage.sync.set({
       projectId: form.projectId.value.trim(),
-      samplingProbabilityOnError: 0.0,
-      samplingProbability: 1.0,
-      eventWindowToSaveOnError: 200,
-      uriRegexToIntercept: form.uriRegexToIntercept.value.trim(),
       currentUserId: currentUserId,
       userAuthKey: userAuthKey,
-      enableRunLocallyForTcRuns: form.enableRunLocally.checked,
     }, function () {
-      alert('Settings saved');
+      showToast('Settings saved');
     });
   });
 
-  // Tab handling
   tabButtons.forEach(button => {
     button.addEventListener('click', function () {
       const targetTab = this.getAttribute('data-target');

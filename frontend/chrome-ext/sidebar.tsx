@@ -6,13 +6,11 @@ import {
     Tooltip,
     Tabs,
 } from 'antd';
-import { LogoutOutlined, WarningOutlined, EditOutlined, ReloadOutlined, SettingOutlined, AppstoreOutlined, CodeOutlined, AuditOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { LogoutOutlined, WarningOutlined, EditOutlined, ReloadOutlined, SettingOutlined, CodeOutlined, AuditOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { ReleaseSelect } from './components/ReleaseSelect';
 import { EnvironmentSelect } from './components/EnvironmentSelect';
-// import { RecordTab } from './RecordTab';
 import { RecordTestTab } from './RecordTestTab';
 import { ManualTestTab } from './ManualTestTab';
-import { BugsTab } from './bugs/BugsTab';
 import { ScenariosTab } from './scenarios/ScenariosTab';
 import { BASE_URL, UI_BASE_URL } from './config';
 
@@ -23,13 +21,10 @@ export interface ExtProjectConfig {
     name?: string;
     urlRegexToCapture?: string;
     projectId?: string;
-    sessionRecordApiKey?: string;
 }
 
 // Toggle to show/hide the Scenarios tab
 const SHOW_SCENARIOS_TAB = false;
-// Toggle to show/hide the Bugs tab
-const SHOW_BUGS_TAB = false;
 
 export const SidebarApp = () => {
     const [userAuthKey, setUserAuthKey] = useState<string | undefined>();
@@ -56,8 +51,6 @@ export const SidebarApp = () => {
     // If a hidden tab is active, switch to a visible tab
     useEffect(() => {
         if (!SHOW_SCENARIOS_TAB && activeTabKey === 'scenarios') {
-            setActiveTabKey('manual');
-        } else if (!SHOW_BUGS_TAB && activeTabKey === 'bugs') {
             setActiveTabKey('manual');
         }
     }, [activeTabKey]);
@@ -92,10 +85,10 @@ export const SidebarApp = () => {
     }, []);
 
     useEffect(() => {
-        chrome.storage.local.get(['recordingInProgress', 'manualCaptureInProgress'], (localItems) => {
+        chrome.storage.local.get(['stepCaptureInProgress', 'manualCaptureInProgress'], (localItems) => {
             if (localItems.manualCaptureInProgress) {
                 setActiveTabKey('manual');
-            } else if (localItems.recordingInProgress) {
+            } else if (localItems.stepCaptureInProgress) {
                 setActiveTabKey('record');
             }
         });
@@ -185,9 +178,7 @@ export const SidebarApp = () => {
         }
         chrome.storage.sync.set(
             {
-                "projectId": newProjectId,
-                "sessionRecordingApiKey": selectedProject.sessionRecordApiKey,
-                "uriRegexToIntercept": selectedProject.urlRegexToCapture,
+                projectId: newProjectId,
             },
             () => {
                 console.log("Set current project in chrome to: ", newProjectId);
@@ -239,7 +230,7 @@ export const SidebarApp = () => {
         });
     }
 
-    // Listen for window URL changes and refresh bugs/scenarios tab if active
+    // Listen for window URL changes and refresh scenarios tab if active
     useEffect(() => {
         let lastUrl = window.location.href;
         const checkUrl = (forcedUrl?: string) => {
@@ -248,7 +239,7 @@ export const SidebarApp = () => {
             if (currentUrl !== lastUrl) {
                 console.log('[Sidebar] URL changed! lastUrl:', lastUrl, '-> currentUrl:', currentUrl);
                 lastUrl = currentUrl;
-                if (activeTabKey === 'bugs' || activeTabKey === 'scenarios') {
+                if (activeTabKey === 'scenarios') {
                     if (isMindMapBuilding) {
                         console.log('[Sidebar] URL changed but MindMap building is in progress. Skipping tab refresh. activeTabKey:', activeTabKey);
                     } else {
@@ -256,7 +247,7 @@ export const SidebarApp = () => {
                         setTabRefreshKey(k => k + 1);
                     }
                 } else {
-                    console.log('[Sidebar] URL changed but not on bugs/scenarios/dev tab. No refresh. activeTabKey:', activeTabKey);
+                    console.log('[Sidebar] URL changed but not on scenarios tab. No refresh. activeTabKey:', activeTabKey);
                 }
             } else {
                 console.log('[Sidebar] checkUrl: URL did not change.');
@@ -480,7 +471,7 @@ export const SidebarApp = () => {
                                 </div>
                             </div>
                         )}
-                        {/* Tabs for Dev, Record, Bugs, Scenarios */}
+                        {/* Tabs for Manual, Script Gen, and optionally Scenarios */}
                         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                             <Tabs
                                 activeKey={activeTabKey}
@@ -525,11 +516,6 @@ export const SidebarApp = () => {
                                 <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><CodeOutlined style={{ marginRight: 6 }} />Script Gen</span>} key="record" style={{ height: '100%' }}>
                                     <RecordTestTab />
                                 </Tabs.TabPane>
-                                {SHOW_BUGS_TAB && (
-                                    <Tabs.TabPane tab={<span style={{ fontSize: 14 }}>Bugs</span>} key="bugs" style={{ height: '100%' }}>
-                                        <BugsTab key={activeTabKey === 'bugs' ? tabRefreshKey : undefined} setIsMindMapBuilding={setIsMindMapBuilding} />
-                                    </Tabs.TabPane>
-                                )}
                                 {SHOW_SCENARIOS_TAB && (
                                     <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><ExperimentOutlined style={{ marginRight: 6 }} />Scenarios</span>} key="scenarios" style={{ height: '100%' }}>
                                         <ScenariosTab key={activeTabKey === 'scenarios' ? tabRefreshKey : undefined} setIsMindMapBuilding={setIsMindMapBuilding} />

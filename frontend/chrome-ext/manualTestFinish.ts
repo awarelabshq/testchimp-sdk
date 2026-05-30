@@ -1,17 +1,23 @@
-import type { ManualCapturedStep, ManualTestNote } from './manualTestStorage';
+import type { ManualCapturedStep, ManualTestNote, ManualTestStepBug } from './manualTestStorage';
 import type { ManualScreenshotCache } from './manualScreenshotCache';
 import { isHighSignalStep } from './manualTestStepActions';
 
 export const MAX_SCREENSHOT_UPLOADS = 20;
 
 export type ManualInsertStep = {
+  stepId?: string;
   stepCode: string;
   screenshotUrl?: string;
   notes?: ManualTestNote[];
+  bugs?: ManualTestStepBug[];
 };
 
 function orderedUploadIds(uploadSet: Set<string>, steps: ManualCapturedStep[]): string[] {
   return steps.map((s) => s.stepId).filter((id) => uploadSet.has(id));
+}
+
+function stepNeedsScreenshotUpload(step: ManualCapturedStep): boolean {
+  return (step.notes?.length ?? 0) > 0 || (step.bugs?.length ?? 0) > 0;
 }
 
 /** stepIds to upload (max 20); result is always in step index order. */
@@ -27,7 +33,7 @@ export function selectScreenshotUploadSet(
     mandatory.add(lastStep.stepId);
   }
   for (const step of steps) {
-    if ((step.notes?.length ?? 0) > 0 && cache[step.stepId]) {
+    if (stepNeedsScreenshotUpload(step) && cache[step.stepId]) {
       mandatory.add(step.stepId);
     }
   }
@@ -75,15 +81,35 @@ export function selectScreenshotUploadSet(
   return orderedUploadIds(uploadSet, steps);
 }
 
+function serializeBugForInsert(stepBug: ManualTestStepBug) {
+  const bug = stepBug.bug;
+  return {
+    bug: {
+      title: bug.title,
+      description: bug.description,
+      severity: bug.severity,
+      category: bug.category,
+      location: bug.location,
+      screen: bug.screen,
+      screenState: bug.screenState,
+      platform: bug.platform ?? 'WEB_EXECUTION_PLATFORM',
+      ...(bug.artifactReference ? { artifactReference: bug.artifactReference } : {}),
+    },
+    ...(stepBug.assignee ? { assignee: stepBug.assignee } : {}),
+  };
+}
+
 export function buildManualInsertSteps(
   steps: ManualCapturedStep[],
   uploadedUrlsByStepId: Record<string, string>
 ): ManualInsertStep[] {
   return steps.map((step) => ({
+    stepId: step.stepId,
     stepCode: step.stepCode,
     ...(uploadedUrlsByStepId[step.stepId]
       ? { screenshotUrl: uploadedUrlsByStepId[step.stepId] }
       : {}),
     ...(step.notes?.length ? { notes: step.notes } : {}),
+    ...(step.bugs?.length ? { bugs: step.bugs.map(serializeBugForInsert) } : {}),
   }));
 }

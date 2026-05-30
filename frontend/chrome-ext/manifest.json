@@ -1,14 +1,13 @@
 {
   "manifest_version": 3,
   "name": "TestChimp - AI Co-Pilot for QA teams",
-  "version": "1.0.24",
+  "version": "1.0.25",
   "description": "Create SmartTests from manual test steps, Find, report and fix bugs directly from the browser and more...",
   "permissions": [
     "activeTab",
     "storage",
     "contextMenus",
-    "scripting",
-    "webRequest"
+    "scripting"
   ],
   "background": {
     "service_worker": "background.js"
@@ -24,16 +23,6 @@
         "index.js"
       ],
       "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "iframe-content-script.js"
-      ],
-      "run_at": "document_start",
-      "all_frames": true
     }
   ],
   "icons": {
@@ -51,10 +40,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "injectScript.js",
-        "iframe-rrweb-injector.js",
-        "eventProcessor.js",
-        "rrweb.js",
         "menu-config.json",
         "images/icon-128.png",
         "images/icon-48.png",

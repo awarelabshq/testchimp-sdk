@@ -14,6 +14,7 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: '[name].js',  // Dynamically use entry name (background.js, sidebar.js)
+    clean: true,
     library: {
       name: 'TestChimpSDK',
       type: 'umd',
@@ -53,13 +54,9 @@ module.exports = {
       patterns: [
         { from: 'manifest.json', to: 'manifest.json' },  // Ensure manifest is copied
         { from: 'menu-config.json', to: 'menu-config.json' },  // Ensure manifest is copied
-        { from: 'popup.html', to: 'popup.html' },
         { from: 'options.html', to: 'options.html' },
         { from: 'options.js', to: 'options.js' },
         { from: 'contextMenu.js', to: 'contextMenu.js' },
-        { from: 'injectScript.js', to: 'injectScript.js' },
-        { from: 'iframe-rrweb-injector.js', to: 'iframe-rrweb-injector.js' },
-        { from: 'iframe-content-script.js', to: 'iframe-content-script.js' },
         { from: 'localRun.js', to: 'localRun.js' },
         { from: 'images/', to: 'images/' },
       ],

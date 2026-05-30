@@ -7,6 +7,7 @@ import {
 import { MANUAL_STORAGE_KEYS } from './manualTestStorage';
 import { enqueueManualStepScreenshot } from './manualTestScreenshotHandler';
 import { shouldCaptureScreenshot } from './manualTestStepActions';
+import { isElementPickActive } from './elementPickHandler';
 
 // Helper to apply frame context to commands
 function applyFrameContextToCommands(
@@ -939,6 +940,9 @@ function handleClicks(e: MouseEvent) {
   }
   if (isInExtensionUi(e.target)) {
     console.log(`[StepCapture] Click handler (instance: ${instanceId}) - extension UI, ignoring`);
+    return;
+  }
+  if (isElementPickActive()) {
     return;
   }
   const element = e.target as HTMLElement;

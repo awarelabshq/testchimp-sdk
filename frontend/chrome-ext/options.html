@@ -1,155 +1,343 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-    <title>TestChimp Injector Options</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TestChimp Extension Options</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary-color: #72BDA3;
+            --primary-hover: #5BB89A;
+            --brand-color: #ff6b65;
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --text-primary: #f5f5f5;
+            --text-secondary: #b3b3b3;
+            --text-tertiary: #999;
+            --border-primary: #3e3e42;
+            --shadow-sm: rgba(0, 0, 0, 0.3);
+            --shadow-md: rgba(0, 0, 0, 0.5);
+            --shadow-lg: rgba(0, 0, 0, 0.7);
+            --glow-primary: rgba(114, 189, 163, 0.15);
+            --glow-primary-strong: rgba(114, 189, 163, 0.25);
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        html,
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            height: 100%;
             margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f9f9f9;
+        }
+
+        body {
+            font-family: "Inter", "SF Pro", "Roboto", "Helvetica Neue", sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(circle at 20% 40%, rgba(114, 189, 163, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 75%, rgba(114, 189, 163, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            animation: backgroundPulse 8s ease-in-out infinite;
+        }
+
+        @keyframes backgroundPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .container {
-            text-align: center;
-        }
-
-        .title {
-            margin-left: 10px;
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 720px;
+            animation: slideInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
 
         .title-bar {
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 20px;
-            width: 800px;
+            gap: 14px;
+            margin-bottom: 28px;
         }
 
         .title-bar img {
-            height: 50px;
-            margin-right: 10px;
+            height: 44px;
+            width: 44px;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
         }
 
-        #configForm {
-            min-height: 350px;
-            /* Set a minimum height to prevent shrinking */
+        .title-text {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+        }
+
+        .title-text h1 {
+            margin: 0;
+            font-size: 1.35rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+        }
+
+        .title-text .subtitle {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 400;
         }
 
         .form-panel {
-            width: 800px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            padding: 20px;
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 16px;
+            padding: 28px 32px 24px;
+            box-shadow:
+                0 0 0 1px rgba(114, 189, 163, 0.06),
+                0 0 40px var(--glow-primary),
+                0 8px 32px var(--shadow-md),
+                0 24px 64px var(--shadow-lg);
+            transition: box-shadow 0.3s ease, transform 0.3s ease;
         }
 
-        .form-group {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            flex: 1;
-            margin-right: 20px;
-            text-align: left;
-            font-size: 1.2em;
-        }
-
-        .form-group input {
-            flex: 3;
-            padding: 10px;
-            font-size: 1.2em;
-        }
-
-        .control-buttons {
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            margin-top: 20px;
+        .form-panel:hover {
+            box-shadow:
+                0 0 0 1px rgba(114, 189, 163, 0.1),
+                0 0 56px var(--glow-primary-strong),
+                0 12px 40px var(--shadow-md),
+                0 28px 72px var(--shadow-lg);
         }
 
         .form-links {
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            margin-bottom: 20px;
-            width: 100%;
-            font-size: 1.1em;
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
         }
 
         .form-links a {
-            margin-left: 10px;
+            color: var(--primary-color);
             text-decoration: none;
-            color: #007BFF;
+            font-weight: 500;
+            transition: color 0.2s ease;
         }
 
         .form-links a:hover {
+            color: var(--primary-hover);
             text-decoration: underline;
         }
 
         .tab-buttons {
             display: flex;
-            justify-content: flex-start;
+            gap: 4px;
+            padding: 4px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 10px;
             margin-bottom: 0;
-            /* Remove margin-bottom to eliminate gap */
         }
 
         .tab-buttons button {
-            padding: 10px 20px;
-            margin: 0;
-            border: 1px solid #ccc;
-            border-bottom: none;
-            border-radius: 4px 4px 0 0;
-            background-color: #f1f1f1;
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 7px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
             cursor: pointer;
             outline: none;
+            transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .tab-buttons button:last-child {
-            border-right: 1px solid #ccc;
+        .tab-buttons button:hover:not(.active) {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.04);
         }
 
         .tab-buttons button.active {
-            background-color: #fff;
-            border-bottom: 1px solid #fff;
-            color: black;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            box-shadow: 0 1px 3px var(--shadow-sm);
             cursor: default;
+        }
+
+        #configForm {
+            min-height: 220px;
         }
 
         .tab-content {
             display: none;
-            border: 1px solid #ccc;
-            border-top: none;
-            /* Match the tab button border */
-            padding: 20px;
-            flex-grow: 0;
-            /* Allow the content to grow and maintain the panel height */
+            padding: 24px 4px 8px;
         }
 
         .tab-content.active {
             display: block;
         }
 
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .form-group label .required {
+            color: var(--primary-color);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 14px;
+            font-family: inherit;
+            font-size: 15px;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            border: 1.5px solid var(--border-primary);
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .form-group input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .form-group input:hover {
+            border-color: rgba(114, 189, 163, 0.4);
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(114, 189, 163, 0.15);
+        }
+
+        .form-group input:-webkit-autofill,
+        .form-group input:-webkit-autofill:hover,
+        .form-group input:-webkit-autofill:focus {
+            -webkit-box-shadow: 0 0 0 1000px var(--bg-primary) inset;
+            -webkit-text-fill-color: var(--text-primary);
+            caret-color: var(--text-primary);
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
+        .control-buttons {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-primary);
+        }
+
         #saveButton {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
+            padding: 10px 28px;
+            background: var(--primary-color);
+            color: #fff;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9375rem;
+            font-weight: 500;
             cursor: pointer;
+            box-shadow: 0 4px 12px rgba(114, 189, 163, 0.25);
+            transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
         }
 
         #saveButton:hover {
-            background-color: #45a049;
+            background: var(--primary-hover);
+            box-shadow: 0 6px 16px rgba(114, 189, 163, 0.35);
+            transform: translateY(-1px);
+        }
+
+        #saveButton:active {
+            transform: translateY(0);
+        }
+
+        .save-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            box-shadow: 0 8px 24px var(--shadow-md);
+            opacity: 0;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .save-toast.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        @media (max-width: 600px) {
+            .form-panel {
+                padding: 20px;
+            }
+
+            .title-bar {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .title-text {
+                align-items: center;
+            }
         }
     </style>
 </head>
@@ -157,59 +345,52 @@
 <body>
     <div class="container">
         <div class="title-bar">
-            <img src="images/icon-128.png" alt="TestChimp Logo">
-            <h1 class="title">TestChimp Chrome Extension v1.0.24</h1>
+            <img src="images/logo-white.svg" alt="TestChimp">
+            <div class="title-text">
+                <h1>TestChimp Extension</h1>
+                <span class="subtitle">v1.0.25</span>
+            </div>
         </div>
         <div class="form-panel">
             <div class="form-links">
-                <span><a href="https://prod.testchimp.io/signup" id="signupLink" target="_blank"
-                        rel="noopener noreferrer">Sign Up with TestChimp</a>. Already
-                    have an account? <a href="https://prod.testchimp.io/signin" id="signinLink" target="_blank"
-                        rel="noopener noreferrer">Sign In</a></span>
+                <a href="https://prod.testchimp.io/signup" id="signupLink" target="_blank"
+                    rel="noopener noreferrer">Sign Up</a>
+                with TestChimp, or
+                <a href="https://prod.testchimp.io/signin" id="signinLink" target="_blank"
+                    rel="noopener noreferrer">Sign In</a>
+                if you already have an account.
             </div>
             <div class="tab-buttons">
                 <button type="button" class="tab-button active" data-target="userConfig">User Config</button>
-                <button type="button" class="tab-button" data-target="projectConfig">Current Project Config</button>
-                <button type="button" class="tab-button" data-target="advanced">Advanced</button>
+                <button type="button" class="tab-button" data-target="projectConfig">Project Config</button>
             </div>
             <form id="configForm">
                 <div id="userConfig" class="tab-content active">
                     <div class="form-group">
-                        <label for="currentUserId">User Email*</label>
-                        <input type="text" id="currentUserId" name="currentUserId" placeholder="Your email">
+                        <label for="currentUserId">User Email <span class="required">*</span></label>
+                        <input type="text" id="currentUserId" name="currentUserId" placeholder="your@email.com"
+                            autocomplete="email">
                     </div>
                     <div class="form-group">
-                        <label for="endpoint">User Authentication Key*</label>
-                        <input type="text" id="userAuthKey" name="userAuthKey" value="" placeholder="Your auth key">
+                        <label for="userAuthKey">User Authentication Key <span class="required">*</span></label>
+                        <input type="text" id="userAuthKey" name="userAuthKey" placeholder="Your auth key"
+                            autocomplete="off">
                     </div>
                 </div>
                 <div id="projectConfig" class="tab-content">
                     <div class="form-group">
-                        <label for="projectId">TestChimp Project ID*:</label>
+                        <label for="projectId">TestChimp Project ID <span class="required">*</span></label>
                         <input type="text" id="projectId" name="projectId"
-                            placeholder="Login to TestChimp -> Project Settings">
-                    </div>
-                    <div class="form-group">
-                        <label for="uriRegexToIntercept">URL regex list (comma-separated) to intercept API
-                            requests*</label>
-                        <input type="text" id="uriRegexToIntercept" name="uriRegexToIntercept"
-                            placeholder=".*your-backend-endpoint\.com.*">
-                    </div>
-                </div>
-                <div id="advanced" class="tab-content">
-                    <div class="form-group">
-                        <label id="enableRunLocallyContainer">
-                            <input type="checkbox" id="enableRunLocally" name="enableRunLocally"> Enable running tests
-                            locally in TestStudio
-                        </label>
+                            placeholder="Found in TestChimp → Project Settings">
                     </div>
                 </div>
             </form>
             <div class="control-buttons">
-                <button type="button" id="saveButton">Save</button>
+                <button type="button" id="saveButton">Save Settings</button>
             </div>
         </div>
     </div>
+    <div id="saveToast" class="save-toast" role="status" aria-live="polite">Settings saved</div>
     <script src="options.js"></script>
 </body>
 

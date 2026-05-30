@@ -1,6 +1,5 @@
-// API service for BugsTab and related features
+// API service for chrome extension features
 import { BASE_URL } from './config';
-import { GetScreenshotAnalysisRequest } from './datas';
 
 // Remove enums and data interfaces that are not request/response types from this file.
 // Only keep request/response interfaces here, and import all data types from datas.ts instead.
@@ -18,17 +17,6 @@ export interface GetScreenForPageResponse {
   normalizedUrl?: string;
   screenName?: string;
 }
-
-export interface UpdateBugsRequest {
-  updatedBugs: Bug[];
-  newStatus?: BugStatus;
-  appReleaseId?: string;
-  assignee?: string;
-  ignoreReason?: IgnoreReason;
-  screenshotBase64?: string;
-}
-
-export interface UpdateBugsResponse { }
 
 // Helper to get auth headers from chrome.storage
 export async function getAuthHeaders(): Promise<{ [key: string]: string }> {
@@ -78,6 +66,31 @@ export async function getScreenStates(): Promise<GetScreenStatesResponse> {
   return {
     screenStates: data.screen_states || data.screenStates || [],
   };
+}
+
+export interface UpsertScreenStatesRequest {
+  screenStates?: ScreenStates[];
+}
+
+export async function upsertScreenStates(req: UpsertScreenStatesRequest): Promise<void> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/ext/upsert_screen_states`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify({
+      screenStates: (req.screenStates || []).map((s) => ({
+        screen: s.screen,
+        states: s.states || [],
+      })),
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to upsert screen states');
+  }
 }
 
 /**
@@ -141,49 +154,6 @@ export async function getScreenForPage(req: GetScreenForPageRequest): Promise<Ge
     normalizedUrl: data.normalizedUrl,
     screenName: data.screenName,
   };
-}
-
-export async function listBugs(req: ListBugsRequest): Promise<ListBugsResponse> {
-  const headers = await getAuthHeaders();
-  const { environment, releaseId } = await getCurrentEnvironmentAndRelease();
-  
-  const requestBody = {
-    ...req,
-    environment: req.environment || environment,
-  };
-  
-  const res = await fetch(`${BASE_URL}/ext/list_bugs`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-    body: JSON.stringify(requestBody),
-  });
-  const data = await res.json();
-  return {
-    bugs: data.bugs || [],
-  };
-}
-
-export async function updateBugs(req: UpdateBugsRequest): Promise<UpdateBugsResponse> {
-  const headers = await getAuthHeaders();
-  const { environment, releaseId } = await getCurrentEnvironmentAndRelease();
-  
-  const requestBody = {
-    ...req,
-    appReleaseId: req.appReleaseId || releaseId,
-  };
-  
-  await fetch(`${BASE_URL}/ext/update_bugs`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-    body: JSON.stringify(requestBody),
-  });
-  return {};
 }
 
 export enum ResourceType {
@@ -254,20 +224,10 @@ import {
   TestScenario,
   ScenarioTestResultHistoryItem,
   AgentCodeUnit,
-  RequestResponsePair,
   ScreenInfo,
-  // Bug-related types
-  Bug,
-  BugDetail,
-  BugStatus,
-  BugSeverity,
-  IgnoreReason,
   JourneyAgnotism,
   BoundingBox,
   ScreenStates,
-  // Value/data types
-  ConsoleLogItem,
-  // ...other imports as needed
   ScenarioTestResult,
   SuggestTestScenariosRequest,
   SuggestTestScenariosResponse,
@@ -278,11 +238,6 @@ import {
   AddEnvironmentRequest,
   AddEnvironmentResponse,
   ScreenState,
-  // Team details types
-  GetTeamDetailsRequest,
-  GetTeamDetailsResponse,
-  OrgTier,
-  OrgPlan,
   UpsertMindMapScreenStateRequest,
   UpsertMindMapScreenStateResponse,
   JiraIssueType,
@@ -481,14 +436,36 @@ export interface ManualTestStepNotePayload {
   boundingBox?: { xPct?: number; yPct?: number; widthPct?: number; heightPct?: number };
 }
 
+export interface ManualTestStepBugPayload {
+  bug?: {
+    title?: string;
+    description?: string;
+    severity?: string;
+    category?: string;
+    location?: string;
+    screen?: string;
+    screenState?: string;
+    platform?: string;
+    artifactReference?: {
+      screenshotReference?: {
+        boundingBoxes?: { xPct?: number; yPct?: number; widthPct?: number; heightPct?: number }[];
+      };
+    };
+  };
+  assignee?: string;
+}
+
 export interface ManualTestStepPayload {
+  stepId?: string;
   screenshotUrl?: string;
   stepCode?: string;
   notes?: ManualTestStepNotePayload[];
+  bugs?: ManualTestStepBugPayload[];
 }
 
 export interface InsertManualTestRecordRequest {
-  testScenarioId: string;
+  testScenarioId?: string;
+  executionTitle?: string;
   branchId?: number;
   environment?: string;
   release?: string;
@@ -510,13 +487,15 @@ export async function insertManualTestRecord(req: InsertManualTestRecordRequest)
       ...headers,
     },
     body: JSON.stringify({
-      testScenarioId: req.testScenarioId,
+      ...(req.testScenarioId ? { testScenarioId: req.testScenarioId } : {}),
+      ...(req.executionTitle ? { executionTitle: req.executionTitle } : {}),
       branchId: req.branchId,
       environment: req.environment,
       release: req.release,
       platform: req.platform ?? 'WEB_EXECUTION_PLATFORM',
       result: req.result,
       steps: (req.steps || []).map((s) => ({
+        ...(s.stepId ? { stepId: s.stepId } : {}),
         stepCode: s.stepCode,
         ...(s.screenshotUrl ? { screenshotUrl: s.screenshotUrl } : {}),
         ...(s.notes && s.notes.length > 0
@@ -527,6 +506,7 @@ export async function insertManualTestRecord(req: InsertManualTestRecordRequest)
               })),
             }
           : {}),
+        ...(s.bugs && s.bugs.length > 0 ? { bugs: s.bugs } : {}),
       })),
     }),
   });
@@ -609,107 +589,6 @@ export async function captureCurrentTabScreenshotBase64(): Promise<string | unde
   );
 }
 
-/**
- * Fetches recent console logs from the background script.
- * Returns an array of ConsoleLogItem.
- */
-export async function fetchRecentConsoleLogs(): Promise<ConsoleLogItem[]> {
-  return new Promise((resolve) => {
-    try {
-      chrome.runtime.sendMessage({ type: 'get_recent_console_logs' }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.error('Console log fetch error:', chrome.runtime.lastError.message);
-          resolve([]);
-        } else if (response && response.logs) {
-          resolve(response.logs);
-        } else {
-          resolve([]);
-        }
-      });
-    } catch (e) {
-      console.error('Console log fetch exception:', e);
-      resolve([]);
-    }
-  });
-}
-
-/**
- * Fetches the last N recent request/response pairs from the background script.
- * @param {number} size - Number of pairs to fetch (default 20)
- * @returns {Promise<RequestResponsePair[]>}
- */
-export async function fetchRecentRequestResponsePairs(size = 20): Promise<RequestResponsePair[]> {
-  return new Promise((resolve) => {
-    try {
-      chrome.runtime.sendMessage({ type: 'get_recent_request_response_pairs', size }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.error('Request/response pair fetch error:', chrome.runtime.lastError.message);
-          resolve([]);
-        } else if (response && response.pairs) {
-          resolve(response.pairs.slice(0, size));
-        } else {
-          resolve([]);
-        }
-      });
-    } catch (e) {
-      console.error('Request/response pair fetch exception:', e);
-      resolve([]);
-    }
-  });
-}
-
-export async function getDomAnalysis(req: GetDomAnalysisRequest): Promise<GetDomAnalysisResponse> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${BASE_URL}/ext/get_dom_analysis`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-    body: JSON.stringify(req),
-  });
-  return await res.json();
-}
-
-export async function getConsoleAnalysis(req: GetConsoleAnalysisRequest): Promise<GetConsoleAnalysisResponse> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${BASE_URL}/ext/get_console_analysis`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-    body: JSON.stringify(req),
-  });
-  return await res.json();
-}
-
-export async function getScreenshotAnalysis(req: GetScreenshotAnalysisRequest): Promise<GetScreenshotAnalysisResponse> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${BASE_URL}/ext/get_screenshot_analysis`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-    body: JSON.stringify(req),
-  });
-  return await res.json();
-}
-
-export async function getNetworkAnalysis(req: GetNetworkAnalysisRequest): Promise<GetNetworkAnalysisResponse> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${BASE_URL}/ext/get_network_analysis`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-    body: JSON.stringify(req),
-  });
-  return await res.json();
-}
-
 export async function suggestTestScenarios(request: SuggestTestScenariosRequest): Promise<SuggestTestScenariosResponse> {
   const headers = await getAuthHeaders();
   const response = await fetch(`${BASE_URL}/ext/suggest_test_scenarios`, {
@@ -725,56 +604,6 @@ export async function suggestTestScenarios(request: SuggestTestScenariosRequest)
 }
 
 // --- API Request/Response Interfaces ---
-
-export interface ListBugsRequest {
-  severities?: BugSeverity[];
-  screenStates?: ScreenState[];
-  statuses?: BugStatus[];
-  title?: string;
-  environment?: string;
-  assignee?: string;
-}
-
-export interface ListBugsResponse {
-  bugs: BugDetail[];
-}
-
-export interface GetDomAnalysisRequest {
-  screen?: string;
-  state?: string;
-  domSnapshot?: string;
-  relativeUrl?: string;
-}
-
-export interface GetDomAnalysisResponse {
-  bugs: BugDetail[];
-}
-
-export interface GetConsoleAnalysisRequest {
-  screen?: string;
-  state?: string;
-  relativeUrl?: string;
-  logs?: ConsoleLogItem[];
-}
-
-export interface GetConsoleAnalysisResponse {
-  bugs: BugDetail[];
-}
-
-export interface GetScreenshotAnalysisResponse {
-  bugs: BugDetail[];
-}
-
-export interface GetNetworkAnalysisRequest {
-  screen?: string;
-  state?: string;
-  relativeUrl?: string;
-  requestResponsePairs?: RequestResponsePair[];
-}
-
-export interface GetNetworkAnalysisResponse {
-  bugs: BugDetail[];
-}
 
 export interface FetchExtraInfoForContextItemRequest {
   id: string;
@@ -799,20 +628,6 @@ export interface ListPossibleAssigneesResponse {
 export interface GrabScreenshotRequest { }
 export interface GrabScreenshotResponse {
   screenshotBase64: string;
-}
-
-// Get team details
-export async function getTeamDetails(req: GetTeamDetailsRequest = {}): Promise<GetTeamDetailsResponse> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${BASE_URL}/ext/get_team_details`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-    body: JSON.stringify(req),
-  });
-  return await res.json();
 }
 
 // Environment management functions
@@ -887,7 +702,7 @@ export async function fetchJiraIssuesFreetext(req: FetchJiraIssuesFreetextReques
 }
 
 /**
- * List possible assignees for bugs and other items.
+ * List possible assignees for manual test bugs and other items.
  */
 export async function listPossibleAssignees(req: ListPossibleAssigneesRequest = {}): Promise<ListPossibleAssigneesResponse> {
   const headers = await getAuthHeaders();
