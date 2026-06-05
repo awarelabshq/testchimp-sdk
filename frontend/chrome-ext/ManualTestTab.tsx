@@ -11,6 +11,7 @@ import {
   listAgentTestScenarios,
   listGithubBranches,
   insertManualTestRecord,
+  listNamedTestRunsForPicker,
   getScreenStates,
   getScreenForPage,
   GithubBranchItem,
@@ -99,6 +100,10 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   const [selectedScreen, setSelectedScreen] = useState<string | undefined>();
   const [selectedState, setSelectedState] = useState<string | undefined>();
   const [screenStatesLoading, setScreenStatesLoading] = useState(false);
+  const [selectedNamedTestRunIds, setSelectedNamedTestRunIds] = useState<string[]>([]);
+  const [assignedTestRuns, setAssignedTestRuns] = useState<{ id: string; title: string }[]>([]);
+  const [otherTestRuns, setOtherTestRuns] = useState<{ id: string; title: string }[]>([]);
+  const [testRunsLoading, setTestRunsLoading] = useState(false);
 
   const {
     selections: noteSelections,
@@ -185,8 +190,29 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
 
   const openCreateForm = () => {
     setShowForm(true);
+    setSelectedNamedTestRunIds([]);
     loadScenarios();
+    loadNamedTestRuns();
   };
+
+  const loadNamedTestRuns = useCallback(async () => {
+    setTestRunsLoading(true);
+    try {
+      const res = await listNamedTestRunsForPicker();
+      const toOption = (item: { id?: string; title?: string }) => ({
+        id: item.id ?? '',
+        title: item.title ?? 'Untitled test run',
+      });
+      setAssignedTestRuns((res.assignedToMe ?? []).map(toOption).filter((o) => o.id));
+      setOtherTestRuns((res.other ?? []).map(toOption).filter((o) => o.id));
+    } catch (e) {
+      console.error('[ManualTest] failed to load named test runs', e);
+      setAssignedTestRuns([]);
+      setOtherTestRuns([]);
+    } finally {
+      setTestRunsLoading(false);
+    }
+  }, []);
 
   const refreshCapturedSteps = useCallback(() => {
     getManualCapturedSteps().then(setCapturedSteps);
@@ -535,6 +561,7 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
         platform: 'WEB_EXECUTION_PLATFORM',
         result: passed ? 'SMART_TEST_EXECUTION_COMPLETED' : 'SMART_TEST_EXECUTION_FAILED',
         steps: insertSteps,
+        ...(selectedNamedTestRunIds.length > 0 ? { namedTestRunIds: selectedNamedTestRunIds } : {}),
       });
 
       if (insertResp.id) {
@@ -821,6 +848,40 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
                 </Tooltip>
               </div>
             </div>
+            {(assignedTestRuns.length > 0 || otherTestRuns.length > 0) && (
+              <div>
+                <Text style={{ color: '#aaa', fontSize: 12 }}>Named test runs (optional)</Text>
+                <Select
+                  mode="multiple"
+                  allowClear
+                  placeholder="Link to test runs"
+                  value={selectedNamedTestRunIds}
+                  onChange={setSelectedNamedTestRunIds}
+                  loading={testRunsLoading}
+                  style={{ width: '100%', marginTop: 4 }}
+                  optionFilterProp="label"
+                >
+                  {assignedTestRuns.length > 0 && (
+                    <Select.OptGroup label="Assigned to me">
+                      {assignedTestRuns.map((run) => (
+                        <Select.Option key={run.id} value={run.id} label={run.title}>
+                          {run.title}
+                        </Select.Option>
+                      ))}
+                    </Select.OptGroup>
+                  )}
+                  {otherTestRuns.length > 0 && (
+                    <Select.OptGroup label="Other">
+                      {otherTestRuns.map((run) => (
+                        <Select.Option key={run.id} value={run.id} label={run.title}>
+                          {run.title}
+                        </Select.Option>
+                      ))}
+                    </Select.OptGroup>
+                  )}
+                </Select>
+              </div>
+            )}
             <Button
               type="primary"
               onClick={startCapture}

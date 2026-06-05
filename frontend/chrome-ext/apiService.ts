@@ -472,6 +472,18 @@ export interface InsertManualTestRecordRequest {
   platform?: string;
   result?: string;
   steps?: ManualTestStepPayload[];
+  namedTestRunIds?: string[];
+}
+
+export interface NamedTestRunPickerItem {
+  id?: string;
+  title?: string;
+  createdAt?: number | string;
+}
+
+export interface ListNamedTestRunsForPickerResponse {
+  assignedToMe?: NamedTestRunPickerItem[];
+  other?: NamedTestRunPickerItem[];
 }
 
 export interface InsertManualTestRecordResponse {
@@ -508,11 +520,31 @@ export async function insertManualTestRecord(req: InsertManualTestRecordRequest)
           : {}),
         ...(s.bugs && s.bugs.length > 0 ? { bugs: s.bugs } : {}),
       })),
+      ...(req.namedTestRunIds && req.namedTestRunIds.length > 0
+        ? { namedTestRunIds: req.namedTestRunIds }
+        : {}),
     }),
   });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || 'Failed to create manual test record');
+  }
+  return await res.json();
+}
+
+export async function listNamedTestRunsForPicker(): Promise<ListNamedTestRunsForPickerResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/named-test-run/list-for-picker`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify({}),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to list named test runs');
   }
   return await res.json();
 }
