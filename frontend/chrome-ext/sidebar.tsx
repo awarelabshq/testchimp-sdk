@@ -37,6 +37,7 @@ export const SidebarApp = () => {
     const [urlRegexToCapture, setUrlRegexToCapture] = useState<string | undefined>(undefined);
     const [activeTabKey, setActiveTabKey] = useState('manual');
     const [tabRefreshKey, setTabRefreshKey] = useState(0);
+    const [manualTabRefreshKey, setManualTabRefreshKey] = useState(0);
     const [isMindMapBuilding, setIsMindMapBuilding] = useState(false);
     const [selectedEnvironment, setSelectedEnvironment] = useState<string>('QA');
     const [selectedRelease, setSelectedRelease] = useState<string | undefined>(undefined);
@@ -390,8 +391,16 @@ export const SidebarApp = () => {
                                     style={{ padding: '0 8px' }}
                                 />
                             </Tooltip>
-                            <Tooltip title="Refresh Projects">
-                                <Button className="fade-in" icon={<ReloadOutlined />} type="text" onClick={fetchProjects} />
+                            <Tooltip title="Refresh projects, scenarios, branches, and test runs">
+                                <Button
+                                    className="fade-in"
+                                    icon={<ReloadOutlined />}
+                                    type="text"
+                                    onClick={() => {
+                                        fetchProjects();
+                                        setManualTabRefreshKey((k) => k + 1);
+                                    }}
+                                />
                             </Tooltip>
                             <Tooltip title="Logout">
                                 <Button className="fade-in" icon={<LogoutOutlined />} style={{ color: "#ff6b65" }} type="text" onClick={handleLogout} />
@@ -511,6 +520,7 @@ export const SidebarApp = () => {
                                     <ManualTestTab
                                         selectedEnvironment={selectedEnvironment}
                                         selectedRelease={selectedRelease}
+                                        refreshSignal={manualTabRefreshKey}
                                     />
                                 </Tabs.TabPane>
                                 <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><CodeOutlined style={{ marginRight: 6 }} />Script Gen</span>} key="record" style={{ height: '100%' }}>

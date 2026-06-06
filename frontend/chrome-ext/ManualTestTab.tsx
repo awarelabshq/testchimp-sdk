@@ -4,7 +4,6 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   PlusOutlined,
-  ReloadOutlined,
   StopOutlined,
 } from '@ant-design/icons';
 import {
@@ -57,6 +56,8 @@ const sectionStyle: React.CSSProperties = {
 interface ManualTestTabProps {
   selectedEnvironment?: string;
   selectedRelease?: string;
+  /** Increment from sidebar to reload scenarios, branches, and test runs. */
+  refreshSignal?: number;
 }
 
 function scenarioLabel(s: AgentTestScenarioWithStatus): string {
@@ -71,6 +72,7 @@ function truncateStepCode(code: string, max = 72): string {
 export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   selectedEnvironment,
   selectedRelease,
+  refreshSignal,
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [captureMode, setCaptureMode] = useState<ManualCaptureMode>('scenario');
@@ -221,6 +223,13 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   const collapseSidebar = useCallback(() => {
     window.postMessage({ type: 'tc-hide-sidebar' }, '*');
   }, []);
+
+  useEffect(() => {
+    if (!refreshSignal) return;
+    loadScenarios();
+    loadBranches({ preserveSelection: true });
+    loadNamedTestRuns();
+  }, [refreshSignal, loadScenarios, loadBranches, loadNamedTestRuns]);
 
   useEffect(() => {
     loadBranches();
@@ -780,36 +789,23 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
             {captureMode === 'scenario' ? (
               <div>
                 <Text style={{ color: '#aaa', fontSize: 12 }}>Test scenario</Text>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, minWidth: 0 }}>
-                  <Tooltip
-                    title={
-                      scenarioOptions.find((o) => o.value === selectedScenarioId)?.label ??
-                      undefined
-                    }
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <Select
-                        showSearch
-                        optionFilterProp="label"
-                        placeholder="Search scenarios"
-                        options={scenarioOptions}
-                        value={selectedScenarioId}
-                        onChange={setSelectedScenarioId}
-                        loading={scenariosLoading}
-                        style={{ width: '100%' }}
-                      />
-                    </div>
-                  </Tooltip>
-                  <Tooltip title="Refresh scenarios">
-                    <Button
-                      type="text"
-                      icon={<ReloadOutlined />}
-                      loading={scenariosLoading}
-                      onClick={() => loadScenarios()}
-                      aria-label="Refresh scenarios"
-                    />
-                  </Tooltip>
-                </div>
+                <Tooltip
+                  title={
+                    scenarioOptions.find((o) => o.value === selectedScenarioId)?.label ??
+                    undefined
+                  }
+                >
+                  <Select
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="Search scenarios"
+                    options={scenarioOptions}
+                    value={selectedScenarioId}
+                    onChange={setSelectedScenarioId}
+                    loading={scenariosLoading}
+                    style={{ width: '100%', marginTop: 4 }}
+                  />
+                </Tooltip>
               </div>
             ) : (
               <div>
@@ -824,29 +820,16 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
             )}
             <div>
               <Text style={{ color: '#aaa', fontSize: 12 }}>Git branch</Text>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, minWidth: 0 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <Select
-                    showSearch
-                    placeholder={hasRepo ? 'Select branch' : 'No repo connected'}
-                    options={branchOptions}
-                    value={selectedBranchId}
-                    onChange={(v) => setSelectedBranchId(v)}
-                    disabled={!hasRepo || branchesLoading}
-                    loading={branchesLoading}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                <Tooltip title="Refresh branches">
-                  <Button
-                    type="text"
-                    icon={<ReloadOutlined />}
-                    loading={branchesLoading}
-                    onClick={() => loadBranches({ preserveSelection: true })}
-                    aria-label="Refresh branches"
-                  />
-                </Tooltip>
-              </div>
+              <Select
+                showSearch
+                placeholder={hasRepo ? 'Select branch' : 'No repo connected'}
+                options={branchOptions}
+                value={selectedBranchId}
+                onChange={(v) => setSelectedBranchId(v)}
+                disabled={!hasRepo || branchesLoading}
+                loading={branchesLoading}
+                style={{ width: '100%', marginTop: 4 }}
+              />
             </div>
             {(assignedTestRuns.length > 0 || otherTestRuns.length > 0) && (
               <div>
