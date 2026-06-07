@@ -208,7 +208,7 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
       setAssignedTestRuns((res.assignedToMe ?? []).map(toOption).filter((o) => o.id));
       setOtherTestRuns((res.other ?? []).map(toOption).filter((o) => o.id));
     } catch (e) {
-      console.error('[ManualTest] failed to load named test runs', e);
+      console.error('[ManualTest] failed to load test runs', e);
       setAssignedTestRuns([]);
       setOtherTestRuns([]);
     } finally {
@@ -833,7 +833,7 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
             </div>
             {(assignedTestRuns.length > 0 || otherTestRuns.length > 0) && (
               <div>
-                <Text style={{ color: '#aaa', fontSize: 12 }}>Named test runs (optional)</Text>
+                <Text style={{ color: '#aaa', fontSize: 12 }}>Test Run (optional)</Text>
                 <Select
                   mode="multiple"
                   allowClear

@@ -544,7 +544,7 @@ export async function listNamedTestRunsForPicker(): Promise<ListNamedTestRunsFor
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || 'Failed to list named test runs');
+    throw new Error(text || 'Failed to list test runs');
   }
   return await res.json();
 }
