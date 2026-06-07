@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Select, Typography, Popover, message, Collapse, Spin, Tooltip, Tabs, Segmented, Input, Alert } from 'antd';
+import { Button, Select, Typography, Popover, message, Collapse, Spin, Tooltip, Tabs, Segmented, Input, Alert, AutoComplete, Tag } from 'antd';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -20,6 +20,7 @@ import { UI_BASE_URL } from './config';
 import {
   MANUAL_STORAGE_KEYS,
   ManualCaptureSessionMeta,
+  ManualCaptureScenarioRef,
   ManualCaptureMode,
   ManualCapturedStep,
   appendPastRecording,
@@ -78,7 +79,8 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   const [captureMode, setCaptureMode] = useState<ManualCaptureMode>('scenario');
   const [objective, setObjective] = useState('');
   const [scenarios, setScenarios] = useState<AgentTestScenarioWithStatus[]>([]);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string | undefined>();
+  const [selectedScenarios, setSelectedScenarios] = useState<ManualCaptureScenarioRef[]>([]);
+  const [scenarioSearch, setScenarioSearch] = useState('');
   const [branches, setBranches] = useState<GithubBranchItem[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<number | undefined>();
   const [branchesLoading, setBranchesLoading] = useState(false);
@@ -102,7 +104,7 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   const [selectedScreen, setSelectedScreen] = useState<string | undefined>();
   const [selectedState, setSelectedState] = useState<string | undefined>();
   const [screenStatesLoading, setScreenStatesLoading] = useState(false);
-  const [selectedNamedTestRunIds, setSelectedNamedTestRunIds] = useState<string[]>([]);
+  const [selectedNamedTestRunId, setSelectedNamedTestRunId] = useState<string | undefined>();
   const [assignedTestRuns, setAssignedTestRuns] = useState<{ id: string; title: string }[]>([]);
   const [otherTestRuns, setOtherTestRuns] = useState<{ id: string; title: string }[]>([]);
   const [testRunsLoading, setTestRunsLoading] = useState(false);
@@ -120,7 +122,7 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   const canAddNote = noteTextTrimmed.length > 0 && !addingNote && !submitting && !addingBug;
   const canStartCapture =
     captureMode === 'scenario'
-      ? !!selectedScenarioId && !submitting
+      ? selectedScenarios.length > 0 && !submitting
       : objectiveTrimmed.length > 0 && !submitting;
 
   const loadScreenStates = useCallback(async () => {
@@ -192,7 +194,9 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
 
   const openCreateForm = () => {
     setShowForm(true);
-    setSelectedNamedTestRunIds([]);
+    setSelectedNamedTestRunId(undefined);
+    setSelectedScenarios([]);
+    setScenarioSearch('');
     loadScenarios();
     loadNamedTestRuns();
   };
@@ -247,8 +251,15 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
             setObjective(meta.objective || '');
           } else {
             setCaptureMode('scenario');
-            if (meta?.scenarioId) {
-              setSelectedScenarioId(meta.scenarioId);
+            if (meta?.scenarios && meta.scenarios.length > 0) {
+              setSelectedScenarios(meta.scenarios);
+            } else if (meta?.scenarioId) {
+              setSelectedScenarios([
+                {
+                  id: meta.scenarioId,
+                  title: meta.scenarioTitle || meta.scenarioId,
+                },
+              ]);
             }
           }
           refreshCapturedSteps();
@@ -306,6 +317,36 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
     [scenarios]
   );
 
+  const availableScenarioOptions = useMemo(
+    () =>
+      scenarioOptions.filter(
+        (opt) => !selectedScenarios.some((selected) => selected.id === opt.value)
+      ),
+    [scenarioOptions, selectedScenarios]
+  );
+
+  const addScenarioById = (scenarioId: string) => {
+    const scenario = scenarios.find((s) => s.id === scenarioId);
+    if (!scenario?.id) return;
+    if (selectedScenarios.some((s) => s.id === scenario.id)) return;
+    setSelectedScenarios((prev) => [
+      ...prev,
+      { id: scenario.id!, title: scenarioLabel(scenario) },
+    ]);
+    setScenarioSearch('');
+  };
+
+  const removeScenario = (scenarioId: string) => {
+    setSelectedScenarios((prev) => prev.filter((s) => s.id !== scenarioId));
+  };
+
+  const formatRecordingTitle = (refs: ManualCaptureScenarioRef[]): string => {
+    if (refs.length === 0) return 'Manual test';
+    const first = refs[0].title;
+    if (refs.length === 1) return `Manual: ${first}`;
+    return `Manual: ${first} + ${refs.length - 1} others`;
+  };
+
   const branchOptions = useMemo(
     () =>
       branches.map((b) => ({
@@ -318,8 +359,8 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
   const hasRepo = branches.length > 0;
 
   const startCapture = async () => {
-    if (captureMode === 'scenario' && !selectedScenarioId) {
-      message.error('Select a test scenario');
+    if (captureMode === 'scenario' && selectedScenarios.length === 0) {
+      message.error('Select at least one test scenario');
       return;
     }
     if (captureMode === 'open_ended' && !objectiveTrimmed) {
@@ -327,7 +368,6 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
       return;
     }
 
-    const scenario = scenarios.find((s) => s.id === selectedScenarioId);
     const meta: ManualCaptureSessionMeta = {
       mode: captureMode,
       branchId: selectedBranchId,
@@ -335,8 +375,10 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
       release: selectedRelease,
       ...(captureMode === 'scenario'
         ? {
-            scenarioId: selectedScenarioId,
-            scenarioTitle: scenario ? scenarioLabel(scenario) : undefined,
+            scenarioIds: selectedScenarios.map((s) => s.id),
+            scenarios: selectedScenarios,
+            scenarioId: selectedScenarios[0]?.id,
+            scenarioTitle: selectedScenarios[0]?.title,
           }
         : { objective: objectiveTrimmed }),
     };
@@ -560,25 +602,38 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
         meta?.objective ||
         (isOpenEnded ? objectiveTrimmed : undefined);
 
+      const scenarioIdsForInsert =
+        meta?.scenarioIds ||
+        meta?.scenarios?.map((s) => s.id) ||
+        selectedScenarios.map((s) => s.id);
       const insertResp = await insertManualTestRecord({
         ...(isOpenEnded
           ? { executionTitle: meta?.objective || objectiveTrimmed }
-          : { testScenarioId: meta?.scenarioId || selectedScenarioId! }),
+          : { testScenarioIds: scenarioIdsForInsert }),
         branchId: meta?.branchId ?? selectedBranchId,
         environment: meta?.environment || selectedEnvironment,
         release: meta?.release || selectedRelease,
         platform: 'WEB_EXECUTION_PLATFORM',
         result: passed ? 'SMART_TEST_EXECUTION_COMPLETED' : 'SMART_TEST_EXECUTION_FAILED',
         steps: insertSteps,
-        ...(selectedNamedTestRunIds.length > 0 ? { namedTestRunIds: selectedNamedTestRunIds } : {}),
+        ...(selectedNamedTestRunId ? { namedTestRunIds: [selectedNamedTestRunId] } : {}),
       });
 
       if (insertResp.id) {
         const link = `${UI_BASE_URL}/smart-test-execution?job_id=${encodeURIComponent(insertResp.id)}&test_type=manual`;
         setSuccessLink(link);
+        const pastTitle = isOpenEnded
+          ? recordingTitle
+          : formatRecordingTitle(
+              meta?.scenarios ||
+                selectedScenarios ||
+                (meta?.scenarioId
+                  ? [{ id: meta.scenarioId, title: meta.scenarioTitle || meta.scenarioId }]
+                  : [])
+            );
         await appendPastRecording({
           id: insertResp.id,
-          scenarioTitle: recordingTitle,
+          scenarioTitle: pastTitle,
           createdAt: Date.now(),
         });
         const past = await getPastRecordings();
@@ -788,24 +843,47 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
             </div>
             {captureMode === 'scenario' ? (
               <div>
-                <Text style={{ color: '#aaa', fontSize: 12 }}>Test scenario</Text>
-                <Tooltip
-                  title={
-                    scenarioOptions.find((o) => o.value === selectedScenarioId)?.label ??
-                    undefined
+                <Text style={{ color: '#aaa', fontSize: 12 }}>Test scenarios</Text>
+                <AutoComplete
+                  value={scenarioSearch}
+                  options={availableScenarioOptions}
+                  onSearch={setScenarioSearch}
+                  onSelect={(value) => addScenarioById(String(value))}
+                  placeholder="Search and add scenarios"
+                  style={{ width: '100%', marginTop: 4 }}
+                  disabled={scenariosLoading}
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
                   }
-                >
-                  <Select
-                    showSearch
-                    optionFilterProp="label"
-                    placeholder="Search scenarios"
-                    options={scenarioOptions}
-                    value={selectedScenarioId}
-                    onChange={setSelectedScenarioId}
-                    loading={scenariosLoading}
-                    style={{ width: '100%', marginTop: 4 }}
-                  />
-                </Tooltip>
+                />
+                {selectedScenarios.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      marginTop: 8,
+                    }}
+                  >
+                    {selectedScenarios.map((scenario) => (
+                      <Tooltip key={scenario.id} title={scenario.title}>
+                        <Tag
+                          closable
+                          onClose={() => removeScenario(scenario.id)}
+                          style={{
+                            margin: 0,
+                            width: '100%',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {scenario.title}
+                        </Tag>
+                      </Tooltip>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div>
@@ -835,11 +913,10 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
               <div>
                 <Text style={{ color: '#aaa', fontSize: 12 }}>Test Run (optional)</Text>
                 <Select
-                  mode="multiple"
                   allowClear
-                  placeholder="Link to test runs"
-                  value={selectedNamedTestRunIds}
-                  onChange={setSelectedNamedTestRunIds}
+                  placeholder="Link to a test run"
+                  value={selectedNamedTestRunId}
+                  onChange={setSelectedNamedTestRunId}
                   loading={testRunsLoading}
                   style={{ width: '100%', marginTop: 4 }}
                   optionFilterProp="label"

@@ -12,10 +12,17 @@ export const MANUAL_STORAGE_KEYS = {
 
 export type ManualCaptureMode = 'scenario' | 'open_ended';
 
+export interface ManualCaptureScenarioRef {
+  id: string;
+  title: string;
+}
+
 export interface ManualCaptureSessionMeta {
   mode: ManualCaptureMode;
   scenarioId?: string;
   scenarioTitle?: string;
+  scenarioIds?: string[];
+  scenarios?: ManualCaptureScenarioRef[];
   objective?: string;
   branchId?: number;
   environment?: string;

@@ -465,6 +465,7 @@ export interface ManualTestStepPayload {
 
 export interface InsertManualTestRecordRequest {
   testScenarioId?: string;
+  testScenarioIds?: string[];
   executionTitle?: string;
   branchId?: number;
   environment?: string;
@@ -500,6 +501,9 @@ export async function insertManualTestRecord(req: InsertManualTestRecordRequest)
     },
     body: JSON.stringify({
       ...(req.testScenarioId ? { testScenarioId: req.testScenarioId } : {}),
+      ...(req.testScenarioIds && req.testScenarioIds.length > 0
+        ? { testScenarioIds: req.testScenarioIds }
+        : {}),
       ...(req.executionTitle ? { executionTitle: req.executionTitle } : {}),
       branchId: req.branchId,
       environment: req.environment,
