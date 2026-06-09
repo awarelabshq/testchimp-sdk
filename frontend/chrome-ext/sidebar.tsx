@@ -4,14 +4,11 @@ import {
     Select,
     Input,
     Tooltip,
-    Tabs,
 } from 'antd';
-import { LogoutOutlined, WarningOutlined, EditOutlined, ReloadOutlined, SettingOutlined, CodeOutlined, AuditOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { LogoutOutlined, WarningOutlined, EditOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { ReleaseSelect } from './components/ReleaseSelect';
 import { EnvironmentSelect } from './components/EnvironmentSelect';
-import { RecordTestTab } from './RecordTestTab';
 import { ManualTestTab } from './ManualTestTab';
-import { ScenariosTab } from './scenarios/ScenariosTab';
 import { BASE_URL, UI_BASE_URL } from './config';
 
 export interface ListUserProjectConfigsResponse {
@@ -23,9 +20,6 @@ export interface ExtProjectConfig {
     projectId?: string;
 }
 
-// Toggle to show/hide the Scenarios tab
-const SHOW_SCENARIOS_TAB = false;
-
 export const SidebarApp = () => {
     const [userAuthKey, setUserAuthKey] = useState<string | undefined>();
     const [projects, setProjects] = useState<ExtProjectConfig[]>([]);
@@ -35,10 +29,7 @@ export const SidebarApp = () => {
     const [interceptInput, setInterceptInput] = useState(selectedProject?.urlRegexToCapture || '');
     const [isUpdatingConfig, setUpdatingConfig] = useState<boolean>(false);
     const [urlRegexToCapture, setUrlRegexToCapture] = useState<string | undefined>(undefined);
-    const [activeTabKey, setActiveTabKey] = useState('manual');
-    const [tabRefreshKey, setTabRefreshKey] = useState(0);
     const [manualTabRefreshKey, setManualTabRefreshKey] = useState(0);
-    const [isMindMapBuilding, setIsMindMapBuilding] = useState(false);
     const [selectedEnvironment, setSelectedEnvironment] = useState<string>('QA');
     const [selectedRelease, setSelectedRelease] = useState<string | undefined>(undefined);
     const logoRef = useRef<HTMLImageElement>(null);
@@ -49,12 +40,6 @@ export const SidebarApp = () => {
         chrome.storage.local.set({ selectedEnvironment, selectedRelease });
     }, [selectedEnvironment, selectedRelease]);
 
-    // If a hidden tab is active, switch to a visible tab
-    useEffect(() => {
-        if (!SHOW_SCENARIOS_TAB && activeTabKey === 'scenarios') {
-            setActiveTabKey('manual');
-        }
-    }, [activeTabKey]);
     // --- Project selection and settings row ---
     const [showInterceptSettings, setShowInterceptSettings] = useState<boolean>(false);
     useEffect(() => {
@@ -83,16 +68,6 @@ export const SidebarApp = () => {
 
         chrome.storage.onChanged.addListener(handleStorageChange);
         return () => chrome.storage.onChanged.removeListener(handleStorageChange);
-    }, []);
-
-    useEffect(() => {
-        chrome.storage.local.get(['stepCaptureInProgress', 'manualCaptureInProgress'], (localItems) => {
-            if (localItems.manualCaptureInProgress) {
-                setActiveTabKey('manual');
-            } else if (localItems.stepCaptureInProgress) {
-                setActiveTabKey('record');
-            }
-        });
     }, []);
 
     const fetchProjects = async (): Promise<void> => {
@@ -230,75 +205,6 @@ export const SidebarApp = () => {
             }
         });
     }
-
-    // Listen for window URL changes and refresh scenarios tab if active
-    useEffect(() => {
-        let lastUrl = window.location.href;
-        const checkUrl = (forcedUrl?: string) => {
-            const currentUrl = forcedUrl || window.location.href;
-            console.log('[Sidebar] checkUrl called. lastUrl:', lastUrl, 'currentUrl:', currentUrl);
-            if (currentUrl !== lastUrl) {
-                console.log('[Sidebar] URL changed! lastUrl:', lastUrl, '-> currentUrl:', currentUrl);
-                lastUrl = currentUrl;
-                if (activeTabKey === 'scenarios') {
-                    if (isMindMapBuilding) {
-                        console.log('[Sidebar] URL changed but MindMap building is in progress. Skipping tab refresh. activeTabKey:', activeTabKey);
-                    } else {
-                        console.log('[Sidebar] Refreshing tab due to URL change. activeTabKey:', activeTabKey);
-                        setTabRefreshKey(k => k + 1);
-                    }
-                } else {
-                    console.log('[Sidebar] URL changed but not on scenarios tab. No refresh. activeTabKey:', activeTabKey);
-                }
-            } else {
-                console.log('[Sidebar] checkUrl: URL did not change.');
-            }
-        };
-        const onPopState = () => {
-            console.log('[Sidebar] popstate event detected');
-            checkUrl();
-        };
-        const onHashChange = () => {
-            console.log('[Sidebar] hashchange event detected');
-            checkUrl();
-        };
-        window.addEventListener('popstate', onPopState);
-        window.addEventListener('hashchange', onHashChange);
-        // Listen for SPA navigation CustomEvent from injectSidebar
-        const host = document.getElementById('testchimp-sidebar');
-        const onSpaUrlChanged = (event: Event) => {
-            const customEvent = event as CustomEvent;
-            if (customEvent.detail && customEvent.detail.type === 'tc-spa-url-changed') {
-                console.log('[Sidebar] Received tc-spa-url-changed CustomEvent:', customEvent.detail);
-                checkUrl(customEvent.detail.href);
-            }
-        };
-        if (host) {
-            host.addEventListener('tc-spa-url-changed', onSpaUrlChanged);
-        } else {
-            console.warn('[Sidebar] Sidebar host element not found for tc-spa-url-changed event');
-        }
-        // Monkey-patch pushState/replaceState
-        const origPushState = window.history.pushState;
-        const origReplaceState = window.history.replaceState;
-        window.history.pushState = function (...args) {
-            console.log('[Sidebar] pushState called', args);
-            origPushState.apply(window.history, args);
-            checkUrl();
-        };
-        window.history.replaceState = function (...args) {
-            console.log('[Sidebar] replaceState called', args);
-            origReplaceState.apply(window.history, args);
-            checkUrl();
-        };
-        return () => {
-            window.removeEventListener('popstate', onPopState);
-            window.removeEventListener('hashchange', onHashChange);
-            if (host) host.removeEventListener('tc-spa-url-changed', onSpaUrlChanged);
-            window.history.pushState = origPushState;
-            window.history.replaceState = origReplaceState;
-        };
-    }, [activeTabKey]);
 
     return (
         <div className="tc-sidebar" data-testid="tc-ext-sidebar" style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: 8 }}>
@@ -480,58 +386,12 @@ export const SidebarApp = () => {
                                 </div>
                             </div>
                         )}
-                        {/* Tabs for Manual, Script Gen, and optionally Scenarios */}
-                        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                            <Tabs
-                                activeKey={activeTabKey}
-                                onChange={setActiveTabKey}
-                                style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', height: '100%' }}
-                                tabBarStyle={{ marginBottom: 0, paddingLeft: 8, paddingRight: 8 }}
-                                tabPosition="top"
-                            >
-                                <style>{`
-                                    .ant-tabs-nav-list {
-                                        display: flex !important;
-                                        width: 100% !important;
-                                    }
-                                    .ant-tabs-tab {
-                                        flex: 1 !important;
-                                        text-align: center !important;
-                                        justify-content: center !important;
-                                        border: 1px solid #333 !important;
-                                        border-bottom: none !important;
-                                        background: #1a1a1a !important;
-                                        margin-right: 4px !important;
-                                        border-radius: 6px 6px 0 0 !important;
-                                    }
-                                    .ant-tabs-tab:last-child {
-                                        margin-right: 0 !important;
-                                    }
-                                    .ant-tabs-tab-active {
-                                        background: #181818 !important;
-                                        border-bottom: 1px solid #181818 !important;
-                                    }
-                                    .ant-tabs-content-holder {
-                                        border-top: 1px solid #333 !important;
-                                        margin-top: -1px !important;
-                                    }
-                                `}</style>
-                                <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><AuditOutlined style={{ marginRight: 6 }} />Manual</span>} key="manual" style={{ height: '100%' }}>
-                                    <ManualTestTab
-                                        selectedEnvironment={selectedEnvironment}
-                                        selectedRelease={selectedRelease}
-                                        refreshSignal={manualTabRefreshKey}
-                                    />
-                                </Tabs.TabPane>
-                                <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><CodeOutlined style={{ marginRight: 6 }} />Script Gen</span>} key="record" style={{ height: '100%' }}>
-                                    <RecordTestTab />
-                                </Tabs.TabPane>
-                                {SHOW_SCENARIOS_TAB && (
-                                    <Tabs.TabPane tab={<span style={{ fontSize: 14 }}><ExperimentOutlined style={{ marginRight: 6 }} />Scenarios</span>} key="scenarios" style={{ height: '100%' }}>
-                                        <ScenariosTab key={activeTabKey === 'scenarios' ? tabRefreshKey : undefined} setIsMindMapBuilding={setIsMindMapBuilding} />
-                                    </Tabs.TabPane>
-                                )}
-                            </Tabs>
+                        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderTop: '1px solid #333' }}>
+                            <ManualTestTab
+                                selectedEnvironment={selectedEnvironment}
+                                selectedRelease={selectedRelease}
+                                refreshSignal={manualTabRefreshKey}
+                            />
                         </div>
                     </div>
                 )}

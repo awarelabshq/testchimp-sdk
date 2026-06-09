@@ -47,6 +47,8 @@ import type { CapturedStep } from './playwrightCodegen';
 
 const { Text, Title } = Typography;
 
+const PENDING_SCENARIO_TTL_MS = 3 * 60 * 1000;
+
 const sectionStyle: React.CSSProperties = {
   border: '1px solid #333',
   borderRadius: 8,
@@ -148,7 +150,7 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
     }
   }, []);
 
-  const loadScenarios = useCallback(async () => {
+  const loadScenarios = useCallback(async (): Promise<AgentTestScenarioWithStatus[]> => {
     setScenariosLoading(true);
     try {
       const res = await listAgentTestScenarios({ priorities: [], screenStates: [], title: undefined });
@@ -158,8 +160,10 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
           scenarioLabel(a).localeCompare(scenarioLabel(b), undefined, { sensitivity: 'base' })
         );
       setScenarios(sorted);
+      return sorted;
     } catch {
       setScenarios([]);
+      return [];
     } finally {
       setScenariosLoading(false);
     }
@@ -192,15 +196,6 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
     }
   }, []);
 
-  const openCreateForm = () => {
-    setShowForm(true);
-    setSelectedNamedTestRunId(undefined);
-    setSelectedScenarios([]);
-    setScenarioSearch('');
-    loadScenarios();
-    loadNamedTestRuns();
-  };
-
   const loadNamedTestRuns = useCallback(async () => {
     setTestRunsLoading(true);
     try {
@@ -219,6 +214,53 @@ export const ManualTestTab: React.FC<ManualTestTabProps> = ({
       setTestRunsLoading(false);
     }
   }, []);
+
+  const applyPendingScenarioIfValid = useCallback(
+    async (scenarioList: AgentTestScenarioWithStatus[]): Promise<boolean> => {
+      return new Promise((resolve) => {
+        chrome.storage.local.get(
+          ['pendingScenarioId', 'pendingScenarioIdReceivedAt'],
+          (items: { pendingScenarioId?: string; pendingScenarioIdReceivedAt?: number }) => {
+            const pendingId = items.pendingScenarioId;
+            const receivedAt = items.pendingScenarioIdReceivedAt;
+            if (
+              !pendingId ||
+              typeof receivedAt !== 'number' ||
+              Date.now() - receivedAt >= PENDING_SCENARIO_TTL_MS
+            ) {
+              resolve(false);
+              return;
+            }
+            const id = String(pendingId);
+            const scenario = scenarioList.find((s) => s.id === id);
+            const title = scenario ? scenarioLabel(scenario) : id;
+            setSelectedScenarios([{ id, title }]);
+            setCaptureMode('scenario');
+            chrome.storage.local.remove(
+              ['pendingScenarioId', 'pendingScenarioIdReceivedAt'],
+              () => {
+                console.log('[ManualTest] Applied pending scenario from test planning:', id);
+                resolve(true);
+              }
+            );
+          }
+        );
+      });
+    },
+    []
+  );
+
+  const openCreateForm = useCallback(async () => {
+    setShowForm(true);
+    setSelectedNamedTestRunId(undefined);
+    setScenarioSearch('');
+    setCaptureMode('scenario');
+    setSelectedScenarios([]);
+
+    const loaded = await loadScenarios();
+    await applyPendingScenarioIfValid(loaded);
+    loadNamedTestRuns();
+  }, [loadScenarios, applyPendingScenarioIfValid, loadNamedTestRuns]);
 
   const refreshCapturedSteps = useCallback(() => {
     getManualCapturedSteps().then(setCapturedSteps);

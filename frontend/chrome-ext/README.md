@@ -1,14 +1,10 @@
 # TestChimp Chrome Extension
 
-Browser companion for **SmartTest script generation** and **manual test session capture** with **scenario traceability**.
+Browser companion for **manual test session capture** with **scenario traceability**.
 
 ## What it does
 
-The extension exposes two tabs in the sidebar:
-
-### Manual
-
-Record a manual test session while exercising your app:
+The sidebar provides manual test session capture while you exercise your app:
 
 - Link the session to a **test-planning scenario** (required)
 - Optionally set **git branch**, **environment**, and **release**
@@ -16,21 +12,27 @@ Record a manual test session while exercising your app:
 - End with **Mark as passed** or **Mark as failed**
 - Upload screenshots and create a manual test execution record in TestChimp
 
-### Script Gen
+### Test Planning handoff
 
-Capture interactions and generate **Playwright SmartTests**:
+When you choose **Record manual test steps** from a scenario in Test Planning, the web app sends the scenario and project to the extension via `chrome.storage.local` (3-minute TTL):
 
-- Start/end step capture with assertion modes (visible, text, value, enabled/disabled, count)
-- Cycle through multiple selector options per step
-- Create SmartTests in your project; optional linkage to a scenario when started from Test Planning
+| Key | Purpose |
+|-----|---------|
+| `pendingScenarioId` / `pendingScenarioIdReceivedAt` | Scenario to pre-select when creating a manual record |
+| `pendingProjectId` / `pendingProjectIdReceivedAt` | Project to auto-select in the sidebar |
+
+On the webapp, open the extension and click **Create Manual Test Record**. The project picker and scenario tag are pre-filled when the pending data is still valid.
 
 ## What it does not include (current build)
 
 The following are disabled in the sidebar and not part of the current product surface:
 
+- Script Gen tab (Playwright SmartTest generation from the extension UI)
 - Bugs tab (reporting, Find Bugs, Fix in IDE)
 - Scenarios tab (brainstorming, in-extension scenario authoring)
 - Visual vibe coding / IDE bridge from the extension
+
+Step capture infrastructure (`stepCaptureHandler.ts`, `background.js`) remains in the codebase for manual session recording.
 
 ## Install
 
@@ -43,4 +45,4 @@ The following are disabled in the sidebar and not part of the current product su
 
 ## Development
 
-See `package.json` and `webpack.config-ext.js` for build targets. Main UI entry: `sidebar.tsx` (`ManualTestTab`, `RecordTestTab`).
+See `package.json` and `webpack.config-ext.js` for build targets. Main UI entry: `sidebar.tsx` (`ManualTestTab`).
